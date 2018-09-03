@@ -2,72 +2,28 @@
 
 Speech features extraction package of the **shennong toolbox**.
 
-## Models to implement in Shennong
+## Installation
 
-* Features
-  * MFCC
-  * Filterbanks
-  * PLP
-  * BUT Bottleneck features
-  * 1 hot
+* First create a `shennong` Python virtual environment with conda:
 
-* Pre/post processing
-  * delta and delta2
-  * pitch
-  * energy
-  * VAD
-  * MVN
-  * VTLN
+        conda create --name shennong python=3.5
+        conda activate shennong
 
-## Ideas for shennong-features implementation
+* Install some dependencies:
 
-* all possible from Kaldi, using PyKaldi
-  * MFCC, filterbanks, PLP
-  * deltas, pitch, energy, MVN, VTLN
+        conda install numpy pytest pytest-runner h5py
+        pip install h5features
 
-* adapt from BUT for bottleneck features and VAD
+* Install `pykaldi` following the instructions
+  [here](https://github.com/pykaldi/pykaldi#installation). Do **not**
+  create a new virtual environment but install it in the `shennong`
+  environment instead.
 
-## Existing features extraction packages
+* Then install the `shennong-features` package:
 
-### features_extraction
+        python setup.py install
 
-* https://github.com/bootphon/features_extraction
+* Tests the installation is working (this executes all the unit tests
+  stored in the `test/` folder):
 
-* A wrapper on other packages (spectral and Matlab toolboxes)
-
-* Implemented models
-    * Implements **MFCC**, **Mel filterbanks**, **RASTA**, **lyon** and **drnl**
-    * Depends on *spectral* for mel and MFCC
-    * Depends on matlab/octave for RASTA, lyon and drnl
-
-
-### spectral
-
-* https://github.com/bootphon/spectral
-
-* Implement **MFCC** and **Mel filterbanks** (Python implementation)
-* With **delta** and **delta-delta**
-
-
-### Kaldi
-
-* https://github.com/kaldi-asr/kaldi
-
-* Implement **MFCC**, **Mel filterbanks** and **PLP** (C++ implementation)
-* With **delta**, **CMVN** and **pitch**.
-
-
-### BUT/Phonexia Bottleneck feature extractor
-
-* http://speech.fit.vutbr.cz/software/but-phonexia-bottleneck-feature-extractor
-
-* bottleneck, stacked bottleneck features and phoneme/senones posteriors
-* also includes a **VAD**
-
-
-### HTK
-
-* http://htk.eng.cam.ac.uk/
-
-* Custom licence incompatible with GPL3, so we cannot use HTK in Shennong.
-* Implement roughly the same features as Kaldi does.
+        python setup.py test

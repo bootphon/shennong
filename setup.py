@@ -10,7 +10,11 @@ VERSION = open('VERSION', 'r').read().strip()
 
 setup(
     name='shennong-features',
+    description='Speech features extraction package of the shennong toolbox',
     version=VERSION,
-    packages=find_packages,
+    packages=find_packages(),
     zip_safe=True,
+    setup_requires=['pytest-runner'],
+    tests_require=['pytest'],
+    test_suite='test'
 )
