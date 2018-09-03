@@ -22,7 +22,7 @@ def test_read_notwav():
 
 def test_check_notwav():
     with pytest.raises(ValueError):
-        wav.check(__file__)
+        wav.check_format(__file__)
 
 
 @pytest.mark.parametrize(
@@ -30,7 +30,7 @@ def test_check_notwav():
     [(0, 0, 0), (16000, 8, 1), (16000, 16, 2)])
 def test_check_bad(framerate, bitrate, nchannels):
     with pytest.raises(ValueError):
-        wav.check(
+        wav.check_format(
             wav_file,
             framerate=framerate,
             bitrate=bitrate,
@@ -38,8 +38,8 @@ def test_check_bad(framerate, bitrate, nchannels):
 
 
 def test_check_good_default():
-    assert wav.check(wav_file) is True
+    assert wav.check_format(wav_file) is True
 
 
 def test_check_good():
-    assert wav.check(wav_file, framerate=16000, bitrate=16, nchannels=1)
+    assert wav.check_format(wav_file, framerate=16000, bitrate=16, nchannels=1)

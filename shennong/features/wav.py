@@ -5,7 +5,7 @@ import scipy.io.wavfile
 import wave
 
 
-def read(wav_file, safe=True):
+def read(wav_file, safe=False):
     """Load a WAV file as a numpy array
 
     Parameters
@@ -13,8 +13,8 @@ def read(wav_file, safe=True):
     wav_file : str
         Filename of the WAV to load, must be an existing file
     safe : bool, optional
-        When True (default), ensures the WAV file is mono, sampled at
-        16kHz and at a 16 bits resolution. When False this is not
+        When True, ensures the WAV file is mono, sampled at 16kHz and
+        at a 16 bits resolution. When False (default) this is not
         checked.
 
     Returns
@@ -30,12 +30,16 @@ def read(wav_file, safe=True):
         If the `wav_file` is not a valid WAV file or, when `safe` is
         True, if the file is not a 16kHz, 16 bits mono file.
 
+    See Also
+    --------
+    scipy.io.wavfile.read
+
     """
     if not os.path.isfile(wav_file):
         raise ValueError('file not found: {}'.format(wav_file))
 
     if safe is True:
-        check(wav_file, framerate=16000, bitrate=16, nchannels=1)
+        check_format(wav_file, framerate=16000, bitrate=16, nchannels=1)
 
     try:
         return scipy.io.wavfile.read(wav_file)
@@ -43,8 +47,10 @@ def read(wav_file, safe=True):
         raise ValueError('{}: cannot read file, is it a wav?'.format(wav_file))
 
 
-def check(wav_file, framerate=16000, bitrate=16, nchannels=1):
+def check_format(wav_file, framerate=16000, bitrate=16, nchannels=1):
     """Return True if the `wav_file` has the requested format
+
+    If the format of the `wav_file` is not as expected, raises a ValueError.
 
     Parameters
     ----------
@@ -56,6 +62,10 @@ def check(wav_file, framerate=16000, bitrate=16, nchannels=1):
         The desired bit rate
     nchannels : int, optional
         The desired number of channels (1 for mono, 2 for stereo)
+
+    Returns
+    -------
+    True when the wav format is as expected
 
     Raises
     ------
