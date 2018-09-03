@@ -1,0 +1,17 @@
+before_script:
+  # load the requested modules on oberon
+  - module load python-anaconda
+
+shennong-build:
+  stage: build
+  script:
+    # this virtual environment was built manually on
+    # gitlab-runner@oberon
+    - source activate shennong-ci
+    - python setup.py install
+
+shennong-test:
+  stage: test
+  script:
+    - source activate shennong-ci
+    - pytest -v test
