@@ -11,6 +11,6 @@ VERSION = open('VERSION', 'r').read().strip()
 setup(
     name='shennong-features',
     version=VERSION,
-    packages=find_packages,
+    packages=find_packages(),
     zip_safe=True,
 )
