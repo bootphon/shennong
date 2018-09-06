@@ -12,6 +12,7 @@ A toolbox for unsupervised speech recognition
 
 * Install some dependencies:
 
+        sudo apt install libatlas-base-dev
         conda install numpy pytest pytest-runner h5py scipy cython
         pip install h5features
 
@@ -28,3 +29,12 @@ A toolbox for unsupervised speech recognition
   stored in the `test/` folder):
 
         python setup.py test
+
+# Documentation
+
+To build the documentation under the `doc` folder, please follow those steps.
+
+* Install the required dependencies:
+
+        sudo apt install texlive texlive-latex-extra dvipng
+        conda install sphinx sphinx_rtd_theme numpydoc
