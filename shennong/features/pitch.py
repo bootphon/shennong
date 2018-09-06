@@ -1,15 +1,22 @@
 """Extract pitch from an audio (speech) signal
 
-Uses the Kaldi implementation of pitch extraction.
+This modules provides the classes PitchProcessor and
+PitchPostProcessor which respectively computes the pitch from raw
+speech and turns it into suitable features: it produces pitch and
+probability-of-voicing estimates for use as features in automatic
+speech recognition systems
+
+Uses the Kaldi implementation of pitch extraction and postprocessing.
 
 References
 ----------
 
- "A Pitch Extraction Algorithm Tuned for Automatic Speech
- Recognition", Pegah Ghahremani, Bagher BabaAli, Daniel Povey,
- Korbinian Riedhammer, Jan Trmal and Sanjeev Khudanpur, ICASSP 2014.
+.. [Ghahremani2014] `A Pitch Extraction Algorithm Tuned for Automatic
+     Speech Recognition, Pegah Ghahremani, Bagher BabaAli, Daniel
+     Povey, Korbinian Riedhammer, Jan Trmal and Sanjeev Khudanpur,
+     ICASSP 2014`
 
- http://kaldi-asr.org/doc/pitch-functions_8h.html
+.. [kaldi] http://kaldi-asr.org/doc/pitch-functions_8h.html
 
 """
 
@@ -18,6 +25,13 @@ from kaldi.matrix import SubVector, SubMatrix
 
 
 class PitchProcessor(object):
+    """Extracts the pitch per frame from a speech signal
+
+    The output will have as many rows as there are frames, and two
+    columns corresponding to (NCCF, pitch). NCCF is the Normalized
+    Cross Correlation Function.
+
+    """
     def __init__(self, sample_rate=16000, frame_shift=10.0,
                  frame_length=25.0, min_f0=50, max_f0=400,
                  soft_min_f0=10, penalty_factor=0.1,
@@ -189,20 +203,51 @@ class PitchProcessor(object):
             'lowpass_filter_width': self.lowpass_filter_width,
             'upsample_filter_width': self.upsample_filter_width}
 
+    def get_labels(self):
+        """Name of the matrice's columns given by the `compute` method"""
+        return np.asarray(['NCCF', 'pitch'])
+
     def compute(self, signal):
+        """Extracts the (NCCF, pitch) from a given speech `signal`
+
+        Parameters
+        ----------
+        signal : array, shape = [nsamples]
+          The speech signal on which to estimate the pitch. The
+          signal's sample rate must match the sample rate specified in
+          the `PitchProcessor` options.
+
+        Returns
+        -------
+        raw_pitch : array, shape = [nframes, 2]
+          The output array has as many rows as there are frames
+          (depends on the specified options `frame_shift` and
+          `frame_length`), and two columns corresponding to (NCCF,
+          pitch).
+
+        Raises
+        ------
+        ValueError
+          If the input `signal` is not uni-dimensional.
+
+        """
+        if signal.ndim != 1:
+            raise ValueError(
+                'signal must have one dimension, but it has {}'
+                .format(signal.ndim))
+
         return SubMatrix(pitch.compute_kaldi_pitch(
             self._options, SubVector(signal))).numpy()
 
 
 class PitchPostProcessor(object):
     def __init__(self, pitch_scale=2.0, pov_scale=2.0, pov_offset=0.0,
-                 delta_pitch_scale=10.0,
-                 delta_pitch_noise_stddev=0.005,
+                 delta_pitch_scale=10.0, delta_pitch_noise_stddev=0.005,
                  normalization_left_context=75,
-                 normalization_right_context=75, delta_window=2,
-                 delay=0, add_pov_feature=True,
-                 add_normalized_log_pitch=True, add_delta_pitch=True,
-                 add_raw_log_pitch=False):
+                 normalization_right_context=75,
+                 delta_window=2, delay=0,
+                 add_pov_feature=True, add_normalized_log_pitch=True,
+                 add_delta_pitch=True, add_raw_log_pitch=False):
         self._options = pitch.ProcessPitchOptions()
         self.pitch_scale = pitch_scale
         self.pov_scale = pov_scale
