@@ -1,6 +1,7 @@
-# shennong-features
+# shennong
 
-Speech features extraction package of the **shennong toolbox**.
+A toolbox for unsupervised speech recognition
+
 
 ## Installation
 
@@ -11,7 +12,7 @@ Speech features extraction package of the **shennong toolbox**.
 
 * Install some dependencies:
 
-        conda install numpy pytest pytest-runner h5py
+        conda install numpy pytest pytest-runner h5py scipy cython
         pip install h5features
 
 * Install `pykaldi` following the instructions
