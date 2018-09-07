@@ -7,13 +7,13 @@ A toolbox for unsupervised speech recognition
 
 * First create a `shennong` Python virtual environment with conda:
 
-        conda create --name shennong python=3.5
+        conda create --name shennong python=3.7
         conda activate shennong
 
 * Install some dependencies:
 
         sudo apt install libatlas-base-dev
-        conda install numpy pytest pytest-runner h5py scipy cython
+        conda install numpy pytest pytest-runner h5py scipy cython pyparsing
         pip install h5features
 
 * Install `pykaldi` following the instructions
@@ -21,7 +21,7 @@ A toolbox for unsupervised speech recognition
   create a new virtual environment but install it in the `shennong`
   environment instead.
 
-* Then install the `shennong-features` package:
+* Then install the `shennong` package:
 
         python setup.py install
 

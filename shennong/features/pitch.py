@@ -16,24 +16,29 @@ References
      Povey, Korbinian Riedhammer, Jan Trmal and Sanjeev Khudanpur,
      ICASSP 2014`
 
-.. [kaldi] http://kaldi-asr.org/doc/pitch-functions_8h.html
+.. [kaldi-pitch] http://kaldi-asr.org/doc/pitch-functions_8h.html
 
 """
+
+import numpy as np
 
 from kaldi.feat import pitch
 from kaldi.matrix import SubVector, SubMatrix
 
+from shennong.features.processor import FeaturesProcessor
+from shennong.features.features import Features
 
-class PitchProcessor(object):
-    """Extracts the pitch per frame from a speech signal
+
+class PitchProcessor(FeaturesProcessor):
+    """Extracts the (NCCF, pitch) per frame from a speech signal
 
     The output will have as many rows as there are frames, and two
     columns corresponding to (NCCF, pitch). NCCF is the Normalized
     Cross Correlation Function.
 
     """
-    def __init__(self, sample_rate=16000, frame_shift=10.0,
-                 frame_length=25.0, min_f0=50, max_f0=400,
+    def __init__(self, sample_rate=16000, frame_shift=0.01,
+                 frame_length=0.025, min_f0=50, max_f0=400,
                  soft_min_f0=10, penalty_factor=0.1,
                  lowpass_cutoff=1000, resample_freq=4000,
                  delta_pitch=0.005, nccf_ballast=7000,
@@ -55,7 +60,11 @@ class PitchProcessor(object):
 
     @property
     def sample_rate(self):
-        """Waveform data sample frequency in Hertz"""
+        """Waveform sample frequency in Hertz
+
+        Must match the sample rate of the signal specified in `process`
+
+        """
         return self._options.samp_freq
 
     @sample_rate.setter
@@ -64,21 +73,21 @@ class PitchProcessor(object):
 
     @property
     def frame_shift(self):
-        """Frame shift in milliseconds"""
-        return self._options.frame_shift_ms
+        """Frame shift in seconds"""
+        return self._options.frame_shift_ms / 1000.0
 
     @frame_shift.setter
     def frame_shift(self, value):
-        self._options.frame_shift_ms = value
+        self._options.frame_shift_ms = value * 1000.0
 
     @property
     def frame_length(self):
-        """Frame length in milliseconds"""
-        return self._options.frame_length_ms
+        """Frame length in seconds"""
+        return self._options.frame_length_ms / 1000.0
 
     @frame_length.setter
     def frame_length(self, value):
-        self._options.frame_length_ms = value
+        self._options.frame_length_ms = value * 1000.0
 
     @property
     def min_f0(self):
@@ -186,8 +195,8 @@ class PitchProcessor(object):
     def upsample_filter_width(self, value):
         self._options.upsample_filter_width = value
 
-    def get_state(self):
-        """Returns the values of all the options in a dict"""
+    def parameters(self):
+        """Returns the values of all the parameters in a dict"""
         return {
             'sample_rate': self.sample_rate,
             'frame_shift': self.frame_shift,
@@ -203,11 +212,15 @@ class PitchProcessor(object):
             'lowpass_filter_width': self.lowpass_filter_width,
             'upsample_filter_width': self.upsample_filter_width}
 
-    def get_labels(self):
-        """Name of the matrice's columns given by the `compute` method"""
+    def labels(self):
+        """Returns the name of the columns given by the `process` method"""
         return np.asarray(['NCCF', 'pitch'])
 
-    def compute(self, signal):
+    def times(self, nframes):
+        """Returns the time label for the rows given by the `process` method"""
+        return np.arange(nframes) * self.frame_shift + self.frame_length / 2.0
+
+    def process(self, signal):
         """Extracts the (NCCF, pitch) from a given speech `signal`
 
         Parameters
@@ -219,7 +232,7 @@ class PitchProcessor(object):
 
         Returns
         -------
-        raw_pitch : array, shape = [nframes, 2]
+        raw_pitch_features : Features, shape = [nframes, 2]
           The output array has as many rows as there are frames
           (depends on the specified options `frame_shift` and
           `frame_length`), and two columns corresponding to (NCCF,
@@ -236,11 +249,30 @@ class PitchProcessor(object):
                 'signal must have one dimension, but it has {}'
                 .format(signal.ndim))
 
-        return SubMatrix(pitch.compute_kaldi_pitch(
+        data = SubMatrix(pitch.compute_kaldi_pitch(
             self._options, SubVector(signal))).numpy()
 
+        return Features(
+            data, self.labels(), self.times(data.shape[0]), self.parameters())
 
-class PitchPostProcessor(object):
+
+class PitchPostProcessor(FeaturesProcessor):
+    """Processes the raw (NCCF, pitch) computed by the PitchProcessor
+
+    Turns the raw pitch quantites into usable features. By default it
+    will output three-dimensional features, (POV-feature,
+    mean-subtracted-log-pitch, delta-of-raw-pitch), but this is
+    configurable in the options. The number of rows of "output" will
+    be the number of frames (rows) in "input", i.e. the number of
+    frames. The number of columns will be the number of different
+    types of features requested (by default, 3; 4 is the max). The
+    four parameters `add_pov_feature`, `add_normalized_log_pitch`,
+    `add_delta_pitch`, `add_raw_log_pitch` determine which features we
+    create; by default we create the first three.
+
+    POV stands for Probability of Voicing.
+
+    """
     def __init__(self, pitch_scale=2.0, pov_scale=2.0, pov_offset=0.0,
                  delta_pitch_scale=10.0, delta_pitch_noise_stddev=0.005,
                  normalization_left_context=75,
@@ -397,8 +429,8 @@ class PitchPostProcessor(object):
     def add_raw_log_pitch(self, value):
         self._options.add_raw_log_pitch = value
 
-    def get_state(self):
-        """Returns the values of all the options in a dict"""
+    def parameters(self):
+        """Returns the values of all the parameters in a dict"""
         return {
             'pitch_scale': self.pitch_scale,
             'pov_scale': self.pov_scale,
@@ -414,6 +446,31 @@ class PitchPostProcessor(object):
             'add_delta_pitch': self.add_delta_pitch,
             'add_raw_log_pitch': self.add_raw_log_pitch}
 
-    def compute(self, raw_pitch):
-        return SubMatrix(pitch.process_pitch(
-            self._options, SubMatrix(raw_pitch))).numpy()
+    def labels(self):
+        labels = []
+        if self.add_pov_feature is True:
+            labels.append('pov_feature')
+        if self.add_normalized_log_pitch is True:
+            labels.append('normalized_log_pitch')
+        if self.add_delta_pitch is True:
+            labels.append('delta_pitch')
+        if self.add_raw_log_pitch is True:
+            labels.append('raw_log_pitch')
+        return np.asarray(labels)
+
+    def times(self, nframes):
+        raise ValueError(
+            'times label is not managed by the pitch postprocessor '
+            'but is provided by the input raw pitch to `process`')
+
+    def process(self, raw_pitch):
+        if raw_pitch.data.shape[1] != 2:
+            raise ValueError(
+                'data shape must be (_, 2), but it is (_, {})'
+                .format(raw_pitch.data.shape[1]))
+
+        data = SubMatrix(pitch.process_pitch(
+            self._options, SubMatrix(raw_pitch.data))).numpy()
+
+        return Features(
+            data, self.labels(), raw_pitch.times(), self.parameters())

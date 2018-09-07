@@ -9,8 +9,8 @@ VERSION = open('VERSION', 'r').read().strip()
 
 
 setup(
-    name='shennong-features',
-    description='Speech features extraction package of the shennong toolbox',
+    name='shennong',
+    description='A toolbox for unsupervised speech recognition',
     version=VERSION,
     packages=find_packages(),
     zip_safe=True,
