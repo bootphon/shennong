@@ -8,6 +8,48 @@ speech recognition systems
 
 Uses the Kaldi implementation of pitch extraction and postprocessing.
 
+Examples
+--------
+
+>>> from shennong.features.audio import AudioData
+>>> from shennong.features.pitch import PitchProcessor, PitchPostProcessor
+>>> audio = AudioData.load('./test/data/test.wav')
+
+Initialize a pitch processor with some options. Options can be
+specified at construction, or after:
+
+>>> processor = PitchProcessor(frame_shift=0.01, frame_length=0.025)
+>>> processor.sample_rate = audio.sample_rate
+>>> processor.min_f0 = 20
+>>> processor.max_f0 = 500
+
+Options can also being passed as a dictionnary:
+
+>>> options = {
+...     'sample_rate': audio.sample_rate,
+...     'frame_shift': 0.01, 'frame_length': 0.025,
+...     'min_f0': 20, 'max_f0': 500}
+>>> processor = PitchProcessor(**options)
+
+Compute the pitch with the specified options, the output is an
+instance of `Features`:
+
+>>> pitch = processor.process(audio)
+>>> type(pitch)
+<class 'shennong.features.features.Features'>
+>>> pitch.labels
+array(['NCCF', 'pitch'], dtype='<U5')
+>>> pitch.shape
+(142, 2)
+
+The pitch post-processor works in the same way, input is the pitch,
+output are features usable by speech processing tools:
+
+>>> postprocessor = PitchPostProcessor()  # use default options
+>>> postpitch = postprocessor.process(pitch)
+>>> postpitch.labels
+array(['pov_feature', 'normalized_log_pitch', 'delta_pitch'], dtype='<U20')
+
 References
 ----------
 
