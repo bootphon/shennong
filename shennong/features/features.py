@@ -1,4 +1,4 @@
-"""Provides the Features class that handles features data"""
+"""Provides the `Features` class that handles features data"""
 
 
 class Features(object):
@@ -23,3 +23,19 @@ class Features(object):
         assert self._labels.shape[0] == nlabels
 
         return True
+
+    @property
+    def data(self):
+        return self._data
+
+    @property
+    def times(self):
+        return self._times
+
+    @property
+    def labels(self):
+        return self._labels
+
+    @property
+    def shape(self):
+        return self.data.shape

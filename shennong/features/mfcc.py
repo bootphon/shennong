@@ -1,15 +1,16 @@
-"""Extract MFCC features from an audio (speech) signal"""
+"""Provides the MfccProcessor class to extract MFCC features"""
 
 import numpy as np
 
 from kaldi.feat import mfcc
-from kaldi.matrix import SubVector, SubMatrix
+from kaldi.matrix import SubVector
 
 from shennong.features.features import Features
 from shennong.features.processor import MelFeaturesProcessor
 
 
 class MfccProcessor(MelFeaturesProcessor):
+    """Extract MFCC features from an audio (speech) signal"""
     def __init__(self, sample_rate=16000, frame_shift=0.01,
                  frame_length=0.025, dither=1.0, preemph_coeff=0.97,
                  remove_dc_offset=True, window_type='povey',
@@ -111,15 +112,13 @@ class MfccProcessor(MelFeaturesProcessor):
         """Returns the time label for the rows given by the `process` method"""
         return np.arange(nframes) * self.frame_shift + self.frame_length / 2.0
 
-    def process(self, signal):
+    def process(self, signal, vtln_warp=1.0):
         if signal.ndim != 1:
             raise ValueError(
                 'signal must have one dimension, but it has {}'
                 .format(signal.ndim))
-        processor = mfcc.Mfcc(self._options)
-        vtln_warp = 1.0  # TODO fixme
-        data = processor.compute_features(
-            SubVector(signal), self.sample_rate, vtln_warp)
+
+        data = mfcc.Mfcc(self._options).compute(SubVector(signal), vtln_warp)
 
         return Features(
             data, self.labels(), self.times(data.shape[0]), self.parameters())

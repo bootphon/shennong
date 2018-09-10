@@ -263,3 +263,15 @@ class MelFeaturesProcessor(FeaturesProcessor):
             'high_freq': self.high_freq,
             'vtln_low': self.vtln_low,
             'vtln_high': self.vtln_high}
+
+    @abc.abstractmethod
+    def labels(self):
+        pass
+
+    @abc.abstractmethod
+    def times(self, nframes):
+        pass
+
+    @abc.abstractmethod
+    def process(self, signal):
+        pass

@@ -14,7 +14,6 @@ setup(
     version=VERSION,
     packages=find_packages(),
     zip_safe=True,
-    setup_requires=['pytest-runner'],
-    tests_require=['pytest'],
-    test_suite='test'
+    setup_requires=['pytest-runner', 'numpy', 'scipy'],
+    tests_require=['pytest']
 )

@@ -1,4 +1,4 @@
-"""Provides the `AudioData` class to load and use audio signals
+"""Provides the `AudioData` class that handles audio signals
 
 Examples
 --------
@@ -42,7 +42,7 @@ import numpy as np
 import scipy.io.wavfile
 
 
-class AudioData(object):
+class AudioData:
     """Audio signal with associated sample rate
 
     Attributes
@@ -125,8 +125,7 @@ class AudioData(object):
         """The number of audio channels in the signal"""
         if self.data.ndim == 1:
             return 1
-        else:
-            return self.data.shape[1]
+        return self.data.shape[1]
 
     def channel(self, index):
         """Build a mono signal from a multi-channel one
