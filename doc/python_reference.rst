@@ -13,5 +13,6 @@ Python API reference
 .. toctree::
    :maxdepth: 2
 
-   features.wav
+   features.audio
+   features.mfcc
    features.pitch
