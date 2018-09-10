@@ -14,4 +14,4 @@ shennong-test:
   stage: test
   script:
     - source activate shennong-ci
-    - pytest -v test
+    - pytest
