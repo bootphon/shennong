@@ -225,32 +225,38 @@ class PitchProcessor(FeaturesProcessor):
 
         Parameters
         ----------
-        signal : array, shape = [nsamples]
-          The speech signal on which to estimate the pitch. The
-          signal's sample rate must match the sample rate specified in
-          the `PitchProcessor` options.
+        signal : AudioData
+            The speech signal on which to estimate the pitch. The
+            signal's sample rate must match the sample rate specified
+            in the `PitchProcessor` options.
 
         Returns
         -------
         raw_pitch_features : Features, shape = [nframes, 2]
-          The output array has as many rows as there are frames
-          (depends on the specified options `frame_shift` and
-          `frame_length`), and two columns corresponding to (NCCF,
-          pitch).
+            The output array has as many rows as there are frames
+            (depends on the specified options `frame_shift` and
+            `frame_length`), and two columns corresponding to (NCCF,
+            pitch).
 
         Raises
         ------
         ValueError
-          If the input `signal` is not uni-dimensional.
+            If the input `signal` has more than one channel (i.e. is
+            not mono). If `sample_rate` != `signal.sample_rate`.
 
         """
-        if signal.ndim != 1:
+        if signal.nchannels() != 1:
             raise ValueError(
-                'signal must have one dimension, but it has {}'
-                .format(signal.ndim))
+                'audio signal must have one channel, but it has {}'
+                .format(signal.nchannels()))
+
+        if self.sample_rate != signal.sample_rate:
+            raise ValueError(
+                'processor and signal mismatche in sample rates: '
+                '{} != {}'.format(self.sample_rate, signal.sample_rate))
 
         data = SubMatrix(pitch.compute_kaldi_pitch(
-            self._options, SubVector(signal))).numpy()
+            self._options, SubVector(signal.data))).numpy()
 
         return Features(
             data, self.labels(), self.times(data.shape[0]), self.parameters())
@@ -464,13 +470,32 @@ class PitchPostProcessor(FeaturesProcessor):
             'but is provided by the input raw pitch to `process`')
 
     def process(self, raw_pitch):
-        if raw_pitch.data.shape[1] != 2:
+        """Post process a raw pitch data as specified by the options
+
+        Parameters
+        ----------
+        raw_pitch : Features, shape = [n, 2]
+            The pitch as extracted by the `PitchProcessor.process`
+            method
+
+        Returns
+        -------
+        pitch : Features, shape = [n, 3 or 4]
+            The post-processed pitch usable as speech features
+
+        Raises
+        ------
+        ValueError
+            If `raw_pitch` has not exactly two columns
+
+        """
+        if raw_pitch.shape[1] != 2:
             raise ValueError(
                 'data shape must be (_, 2), but it is (_, {})'
-                .format(raw_pitch.data.shape[1]))
+                .format(raw_pitch.shape[1]))
 
         data = SubMatrix(pitch.process_pitch(
             self._options, SubMatrix(raw_pitch.data))).numpy()
 
         return Features(
-            data, self.labels(), raw_pitch.times(), self.parameters())
+            data, self.labels(), raw_pitch.times, self.parameters())
