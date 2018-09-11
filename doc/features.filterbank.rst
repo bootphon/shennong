@@ -1,7 +1,7 @@
 .. _features.filterbank:
 
-features.filterbank
-~~~~~~~~~~~~~~~~~~~
+Filterbank
+~~~~~~~~~~
 
 .. automodule:: shennong.features.filterbank
     :members:

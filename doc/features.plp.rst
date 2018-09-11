@@ -1,7 +1,7 @@
 .. _features.plp:
 
-features.plp
-~~~~~~~~~~~~
+PLP
+~~~
 
 .. automodule:: shennong.features.plp
     :members:

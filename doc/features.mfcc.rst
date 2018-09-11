@@ -1,7 +1,7 @@
 .. _features.mfcc:
 
-features.mfcc
-~~~~~~~~~~~~~~
+MFCC
+~~~~
 
 .. automodule:: shennong.features.mfcc
     :members:

@@ -1,7 +1,7 @@
 .. _features.pitch:
 
-features.pitch
-~~~~~~~~~~~~~~
+Pitch estimation
+~~~~~~~~~~~~~~~~
 
 .. automodule:: shennong.features.pitch
     :members:
