@@ -31,7 +31,7 @@ def test_pitch_params():
     assert p.parameters() == opts
 
 
-def test_pitch(audio):
+def test_output(audio):
     assert PitchProcessor(frame_shift=0.01).process(audio).shape == (142, 2)
     assert PitchProcessor(frame_shift=0.02).process(audio).shape == (71, 2)
     assert PitchProcessor(
