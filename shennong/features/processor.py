@@ -193,7 +193,11 @@ class MelFeaturesProcessor(FeaturesProcessor):
 
     @property
     def num_bins(self):
-        """Number of triangular mel-frequency bins"""
+        """Number of triangular mel-frequency bins
+
+        The minimal number of bins is 3
+
+        """
         return self._mel_options.num_bins
 
     @num_bins.setter

@@ -26,6 +26,22 @@ def test_num_ceps(audio, num_ceps):
             proc.process(audio)
 
 
+@pytest.mark.parametrize('num_bins', [0, 1, 5, 23])
+def test_num_bins(audio, num_bins):
+    proc = MfccProcessor(num_bins=num_bins)
+    proc.num_ceps = min(proc.num_ceps, num_bins)
+    if 3 <= proc.num_bins:
+        feat = proc.process(audio)
+        assert feat.shape == (142, proc.num_ceps)
+
+        proc.use_energy = False
+        feat = proc.process(audio)
+        assert feat.shape == (142, proc.num_ceps)
+    else:
+        with pytest.raises(RuntimeError):
+            proc.process(audio)
+
+
 def test_htk_compat(audio):
     p1 = MfccProcessor(use_energy=True, htk_compat=False).process(audio)
     p2 = MfccProcessor(use_energy=True, htk_compat=True).process(audio)
