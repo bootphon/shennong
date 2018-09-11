@@ -35,10 +35,9 @@ References
 
 """
 
+import kaldi.feat.mfcc
+import kaldi.matrix
 import numpy as np
-
-from kaldi.feat.mfcc import Mfcc, MfccOptions
-from kaldi.matrix import SubMatrix, SubVector
 
 from shennong.features.features import Features
 from shennong.features.processor import MelFeaturesProcessor
@@ -61,7 +60,7 @@ class MfccProcessor(MelFeaturesProcessor):
                          round_to_power_of_two, blackman_coeff, snip_edges,
                          num_bins, low_freq, high_freq, vtln_low, vtln_high)
 
-        self._options = MfccOptions()
+        self._options = kaldi.feat.mfcc.MfccOptions()
         self._options.frame_opts = self._frame_options
         self._options.mel_opts = self._mel_options
 
@@ -195,8 +194,9 @@ class MfccProcessor(MelFeaturesProcessor):
                 'processor and signal mismatche in sample rates: '
                 '{} != {}'.format(self.sample_rate, signal.sample_rate))
 
-        data = SubMatrix(Mfcc(self._options).compute(
-            SubVector(signal.data), vtln_warp)).numpy()
+        data = kaldi.matrix.SubMatrix(
+            kaldi.feat.mfcc.Mfcc(self._options).compute(
+                kaldi.matrix.SubVector(signal.data), vtln_warp)).numpy()
 
         return Features(
             data, self.labels(), self.times(data.shape[0]), self.parameters())

@@ -63,10 +63,9 @@ References
 
 """
 
+import kaldi.feat.pitch
+import kaldi.matrix
 import numpy as np
-
-from kaldi.feat import pitch
-from kaldi.matrix import SubVector, SubMatrix
 
 from shennong.features.processor import FeaturesProcessor
 from shennong.features.features import Features
@@ -86,7 +85,7 @@ class PitchProcessor(FeaturesProcessor):
                  lowpass_cutoff=1000, resample_freq=4000,
                  delta_pitch=0.005, nccf_ballast=7000,
                  lowpass_filter_width=1, upsample_filter_width=5):
-        self._options = pitch.PitchExtractionOptions()
+        self._options = kaldi.feat.pitch.PitchExtractionOptions()
         self.sample_rate = sample_rate
         self.frame_shift = frame_shift
         self.frame_length = frame_length
@@ -298,8 +297,9 @@ class PitchProcessor(FeaturesProcessor):
                 'processor and signal mismatche in sample rates: '
                 '{} != {}'.format(self.sample_rate, signal.sample_rate))
 
-        data = SubMatrix(pitch.compute_kaldi_pitch(
-            self._options, SubVector(signal.data))).numpy()
+        data = kaldi.matrix.SubMatrix(
+            kaldi.feat.pitch.compute_kaldi_pitch(
+                self._options, kaldi.matrix.SubVector(signal.data))).numpy()
 
         return Features(
             data, self.labels(), self.times(data.shape[0]), self.parameters())
@@ -329,7 +329,7 @@ class PitchPostProcessor(FeaturesProcessor):
                  delta_window=2, delay=0,
                  add_pov_feature=True, add_normalized_log_pitch=True,
                  add_delta_pitch=True, add_raw_log_pitch=False):
-        self._options = pitch.ProcessPitchOptions()
+        self._options = kaldi.feat.pitch.ProcessPitchOptions()
         self.pitch_scale = pitch_scale
         self.pov_scale = pov_scale
         self.pov_offset = pov_offset
@@ -537,8 +537,9 @@ class PitchPostProcessor(FeaturesProcessor):
                 'data shape must be (_, 2), but it is (_, {})'
                 .format(raw_pitch.shape[1]))
 
-        data = SubMatrix(pitch.process_pitch(
-            self._options, SubMatrix(raw_pitch.data))).numpy()
+        data = kaldi.matrix.SubMatrix(
+            kaldi.feat.pitch.process_pitch(
+                self._options, kaldi.matrix.SubMatrix(raw_pitch.data))).numpy()
 
         return Features(
             data, self.labels(), raw_pitch.times, self.parameters())

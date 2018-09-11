@@ -1,10 +1,10 @@
 """Provides abstract base classes for the features extraction models"""
 
 import abc
-import numpy as np
 
-from kaldi.feat.window import FrameExtractionOptions
-from kaldi.feat.mel import MelBanksOptions
+import kaldi.feat.window
+import kaldi.feat.mel
+import numpy as np
 
 
 class FeaturesProcessor(metaclass=abc.ABCMeta):
@@ -53,7 +53,7 @@ class MelFeaturesProcessor(FeaturesProcessor):
                  snip_edges=True, num_bins=23, low_freq=20,
                  high_freq=0, vtln_low=100, vtln_high=-500):
         # frame extraction options
-        self._frame_options = FrameExtractionOptions()
+        self._frame_options = kaldi.feat.window.FrameExtractionOptions()
         self.sample_rate = sample_rate
         self.frame_shift = frame_shift
         self.frame_length = frame_length
@@ -66,7 +66,7 @@ class MelFeaturesProcessor(FeaturesProcessor):
         self.snip_edges = snip_edges
 
         # mel banks options
-        self._mel_options = MelBanksOptions()
+        self._mel_options = kaldi.feat.mel.MelBanksOptions()
         self.num_bins = num_bins
         self.low_freq = low_freq
         self.high_freq = high_freq
