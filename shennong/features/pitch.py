@@ -6,7 +6,8 @@ speech and turns it into suitable features: it produces pitch and
 probability-of-voicing estimates for use as features in automatic
 speech recognition systems
 
-Uses the Kaldi implementation of pitch extraction and postprocessing.
+Uses the Kaldi implementation of pitch extraction and postprocessing
+(see _[Ghahremani2014] and _[kaldi-pitch]).
 
 Examples
 --------

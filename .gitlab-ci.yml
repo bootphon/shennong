@@ -1,25 +1,19 @@
-before_script:
-  # load the requested modules on oberon
-  - module load python-anaconda
-
 shennong-build:
   stage: build
   script:
-    # this virtual environment was built manually on
-    # gitlab-runner@oberon
-    - source activate shennong-ci
+    - conda activate shennong-ci
     - python setup.py install
-
-shennong-doc:
-  stage: build
-  script:
-    - source activate shennong-ci
-    - cd doc
-    - sphinx-build . build
-    - scp -r build/* coml.lscp.ens.fr:/var/www/html/shennong
 
 shennong-test:
   stage: test
   script:
-    - source activate shennong-ci
+    - conda activate shennong-ci
     - python setup.py test
+
+# documentation is available on https://coml.lscp.ens.fr/shennong
+shennong-doc:
+  stage: deploy
+  script:
+    - conda activate shennong-ci
+    - sphinx-build doc doc/build
+    - scp -r doc/build/* coml.lscp.ens.fr:/var/www/html/shennong

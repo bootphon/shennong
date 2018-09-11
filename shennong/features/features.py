@@ -1,7 +1,7 @@
 """Provides the `Features` class that handles features data"""
 
 
-class Features(object):
+class Features:
     def __init__(self, data, labels, times, parameters):
         self._data = data
         self._labels = labels

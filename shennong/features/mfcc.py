@@ -1,7 +1,7 @@
 """Provides the MfccProcessor class to extract MFCC features
 
 Extract MFCC (Mel Frequency Cepstral Coeficients) from an audio
-signal. Uses the Kaldi implementation.
+signal. Uses the Kaldi implementation (see _[kaldi-mfcc]).
 
 Examples
 --------

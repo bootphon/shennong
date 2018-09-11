@@ -3,10 +3,10 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to the shennong's documentation page
-============================================
+Shennong's documentation
+========================
 
-* shennong is a **toolbox for unsupervised speech recognition**.
+* Shennong is a **toolbox for unsupervised speech recognition**.
 
 * Provides a **Python API** and a **command line interface**.
 
@@ -24,7 +24,9 @@ Welcome to the shennong's documentation page
 
    The package is still in development phase. Release *0.1* will
    include the *features* block, release 0.2 the *subword modeling*
-   block, and release *0.3* the *term discovery* block.
+   block, and release *0.3* the *term discovery* block. Further
+   versions will include complete recipes, replication of published
+   results and additional models.
 
 .. toctree::
    :maxdepth: 2

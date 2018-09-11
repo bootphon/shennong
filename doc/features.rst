@@ -1,4 +1,4 @@
-.. _features
+.. _features:
 
 Features extraction
 -------------------
@@ -9,4 +9,5 @@ Features extraction
    features.features
    features.mfcc
    features.plp
+   features.filterbank
    features.pitch

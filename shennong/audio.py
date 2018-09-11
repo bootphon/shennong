@@ -1,5 +1,14 @@
 """Provides the `AudioData` class that handles audio signals
 
+The `AudioData` class allows to load, save and manipulate
+multichannels audio data. `AudioData` is the input to feature
+extraction models.
+
+.. note::
+
+   For now, only WAV files are supported for input/output. Resampling
+   is not implemented.
+
 Examples
 --------
 
@@ -19,7 +28,8 @@ Create 1000 samples of a stereo signal at 16 kHz:
 >>> audio.duration()
 0.0625
 
-Save the signal as a wav file, load existing wavs:
+Save the `AudioData` instance as a wav file, load an existing wav
+file as an `AudioData` instance:
 
 >>> audio.save('stereo.wav')
 >>> audio2 = AudioData.load('stereo.wav')
@@ -33,6 +43,8 @@ instances of AudioData as well):
 >>> left = audio.channel(0)
 >>> right = audio.channel(1)
 >>> left.duration() == right.duration() == audio.duration()
+True
+>>> left.nchannels() == right.nchannels() == 1
 True
 
 """
