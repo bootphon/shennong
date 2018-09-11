@@ -1,7 +1,7 @@
 import os
 import pytest
 
-from shennong.features.audio import AudioData
+from shennong.audio import AudioData
 
 
 @pytest.fixture(scope='session')

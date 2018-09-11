@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from shennong.features.audio import AudioData
+from shennong.audio import AudioData
 from shennong.features.pitch import PitchProcessor, PitchPostProcessor
 
 

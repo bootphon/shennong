@@ -5,7 +5,7 @@ Examples
 
 >>> import os
 >>> import numpy as np
->>> from shennong.features.audio import AudioData
+>>> from shennong.audio import AudioData
 
 Create 1000 samples of a stereo signal at 16 kHz:
 

@@ -1,4 +1,4 @@
-"""Extract pitch from an audio (speech) signal
+"""Provides classes to extract pitch from an audio (speech) signal
 
 This modules provides the classes PitchProcessor and
 PitchPostProcessor which respectively computes the pitch from raw
@@ -11,7 +11,7 @@ Uses the Kaldi implementation of pitch extraction and postprocessing.
 Examples
 --------
 
->>> from shennong.features.audio import AudioData
+>>> from shennong.audio import AudioData
 >>> from shennong.features.pitch import PitchProcessor, PitchPostProcessor
 >>> audio = AudioData.load('./test/data/test.wav')
 

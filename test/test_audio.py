@@ -1,9 +1,9 @@
-"""Test of the module shennong.features.wav"""
+"""Test of the module shennong.audio"""
 
 import numpy as np
 import pytest
 
-from shennong.features.audio import AudioData
+from shennong.audio import AudioData
 
 
 def test_load(audio):
