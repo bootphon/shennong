@@ -52,7 +52,7 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.imgmath',
     'sphinx.ext.viewcode',
-    'numpydoc'
+    'sphinx.ext.napoleon'
 ]
 
 autodoc_member_order = 'bysource'

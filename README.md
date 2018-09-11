@@ -37,4 +37,4 @@ To build the documentation under the `doc` folder, please follow those steps.
 * Install the required dependencies:
 
         sudo apt install texlive texlive-latex-extra dvipng
-        conda install sphinx sphinx_rtd_theme numpydoc
+        conda install sphinx shpinx_rtd_theme

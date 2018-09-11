@@ -1,7 +1,7 @@
 """Provides the FilterbankProcessor class to extract filterbank features
 
 Extract mel-filterbank features from an audio signal. Use the Kaldi
-implementation (see _[kaldi-fbank]).
+implementation (see [kaldi-fbank]_).
 
 Examples
 --------

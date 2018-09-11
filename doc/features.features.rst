@@ -1,4 +1,4 @@
-.. _features.features
+.. _features.features:
 
 Features storage and manipulation
 ---------------------------------

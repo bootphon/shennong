@@ -3,7 +3,8 @@
 """Provides the PlpProcessor class to extract PLP features
 
 Extract PLP (Perceptual Linear Predictive analysis of speech) from an
-audio signal. Uses the Kaldi implementation.
+audio signal. Uses the Kaldi implementation (see [Hermansky1990]_ and
+[kaldi-plp]_).
 
 Examples
 --------
