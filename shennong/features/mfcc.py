@@ -1,4 +1,39 @@
-"""Provides the MfccProcessor class to extract MFCC features"""
+"""Provides the MfccProcessor class to extract MFCC features
+
+Extract MFCC (Mel Frequency Cepstral Coeficients) from an audio
+signal. Uses the Kaldi implementation.
+
+Examples
+--------
+
+>>> from shennong.audio import AudioData
+>>> from shennong.features.mfcc import MfccProcessor
+>>> audio = AudioData.load('./test/data/test.wav')
+
+Initialize the MFCC processor with some options. Options can be
+specified at construction, or after:
+
+>>> processor = MfccProcessor(sample_rate=audio.sample_rate)
+>>> processor.window_type = 'hanning'
+>>> processor.low_freq = 20
+>>> processor.high_freq = -100  # nyquist - 100
+>>> processor.use_energy = False  # use C0 instead
+
+Compute the MFCC features with the specified options, the output is an
+instance of `Features`:
+
+>>> mfcc = processor.process(audio)
+>>> type(mfcc)
+<class 'shennong.features.features.Features'>
+>>> mfcc.shape[1] == processor.num_ceps
+True
+
+References
+----------
+
+.. [kaldi-mfcc] http://kaldi-asr.org/doc/feat.html#feat_mfcc
+
+"""
 
 import numpy as np
 
@@ -39,7 +74,11 @@ class MfccProcessor(MelFeaturesProcessor):
 
     @property
     def num_ceps(self):
-        """Number of cepstra in MFCC computation (including C0)"""
+        """Number of cepstra in MFCC computation (including C0)
+
+        Must be smaller of equal to `num_bins`
+
+        """
         return self._options.num_ceps
 
     @num_ceps.setter
@@ -87,8 +126,11 @@ class MfccProcessor(MelFeaturesProcessor):
         """If True, get closer to HTK MFCC features
 
         Put energy or C0 last and use a factor of sqrt(2) on C0.
-        Warning: not sufficient to get HTK compatible features (need
-        to change other parameters)
+
+        Warnings
+        --------
+        Not sufficient to get HTK compatible features (need to change
+        other parameters)
 
         """
         return self._options.htk_compat
@@ -109,15 +151,14 @@ class MfccProcessor(MelFeaturesProcessor):
         return params
 
     def labels(self):
-        return np.asarray(['mfcc_{}'.format(i+1) for i in range(
-            Mfcc(self._options).dim())])
-
-    def times(self, nframes):
-        """Returns the time label for the rows given by the `process` method"""
-        return np.arange(nframes) * self.frame_shift + self.frame_length / 2.0
+        return np.asarray(
+            ['mfcc_{}'.format(i+1) for i in range(self.num_ceps)])
 
     def process(self, signal, vtln_warp=1.0):
         """Compute MFCC features with the specified options
+
+        Do an optional feature-level vocal tract length normalization
+        (VTLN) when `vtln_warp` != 1.0.
 
         Parameters
         ----------
@@ -132,7 +173,10 @@ class MfccProcessor(MelFeaturesProcessor):
         Returns
         -------
         mfcc : Features, shape = [nframes, `num_ceps`]
-            The computed MFCCs
+            The computed MFCCs, output will have as many rows as there
+            are frames (depends on the specified options `frame_shift`
+            and `frame_length`), and as many columns as there are
+            cepstral coeficients (the `num_ceps` option).
 
         Raises
         ------

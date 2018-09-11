@@ -1,6 +1,7 @@
 """Provides abstract base classes for the features extraction models"""
 
 import abc
+import numpy as np
 
 from kaldi.feat.window import FrameExtractionOptions
 from kaldi.feat.mel import MelBanksOptions
@@ -265,12 +266,12 @@ class MelFeaturesProcessor(FeaturesProcessor):
             'vtln_low': self.vtln_low,
             'vtln_high': self.vtln_high}
 
-    @abc.abstractmethod
-    def labels(self):
-        pass
+    def times(self, nframes):
+        """Returns the time label for the rows given by the `process` method"""
+        return np.arange(nframes) * self.frame_shift + self.frame_length / 2.0
 
     @abc.abstractmethod
-    def times(self, nframes):
+    def labels(self):
         pass
 
     @abc.abstractmethod
