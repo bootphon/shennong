@@ -16,7 +16,7 @@ shennong-doc:
     - source activate shennong-ci
     - cd doc
     - sphinx-build . build
-    - scp -a build coml.lscp.ens.fr:/var/www/html/shennong
+    - scp -r build/* coml.lscp.ens.fr:/var/www/html/shennong
 
 shennong-test:
   stage: test
