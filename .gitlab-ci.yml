@@ -26,7 +26,7 @@ shennong-doc:
 shennong-deploy:
   stage: deploy
   script:
-    - source activate shennong
+    - conda activate shennong
     - cd /cm/shared/apps/shennong
     - git pull origin master
     - python setup.py install

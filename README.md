@@ -1,6 +1,7 @@
 # shennong
 
-A toolbox for unsupervised speech recognition
+A toolbox for unsupervised speech recognition. See the complete
+documentation at https://coml.lscp.ens.fr/shennong.
 
 
 ## Installation
@@ -32,9 +33,16 @@ A toolbox for unsupervised speech recognition
 
 # Documentation
 
-To build the documentation under the `doc` folder, please follow those steps.
+To build the documentation under the `doc/build` folder, please follow those steps.
 
 * Install the required dependencies:
 
         sudo apt install texlive texlive-latex-extra dvipng
         conda install sphinx shpinx_rtd_theme
+
+* Build the docs:
+
+        cd docs
+        sphinx-build . build
+
+* The documentation is now available from `doc/build/index.html`
