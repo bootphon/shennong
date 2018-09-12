@@ -1,3 +1,7 @@
+before_script:
+  # load the requested modules on oberon
+  - module load python-anaconda
+
 shennong-build:
   stage: build
   script:
