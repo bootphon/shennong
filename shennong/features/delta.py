@@ -104,7 +104,7 @@ class DeltaProcessor(FeaturesProcessor):
 
         Returns
         -------
-        deltas : Features, shape = [nframes, nlabels * (`order`+1)]
+        deltas : Features, shape = [nframes, nlabels * (`order` + 1)]
             The computed deltas with as much orders as specified. The
             output features are the concatenation of the input
             `features` and it's time derivative at each orders.

@@ -6,6 +6,9 @@ documentation at https://coml.lscp.ens.fr/shennong.
 
 ## Installation
 
+This installation process is documented for Ubuntu-18.04, but it can
+be adapted to ther Linux distributions easilly.
+
 * First create a `shennong` Python virtual environment with conda:
 
         conda create --name shennong python=3.7
@@ -18,11 +21,11 @@ documentation at https://coml.lscp.ens.fr/shennong.
         pip install h5features
 
 * Install `pykaldi` following the instructions
-  [here](https://github.com/pykaldi/pykaldi#installation). Do **not**
+  [here](https://github.com/pykaldi/pykaldi#installation). Do not
   create a new virtual environment but install it in the `shennong`
   environment instead.
 
-* Then install the `shennong` package:
+* Then install the shennong package:
 
         python setup.py install
 
@@ -30,6 +33,7 @@ documentation at https://coml.lscp.ens.fr/shennong.
   stored in the `test/` folder):
 
         python setup.py test
+
 
 # Documentation
 
