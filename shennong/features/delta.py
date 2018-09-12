@@ -13,24 +13,25 @@ Examples
 >>> audio = AudioData.load('./test/data/test.wav')
 >>> mfcc = MfccProcessor().process(audio)
 
-Initialize the delta processor to compute first and second order time
-derivatives:
+Initialize the delta processor and compute first and second order time
+derivatives of MFCC features:
 
 >>> processor = DeltaProcessor(order=2)
-
-Compute the deltas from MFCC features. The resulting matrice is the
-concatenation of the original features, the first and the second
-order:
-
 >>> delta = processor.process(mfcc)
+
+The resulting matrice is the concatenation of the original features,
+their first and second order derivatives:
+
 >>> nmfcc = mfcc.shape[1]
 >>> delta.shape[1] == nmfcc * 3
 True
 >>> original = delta.data[:, :nmfcc]
 >>> np.array_equal(original, mfcc.data)
 True
->>> first_order = delta.data[nmfcc:2*nmfcc]
->>> second_order = delta.data[2*nmfcc:]
+>>> first_order = delta.data[:, nmfcc:2*nmfcc]
+>>> second_order = delta.data[:, 2*nmfcc:]
+>>> original.shape == first_order.shape == second_order.shape
+True
 
 References
 ----------
