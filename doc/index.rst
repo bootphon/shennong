@@ -29,7 +29,36 @@ Shennong's documentation
    results and additional models.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 4
    :caption: Contents
 
    python_reference
+
+
+Licence and copyright
+---------------------
+
+.. figure:: static/inria.jpg
+   :align: left
+   :figwidth: 170px
+   :alt: Inria
+   :target: https://inria.fr/en
+
+**Copyright 2018 Mathieu Bernard, Inria**
+
+This work is founded by the grant *ADT-193* from Inria.
+
+-----------------------
+
+shennong is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation, either version 3 of the License, or (at your
+option) any later version.
+
+shennong is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License
+along with shennong. If not, see http://www.gnu.org/licenses/.
