@@ -9,6 +9,8 @@ speech recognition systems
 Uses the Kaldi implementation of pitch extraction and postprocessing
 (see [Ghahremani2014]_ and [kaldi-pitch]_).
 
+    *AudioData* ---> PitchProcessor ---> PitchPostProcessor ---> *Features*
+
 Examples
 --------
 

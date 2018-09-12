@@ -3,6 +3,9 @@
 Extract mel-filterbank features from an audio signal. Use the Kaldi
 implementation (see [kaldi-fbank]_).
 
+    *AudioData* ---> FilterbankProcessor ---> *Features*
+
+
 Examples
 --------
 

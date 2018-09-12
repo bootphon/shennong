@@ -1,6 +1,41 @@
-"""Compute deltas on existing features
+"""Compute time derivatives on existing features
 
-Uses the Kaldi implementation
+Uses the Kaldi implementation (see [kaldi-delta]_)
+
+    *Features* ---> DeltaProcessor ---> *Features*
+
+Examples
+--------
+
+>>> from shennong.audio import AudioData
+>>> from shennong.features.mfcc import MfccProcessor
+>>> from shennong.features.delta import DeltaProcessor
+>>> audio = AudioData.load('./test/data/test.wav')
+>>> mfcc = MfccProcessor().process(audio)
+
+Initialize the delta processor to compute first and second order time
+derivatives:
+
+>>> processor = DeltaProcessor(order=2)
+
+Compute the deltas from MFCC features. The resulting matrice is the
+concatenation of the original features, the first and the second
+order:
+
+>>> delta = processor.process(mfcc)
+>>> nmfcc = mfcc.shape[1]
+>>> delta.shape[1] == nmfcc * 3
+True
+>>> original = delta.data[:, :nmfcc]
+>>> np.array_equal(original, mfcc.data)
+True
+>>> first_order = delta.data[nmfcc:2*nmfcc]
+>>> second_order = delta.data[2*nmfcc:]
+
+References
+----------
+
+.. [kaldi-delta] http://kaldi-asr.org/doc/feature-functions_8h.html
 
 """
 
@@ -40,7 +75,15 @@ class DeltaProcessor(FeaturesProcessor):
 
     @window.setter
     def window(self, value):
+        if not 0 < value < 1000:
+            raise ValueError(
+                'window must be in [1, 999], it is {}'.format(value))
         self._options.window = value
+
+    def parameters(self):
+        return {
+            'order': self.order,
+            'window': self.window}
 
     def labels(self):
         raise ValueError(
@@ -60,17 +103,19 @@ class DeltaProcessor(FeaturesProcessor):
 
         Returns
         -------
-        deltas : Features, shape = [nframes, nlabels * `order`]
-            The computed deltas with as much orders as specified.
+        deltas : Features, shape = [nframes, nlabels * (`order`+1)]
+            The computed deltas with as much orders as specified. The
+            output features are the concatenation of the input
+            `features` and it's time derivative at each orders.
 
         """
         data = kaldi.matrix.SubMatrix(
             kaldi.feat.functions.compute_deltas(
                 self._options, kaldi.matrix.SubMatrix(features.data))).numpy()
 
-        labels = []
+        labels = features.labels.tolist()
         for o in range(self.order):
-            labels += [l + 'delta_{}'.format(o) for l in features.labels()]
+            labels += [l + '_d{}'.format(o+1) for l in features.labels]
         labels = np.asarray(labels)
 
-        return Features(data, labels, features.times(), self.parameters())
+        return Features(data, labels, features.times, self.parameters())
