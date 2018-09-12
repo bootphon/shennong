@@ -18,11 +18,11 @@ shennong-doc:
     - sphinx-build doc doc/build
     - scp -r doc/build/* coml.lscp.ens.fr:/var/www/html/shennong
 
-# shennong package is available on oberon with "conda activate shennong"
+# shennong package is available on oberon with "source activate shennong"
 shennong-deploy:
   stage: deploy
   script:
-    - conda activate shennong
+    - source activate shennong
     - cd /cm/shared/apps/shennong
     - git pull origin master
     - python setup.py install
