@@ -20,7 +20,7 @@ shennong-doc:
 
 # shennong package is available on oberon with "conda activate shennong"
 shennong-deploy:
-  stage: build
+  stage: deploy
   script:
     - conda activate shennong
     - cd /cm/shared/apps/shennong
