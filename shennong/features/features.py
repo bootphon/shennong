@@ -53,9 +53,14 @@ class Features:
         return True
 
     def is_valid(self):
-        """Returns True if the features are consitent, False otherwise
+        """Returns True if the features are in a valid state
 
-        Consistency is checked for features's data, times and labels.
+        Returns False otherwise. Consistency is checked for features's
+        data, times and labels.
+
+        See Also
+        --------
+        Features.validate
 
         """
         try:
@@ -90,7 +95,7 @@ class Features:
             errors.append('labels dimension must be 1 but is {}'.format(ndim))
 
         nlabels1 = self.data.shape[1]
-        nlabels2 = self.labels.shape[1]
+        nlabels2 = self.labels.shape[0]
         if not nlabels1 == nlabels2:
             errors.append('mismath in number of labels: {} for data but {} '
                           'for labels'.format(nlabels1, nlabels2))
