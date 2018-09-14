@@ -72,8 +72,6 @@ class AudioData:
     def __eq__(self, other):
         if self.sample_rate != self.sample_rate:
             return False
-        if self.data.shape != other.data.shape:
-            return False
         return np.array_equal(self.data, other.data)
 
     @staticmethod
