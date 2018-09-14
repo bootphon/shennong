@@ -1,0 +1,17 @@
+name: shennong
+dependencies:
+  - python=3.7
+  - cython
+  - flake8
+  - h5py
+  - ipython
+  - numpy
+  - pyparsing
+  - pytest
+  - pytest-runner
+  - scipy
+  - sphinx
+  - sphinx_rtd_theme
+  - pip:
+      - ninja
+      - git+https://github.com/bootphon/h5features.git
