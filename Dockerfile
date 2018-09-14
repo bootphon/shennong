@@ -16,6 +16,7 @@ RUN apt-get update && \
     git \
     graphviz \
     libatlas3-base \
+    libatlas-base-dev \
     libtool \
     make \
     ninja-build \
@@ -41,14 +42,18 @@ RUN ln -s /usr/bin/python3 /usr/bin/python \
 # Install python packages from pip
 RUN pip install --upgrade pip git+https://github.com/bootphon/h5features.git
 
-# Install pykaldi
+# Clone, compile and install pykaldi
 RUN git clone https://github.com/pykaldi/pykaldi.git /pykaldi
-RUN cd /pykaldi/tools && ./check_dependencies.sh
-RUN cd /pykaldi/tools && ./install_protobuf.sh
-RUN cd /pykaldi/tools && ./install_clif.sh
-RUN cd /pykaldi/tools && ./install_kaldi.sh
-RUN cd /pykaldi && python setup.py install
-RUN cd /pykaldi && python setup.py test
+
+RUN cd /pykaldi/tools \
+    && ./check_dependencies.sh \
+    && ./install_protobuf.sh \
+    && ./install_clif.sh \
+    && ./install_kaldi.sh
+
+RUN cd /pykaldi \
+    && python setup.py install \
+    && python setup.py test
 
 # Install shennong
 COPY . /shennong
