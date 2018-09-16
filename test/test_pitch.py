@@ -92,7 +92,7 @@ def test_post_pitch_output(raw_pitch, options):
     if sum(options) != 0:
         d = p.process(raw_pitch)
         assert d.shape == (raw_pitch.shape[0], sum(options))
-        assert d.labels.shape[0] == sum(options)
+        assert d.shape[1] == sum(options)
         assert np.array_equal(raw_pitch.times, d.times)
     else:  # all False not supported by Kaldi
         with pytest.raises(RuntimeError) as err:

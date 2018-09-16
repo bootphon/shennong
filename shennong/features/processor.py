@@ -15,11 +15,6 @@ class FeaturesProcessor(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def labels(self):
-        """Returns the name of the columns given by the `process` method"""
-        pass
-
-    @abc.abstractmethod
     def times(self, nframes):
         """Returns the time labels of the rows given by the `process` method"""
         pass
@@ -273,10 +268,6 @@ class MelFeaturesProcessor(FeaturesProcessor):
     def times(self, nframes):
         """Returns the time label for the rows given by the `process` method"""
         return np.arange(nframes) * self.frame_shift + self.frame_length / 2.0
-
-    @abc.abstractmethod
-    def labels(self):
-        pass
 
     @abc.abstractmethod
     def process(self, signal):

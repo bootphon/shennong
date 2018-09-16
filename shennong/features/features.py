@@ -5,14 +5,14 @@ import numpy as np
 
 
 class Features:
-    def __init__(self, data, labels, times, parameters):
+    def __init__(self, data, times, properties=None, validate=True):
         self._data = data
-        self._labels = labels
         self._times = times
-        self._parameters = parameters
+        self._properties = properties
 
         # make sure the features are in a valid state
-        self.validate()
+        if validate is True:
+            self.validate()
 
     @property
     def data(self):
@@ -25,19 +25,14 @@ class Features:
         return self._times
 
     @property
-    def labels(self):
-        """The name of the features columns on the horieontal axis"""
-        return self._labels
-
-    @property
     def shape(self):
         """The shape of the features data, as (nframes, nlabels)"""
         return self.data.shape
 
     @property
-    def parameters(self):
-        """A dictionnary of parameters used to buidld the features"""
-        return self._parameters
+    def properties(self):
+        """A dictionnary of properties used to buidld the features"""
+        return self._properties
 
     def __eq__(self, other):
         if self.shape != other.shape:
@@ -46,7 +41,7 @@ class Features:
             return False
         if not np.array_equal(self.times, other.times):
             return False
-        if not self.parameters == other.parameters:
+        if not self.properties == other.properties:
             return False
         if not np.array_equal(self.data, other.data):
             return False
@@ -89,16 +84,7 @@ class Features:
             errors.append('mismath in number of frames: {} for data but {} '
                           'for times'.format(nframes1, nframes2))
 
-        # check labels dimensions
-        ndim = self.labels.ndim
-        if not ndim == 1:
-            errors.append('labels dimension must be 1 but is {}'.format(ndim))
-
-        nlabels1 = self.data.shape[1]
-        nlabels2 = self.labels.shape[0]
-        if not nlabels1 == nlabels2:
-            errors.append('mismath in number of labels: {} for data but {} '
-                          'for labels'.format(nlabels1, nlabels2))
+        # TODO check properties
 
         if len(errors):
             raise ValueError('invalid features: {}'.format(', '.join(errors)))
@@ -107,10 +93,10 @@ class Features:
         """Returns the concatenation of this features with `other`
 
         Build a new Features instance made of the concatenation of
-        this instance with the other instance. The `times` must be the
-        same for the two features. The `labels` must be disjoint.
+        this instance with the other instance. Their `times` must be
+        the equal.
 
-        Parameters
+        Properties
         ----------
         other : Features, shape = [nframes, nlabels2]
             The other features to concatenate at the end of this one
@@ -119,8 +105,23 @@ class Features:
         -------
         features : Features, shape = [nframes, nlabels1 + nlabels2]
 
+        Raises
+        ------
+        ValueError
+            If `other` cannot be concatenated because of inconsistencies
+
         """
-        pass
+        # ensures time axis is shared accross the two features
+        if not np.array_equal(self.times, other.times):
+            raise ValueError('times are not equal')
+
+        return Features(
+            np.hstack((self.data, other.data)),
+            np.hstack((self.labels, other.labels)),
+            self.times,
+            # TODO need a FeaturesParameter class: assign properties
+            # per column
+            self.properties.update(other.properties))
 
     def save(self, filename, groupname=None, append=False):
         h5data = h5f.Data()

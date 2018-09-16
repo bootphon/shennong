@@ -40,8 +40,6 @@ instance of `Features`:
 >>> pitch = processor.process(audio)
 >>> type(pitch)
 <class 'shennong.features.features.Features'>
->>> pitch.labels
-array(['NCCF', 'pitch'], dtype='<U5')
 >>> pitch.shape
 (142, 2)
 
@@ -50,8 +48,8 @@ output are features usable by speech processing tools:
 
 >>> postprocessor = PitchPostProcessor()  # use default options
 >>> postpitch = postprocessor.process(pitch)
->>> postpitch.labels
-array(['pov_feature', 'normalized_log_pitch', 'delta_pitch'], dtype='<U20')
+>>> postpitch.shape
+(142, 3)
 
 References
 ----------
@@ -256,10 +254,6 @@ class PitchProcessor(FeaturesProcessor):
             'lowpass_filter_width': self.lowpass_filter_width,
             'upsample_filter_width': self.upsample_filter_width}
 
-    def labels(self):
-        """Returns the name of the columns given by the `process` method"""
-        return np.asarray(['NCCF', 'pitch'])
-
     def times(self, nframes):
         """Returns the time label for the rows given by the `process` method"""
         return np.arange(nframes) * self.frame_shift + self.frame_length / 2.0
@@ -304,7 +298,7 @@ class PitchProcessor(FeaturesProcessor):
                 self._options, kaldi.matrix.SubVector(signal.data))).numpy()
 
         return Features(
-            data, self.labels(), self.times(data.shape[0]), self.parameters())
+            data, self.times(data.shape[0]), self.parameters())
 
 
 class PitchPostProcessor(FeaturesProcessor):
@@ -497,18 +491,6 @@ class PitchPostProcessor(FeaturesProcessor):
             'add_delta_pitch': self.add_delta_pitch,
             'add_raw_log_pitch': self.add_raw_log_pitch}
 
-    def labels(self):
-        labels = []
-        if self.add_pov_feature is True:
-            labels.append('pov_feature')
-        if self.add_normalized_log_pitch is True:
-            labels.append('normalized_log_pitch')
-        if self.add_delta_pitch is True:
-            labels.append('delta_pitch')
-        if self.add_raw_log_pitch is True:
-            labels.append('raw_log_pitch')
-        return np.asarray(labels)
-
     def times(self, nframes):
         raise ValueError(
             'times label is not managed by the pitch postprocessor '
@@ -525,8 +507,12 @@ class PitchPostProcessor(FeaturesProcessor):
 
         Returns
         -------
-        pitch : Features, shape = [n, 3 or 4]
-            The post-processed pitch usable as speech features
+        pitch : Features, shape = [n, 1 2 3 or 4]
+            The post-processed pitch usable as speech features. The
+            output columns are 'pov_features',
+            'add_normalized_log_pitch', delta_pitch' and
+            'raw_log_pitch', in that order,if their respective options
+            are set to True.
 
         Raises
         ------
@@ -544,4 +530,4 @@ class PitchPostProcessor(FeaturesProcessor):
                 self._options, kaldi.matrix.SubMatrix(raw_pitch.data))).numpy()
 
         return Features(
-            data, self.labels(), raw_pitch.times, self.parameters())
+            data, raw_pitch.times, self.parameters())

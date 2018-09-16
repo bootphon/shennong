@@ -27,4 +27,3 @@ def test_output(mfcc, order, window):
     assert delta.shape[1] == mfcc.shape[1] * (order+1)
     assert np.array_equal(delta.times, mfcc.times)
     assert delta.data[:, :mfcc.shape[1]] == pytest.approx(mfcc.data)
-    assert np.array_equal(delta.labels[:mfcc.shape[1]], mfcc.labels)

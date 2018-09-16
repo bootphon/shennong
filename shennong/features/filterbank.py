@@ -144,11 +144,6 @@ class FilterbankProcessor(MelFeaturesProcessor):
             'use_power': self.use_power})
         return params
 
-    def labels(self):
-        ncols = self.num_bins + self.use_energy
-        return np.asarray(
-            ['fbank_{}'.format(i+1) for i in range(ncols)])
-
     def process(self, signal, vtln_warp=1.0):
         """Compute filterbank features with the specified options
 
@@ -196,4 +191,4 @@ class FilterbankProcessor(MelFeaturesProcessor):
                 kaldi.matrix.SubVector(signal.data), vtln_warp)).numpy()
 
         return Features(
-            data, self.labels(), self.times(data.shape[0]), self.parameters())
+            data, self.times(data.shape[0]), self.parameters())

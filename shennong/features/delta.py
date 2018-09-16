@@ -86,10 +86,6 @@ class DeltaProcessor(FeaturesProcessor):
             'order': self.order,
             'window': self.window}
 
-    def labels(self):
-        raise ValueError(
-            'labels are created from the input features given to `process()`')
-
     def times(self, nframes):
         raise ValueError(
             'times are created from the input features given to `process()`')
@@ -99,12 +95,12 @@ class DeltaProcessor(FeaturesProcessor):
 
         Parameters
         ----------
-        features : Features, shape = [nframes, nlabels]
+        features : Features, shape = [nframes, ncols]
             The input features on which to compute the deltas
 
         Returns
         -------
-        deltas : Features, shape = [nframes, nlabels * (`order` + 1)]
+        deltas : Features, shape = [nframes, ncols * (`order` + 1)]
             The computed deltas with as much orders as specified. The
             output features are the concatenation of the input
             `features` and it's time derivative at each orders.
@@ -114,9 +110,4 @@ class DeltaProcessor(FeaturesProcessor):
             kaldi.feat.functions.compute_deltas(
                 self._options, kaldi.matrix.SubMatrix(features.data))).numpy()
 
-        labels = features.labels.tolist()
-        for o in range(self.order):
-            labels += [l + '_d{}'.format(o+1) for l in features.labels]
-        labels = np.asarray(labels)
-
-        return Features(data, labels, features.times, self.parameters())
+        return Features(data, features.times, self.parameters())

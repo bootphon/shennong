@@ -192,10 +192,6 @@ class PlpProcessor(MelFeaturesProcessor):
             'htk_compat': self.htk_compat})
         return params
 
-    def labels(self):
-        return np.asarray(
-            ['plp_{}'.format(i+1) for i in range(self.num_ceps)])
-
     def process(self, signal, vtln_warp=1.0):
         """Compute PLP features with the specified options
 
@@ -242,4 +238,4 @@ class PlpProcessor(MelFeaturesProcessor):
                 kaldi.matrix.SubVector(signal.data), vtln_warp)).numpy()
 
         return Features(
-            data, self.labels(), self.times(data.shape[0]), self.parameters())
+            data, self.times(data.shape[0]), self.parameters())

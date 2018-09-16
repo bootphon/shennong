@@ -5,4 +5,5 @@ Features storage and manipulation
 
 .. automodule:: shennong.features.features
     :members:
+    :undoc-members:
     :show-inheritance:
