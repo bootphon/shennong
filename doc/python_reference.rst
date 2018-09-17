@@ -14,4 +14,5 @@ Python API reference
    :maxdepth: 2
 
    audio
+   window
    features
