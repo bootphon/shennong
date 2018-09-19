@@ -95,10 +95,10 @@ def test_save(tmpdir, alignments, sort, compress):
     if compress is True:
         filename += '.gz'
 
-    alignments.save(tmpdir.join(filename), sort=sort, compress=compress)
+    alignments.save(str(tmpdir.join(filename)), sort=sort, compress=compress)
 
     alignments2 = AlignmentCollection.load(
-        tmpdir.join(filename), compress=compress)
+        str(tmpdir.join(filename)), compress=compress)
 
     assert alignments['S01F1522_0001'] == alignments2['S01F1522_0001']
     assert alignments['S01F1522_0001'] != alignments2['S01F1522_0002']
