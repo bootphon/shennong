@@ -65,6 +65,21 @@ def test_valid(ali):
         Alignment.from_list([(0, 1, 'a', 'a')])
 
 
+def test_attributes(ali):
+    # read only attributes to protect alignment consistency
+    with pytest.raises(AttributeError):
+        ali.onsets = []
+
+    with pytest.raises(AttributeError):
+        ali.offsets = []
+
+    with pytest.raises(AttributeError):
+        ali.phones = []
+
+    with pytest.raises(AttributeError):
+        ali.phones_set = []
+
+
 def test_list(ali):
     ali2 = Alignment(
         np.array([[0, 1], [1, 2]]), np.array(['a', 'b']),

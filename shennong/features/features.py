@@ -96,7 +96,7 @@ class Features:
         this instance with the other instance. Their `times` must be
         the equal.
 
-        Properties
+        Parameters
         ----------
         other : Features, shape = [nframes, nlabels2]
             The other features to concatenate at the end of this one

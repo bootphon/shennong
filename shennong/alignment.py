@@ -6,7 +6,7 @@ import numpy as np
 
 
 class AlignmentCollection(dict):
-    """A dictionary of time alignments indexed by items
+    """A dictionary of `Alignment` indexed by items
 
     An AlignmentCollection is a usual Python dictionary with some
     additional functions. Keys are strings, values are `Alignment`
@@ -23,21 +23,16 @@ class AlignmentCollection(dict):
        is a string representation of the phone. `tstart` and `tstop`
        are expressed in seconds.
 
-    Attributes
-    ----------
-    phones_set : set
-        The set of phones present in the alignment
-
     Raises
     ------
     ValueError
         If one element of `data` is not a quadruplet, if one `tstart`
         or `tstop` cannot be casted to float
 
-    See Also
-    --------
-    Alignment
-        The values of the AlignmentCollection dictionary
+    Attributes
+    ----------
+    phones_set : set
+        The set of phones present in the alignment
 
     """
     def __init__(self, data):
@@ -185,13 +180,13 @@ class Alignment:
     """
     def __init__(self, times, phones, phones_set=None, validate=True):
         self._times = times
-        self.phones = phones
+        self._phones = phones
 
         # if the phone set is unspecified, take it from the alignment
         if phones_set is None:
-            self.phones_set = set(self.phones)
+            self._phones_set = set(self.phones)
         else:
-            self.phones_set = phones_set
+            self._phones_set = phones_set
 
         if validate is True:
             self.validate()
@@ -205,6 +200,16 @@ class Alignment:
     def offsets(self):
         """The stop timestamps of the aligned phones in seconds"""
         return self._times[:, 1]
+
+    @property
+    def phones(self):
+        """The aligned phones associated with timestamps"""
+        return self._phones
+
+    @property
+    def phones_set(self):
+        """A set made of the different phones in the alignment"""
+        return self._phones_set
 
     @staticmethod
     def from_list(data, phones_set=None, validate=True):
