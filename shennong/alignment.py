@@ -1,4 +1,30 @@
-"""Handles time alignment of speech signals"""
+"""Handles time alignments of speech signals
+
+A speech signal is time-aligned when, for each pronunced phone in the
+speech, their associated onset and offset times are provided. An
+alignment can be obtained manually (by annotation), or automatically
+(using Kaldi for example).
+
+Alignment files supported by `shennong` are text files (optionnaly
+compressed) in which each line is formatted as follow::
+
+     <item> <onset> <offset> <phone>
+
+The ``<item>`` can be the reference of an utterance, a speaker, or an
+file. The ``<onset>`` and ``<offset>`` are begin and end timestamps of
+the ``<phone>`` being pronunced. An exemple file is located in
+``shennong/test/data/alignment.txt`` and has been produced by a Kaldi
+forced-alignement.
+
+This module provides two classes to operate on time alignments:
+
+* :class:`AlignmentCollection` is a high-level class to load/save alignment
+  files. It exposes a dictionnary of items mapped to alignments.
+
+* :class:`Alignment` is the class representing a time-alignment for a
+  single *item*.
+
+"""
 
 import gzip
 import os
@@ -6,33 +32,32 @@ import numpy as np
 
 
 class AlignmentCollection(dict):
-    """A dictionary of `Alignment` indexed by items
+    """A dictionary of :class:`.Alignment` indexed by items
 
-    An AlignmentCollection is a usual Python dictionary with some
+    An `AlignmentCollection` is a usual Python dictionary with some
     additional functions. Keys are strings, values are `Alignment`
-    instances. Depending on the underlying data, keys can represents a
-    single utterance, a single speaker or an entire WAV file.
+    instances.
 
     Parameters
     ----------
-    data : sequence of (item, onset, offset, phone)
+    data : sequence of quadruplets
        A list or a sequence of quadruplets `(item, onset, offset,
        phone)` representing a time aligned phone for a given
-       `item`. `onset` is the start timestamp of the pronunced phone,
+       `item`, where `onset` is the start timestamp of the pronunced phone,
        `offset` is the end timestamp of the pronunciation and `phone`
-       is a string representation of the phone. `tstart` and `tstop`
+       is a string representation of the phone. `onset` and `offset`
        are expressed in seconds.
 
     Raises
     ------
     ValueError
-        If one element of `data` is not a quadruplet, if one `tstart`
-        or `tstop` cannot be casted to float
+        If one element of `data` is not a quadruplet, if the Alignment
+        mapped to an `item` cannot be instanciated.
 
     Attributes
     ----------
     phones_set : set
-        The set of phones present in the alignment
+        The set of all the phones present in the alignment
 
     """
     def __init__(self, data):
@@ -59,13 +84,46 @@ class AlignmentCollection(dict):
             except ValueError as err:
                 raise ValueError('item {}: {}'.format(item, err))
 
+    @staticmethod
+    def load(filename, compress=False):
+        """Returns an `AlignmentCollection` loaded from the `alignment_file`
+
+        The text file, optionally compressed, is read as utf8. It must
+        be composed of lines with 4 fields ``<item> <onset> <offset>
+        <phone>``.
+
+        Parameters
+        ----------
+        filename : str
+            The path to the alignment file to read, must be an
+            existing text file.
+
+        Returns
+        -------
+        alignment : AlignmentCollection
+            The AlignmentCollection instance initialized from the
+            `alignment_file`
+
+        Raises
+        ------
+        ValueError
+            If the `alignment_file` is not a valid alignment or if the
+            AlignmentCollection cannot be instanciated.
+
+        """
+        if not os.path.isfile(filename):
+            raise ValueError('{}: file not found'.format(filename))
+
+        # read the input file compressed or not
+        open_fun = gzip.open if compress is True else open
+
+        data = [line.split() for line in
+                open_fun(filename, 'rt', encoding='utf8').readlines()]
+
+        return AlignmentCollection(data)
+
     def save(self, filename, sort=False, compress=False):
         """Save the alignments to a `filename`
-
-        The saved alignment is in text format (encoded in utf8), each
-        line structured as::
-
-            <item> <onset> <offset> <phone>
 
         Parameters
         ----------
@@ -111,46 +169,6 @@ class AlignmentCollection(dict):
         return [item + ' ' + '{} {} {}'.format(l[0], l[1], l[2])
                 for l in self[item].to_list()]
 
-    @staticmethod
-    def load(alignment_file, compress=False):
-        """Returns an AlignmentCollection loaded from the `alignment_file`
-
-        The file, in text format and optionally compressed, is read as
-        utf8. It must be composed of lines with the following 4
-        fields:
-
-            <item> <onset> <offset> <phone>
-
-        Parameters
-        ----------
-        alignment_file : str
-            The path to the alignment file to read, must be an
-            existing file
-
-        Returns
-        -------
-        alignment : AlignmentCollection
-            The AlignmentCollection instance initialized from the
-            `alignment_file`
-
-        Raises
-        ------
-        ValueError
-            If the `alignment_file` is not a valid alignment or if the
-            AlignmentCollection cannot be instanciated.
-
-        """
-        if not os.path.isfile(alignment_file):
-            raise ValueError('{}: file not found'.format(alignment_file))
-
-        # read the input file compressed or not
-        open_fun = gzip.open if compress is True else open
-
-        data = [line.split() for line in
-                open_fun(alignment_file, 'rt', encoding='utf8').readlines()]
-
-        return AlignmentCollection(data)
-
 
 class Alignment:
     """Time alignment of phones
@@ -159,7 +177,7 @@ class Alignment:
     phones linked with their onset and offset timestamps. See the
     `validate` method for a list constraints applying to the `data`.
 
-    Attributes
+    Parameters
     ----------
     times : array of float, shape = [nphones, 2]
         The array of (onset, offset) timestamps for each aligned phone
@@ -174,7 +192,7 @@ class Alignment:
     Raises
     ------
     ValueError
-        When `validate` is True and the alignment data is not
+        When :func:`validate` is True and the alignment data is not
         correctly formatted
 
     """

@@ -1,4 +1,4 @@
-.. _alignment:
+.. _shennong.alignment:
 
 Time alignments
 ~~~~~~~~~~~~~~~
