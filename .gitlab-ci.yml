@@ -19,7 +19,7 @@ shennong-doc:
   stage: deploy
   script:
     - conda activate shennong-ci
-    - sphinx-build doc doc/build
+    - sphinx-build doc/source doc/build
     - scp -r doc/build/* coml.lscp.ens.fr:/var/www/html/shennong
 
 # shennong package is available on oberon with "source activate shennong"
