@@ -14,7 +14,7 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath('../..'))
 
 
 # -- Project information -----------------------------------------------------
@@ -24,7 +24,7 @@ copyright = '2018, Mahieu Bernard'
 author = 'Mathieu Bernard'
 
 
-VERSION = open('../VERSION', 'r').read()
+VERSION = open('../../VERSION', 'r').read()
 
 # The short X.Y version
 version = '.'.join(VERSION.split('.')[:2])
@@ -80,6 +80,19 @@ exclude_patterns = []
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
+
+
+# -- Napoleon options --------------------------------------------------------
+# http://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html
+
+napoleon_google_docstring = False
+napoleon_numpy_docstring = True
+napoleon_include_special_with_doc = False
+napoleon_use_admonition_for_examples = False
+napoleon_use_admonition_for_notes = False
+napoleon_use_admonition_for_references = False
+napoleon_use_ivar = False
+napoleon_use_rtype = False
 
 
 # -- Options for HTML output -------------------------------------------------
