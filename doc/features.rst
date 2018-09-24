@@ -10,5 +10,6 @@ Features extraction
    features.mfcc
    features.plp
    features.filterbank
+   features.onehot
    features.delta
    features.pitch
