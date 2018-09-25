@@ -27,17 +27,51 @@ def types():
     return sorted(['povey', 'hanning', 'hamming', 'rectangular', 'blackman'])
 
 
-def window(length, type='povey', blackman_coef=0.42):
+def window(length, type='povey', blackman_coeff=0.42):
     """Returns a window of the given `type` and `length`
+
+    With `length` noted :math:`N`, the window functions :math:`w(n)`
+    are expressed as follows:
+
+    * **rectangular**:
+
+      .. math::
+
+         w(n) = 1
+
+    * **hanning**:
+
+      .. math::
+
+         w(n) = \\frac{1}{2} - \\frac{1}{2} cos(\\frac{2\\pi n}{N-1})
+
+    * **hamming**:
+
+      .. math::
+
+         w(n) = 0.54 - 0.46 cos(\\frac{2\\pi n}{N-1})
+
+    * **povey** (like `hamming` but goes to zero at edges):
+
+      .. math::
+
+         w(n) = (\\frac{1}{2} - \\frac{1}{2} cos(\\frac{2\\pi n}{N-1}))^{0.85}
+
+    * **blackman**, with `blackman_coeff` noted as :math:`\\alpha`:
+
+      .. math::
+
+         w(n) = \\alpha - \\frac{1}{2} cos(\\frac{2\\pi n}{N-1}) + \
+                (\\frac{1}{2} - \\alpha) cos(\\frac{4\\pi n}{N-1})
 
     Parameters
     ----------
     length : int
-        The size of the windiw, in number of samples
+        The size of the window, in number of samples
     type : {'povey', 'hanning', 'hamming', 'rectangular', 'blackman'}
         The type of the window, default is 'povey' (like hamming but
         goes to zero at edges)
-    blackman_coef : float, optional
+    blackman_coeff : float, optional
         The constant coefficient for generalized Blackman window, used
         only when `type` is 'blackman'
 
@@ -74,7 +108,7 @@ def window(length, type='povey', blackman_coef=0.42):
     opt.samp_freq = 1000
     opt.frame_length_ms = length  # samp_freq * 0.001 * length
     opt.window_type = type
-    opt.blackman_coeff = blackman_coef
+    opt.blackman_coeff = blackman_coeff
 
     window = kaldi.feat.window.FeatureWindowFunction().from_options(opt).window
     return kaldi.matrix.SubVector(window).numpy()
