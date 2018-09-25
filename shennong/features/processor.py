@@ -15,11 +15,6 @@ class FeaturesProcessor(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def times(self, nframes):
-        """Returns the time labels of the rows given by the `process` method"""
-        pass
-
-    @abc.abstractmethod
     def process(self, signal):
         """Returns some features processed from an input `signal`"""
         pass

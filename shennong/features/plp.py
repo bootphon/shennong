@@ -47,7 +47,6 @@ References
 
 import kaldi.feat.plp
 import kaldi.matrix
-import numpy as np
 
 from shennong.features.features import Features
 from shennong.features.processor import MelFeaturesProcessor

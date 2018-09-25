@@ -37,8 +37,6 @@ class Features:
     def __eq__(self, other):
         if self.shape != other.shape:
             return False
-        if not np.array_equal(self.labels, other.labels):
-            return False
         if not np.array_equal(self.times, other.times):
             return False
         if not self.properties == other.properties:

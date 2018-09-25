@@ -491,11 +491,6 @@ class PitchPostProcessor(FeaturesProcessor):
             'add_delta_pitch': self.add_delta_pitch,
             'add_raw_log_pitch': self.add_raw_log_pitch}
 
-    def times(self, nframes):
-        raise ValueError(
-            'times label is not managed by the pitch postprocessor '
-            'but is provided by the input raw pitch to `process`')
-
     def process(self, raw_pitch):
         """Post process a raw pitch data as specified by the options
 

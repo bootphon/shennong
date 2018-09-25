@@ -7,6 +7,7 @@ Uses the Kaldi implementation (see [kaldi-delta]_)
 Examples
 --------
 
+>>> import numpy as np
 >>> from shennong.audio import AudioData
 >>> from shennong.features.mfcc import MfccProcessor
 >>> from shennong.features.delta import DeltaProcessor
@@ -42,7 +43,6 @@ References
 
 import kaldi.feat.functions
 import kaldi.matrix
-import numpy as np
 
 from shennong.features.processor import FeaturesProcessor
 from shennong.features.features import Features
@@ -85,10 +85,6 @@ class DeltaProcessor(FeaturesProcessor):
         return {
             'order': self.order,
             'window': self.window}
-
-    def times(self, nframes):
-        raise ValueError(
-            'times are created from the input features given to `process()`')
 
     def process(self, features):
         """Compute deltas on `features` with the specified options
