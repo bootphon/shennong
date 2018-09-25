@@ -5,4 +5,5 @@ MFCC
 
 .. automodule:: shennong.features.mfcc
     :members:
-    :show-inheritance:
+    :inherited-members:
+    :undoc-members:

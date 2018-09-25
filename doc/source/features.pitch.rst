@@ -5,4 +5,5 @@ Pitch estimation
 
 .. automodule:: shennong.features.pitch
     :members:
-    :show-inheritance:
+    :inherited-members:
+    :undoc-members:

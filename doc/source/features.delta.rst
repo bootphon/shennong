@@ -5,4 +5,5 @@ Delta features
 
 .. automodule:: shennong.features.delta
     :members:
-    :show-inheritance:
+    :inherited-members:
+    :undoc-members:

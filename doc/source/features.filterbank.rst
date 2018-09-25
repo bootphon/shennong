@@ -5,4 +5,5 @@ Filterbank
 
 .. automodule:: shennong.features.filterbank
     :members:
-    :show-inheritance:
+    :inherited-members:
+    :undoc-members:

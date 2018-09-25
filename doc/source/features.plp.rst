@@ -5,4 +5,5 @@ PLP
 
 .. automodule:: shennong.features.plp
     :members:
-    :show-inheritance:
+    :inherited-members:
+    :undoc-members:

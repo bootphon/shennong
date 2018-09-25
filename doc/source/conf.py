@@ -53,6 +53,8 @@ extensions = [
 ]
 
 autodoc_member_order = 'bysource'
+autodoc_inherit_docstrings = True
+
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['templates']

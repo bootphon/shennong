@@ -5,5 +5,5 @@ Audio data
 
 .. automodule:: shennong.audio
     :members:
+    :inherited-members:
     :undoc-members:
-    :show-inheritance:
