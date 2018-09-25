@@ -21,9 +21,9 @@ import operator
 
 import numpy as np
 
+from shennong.core.processor import FeaturesProcessor
 from shennong.features.features import Features
-from shennong.features.processor import FeaturesProcessor
-import shennong.window
+import shennong.core.window
 
 
 class _OneHotBase(FeaturesProcessor):
@@ -169,7 +169,7 @@ class FramedOneHotProcessor(_OneHotBase):
         data = np.zeros((k, len(phone2index)), dtype=np.int8)
 
         # allocate the window function
-        window = shennong.window.window(
+        window = shennong.core.window.window(
             length, type=self.window_type,
             blackman_coeff=self.blackman_coeff)
 

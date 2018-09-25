@@ -67,7 +67,7 @@ import kaldi.feat.pitch
 import kaldi.matrix
 import numpy as np
 
-from shennong.features.processor import FeaturesProcessor
+from shennong.core.processor import FeaturesProcessor
 from shennong.features.features import Features
 
 

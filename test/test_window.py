@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from shennong import window
+from shennong.core import window
 
 
 @pytest.mark.parametrize(

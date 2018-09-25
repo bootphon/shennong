@@ -24,16 +24,17 @@ class MelFeaturesProcessor(FeaturesProcessor):
     """A base class for mel-based features processors
 
     The mel-based features are MFCC, PLP and filterbanks. The class
-    implement common options for processing those features.
+    implement common options for processing those features. See
+    [kaldi-mel]_ and [kaldi-frame]_.
 
     References
     ----------
 
     .. [kaldi-frame]
-      http://kaldi-asr.org/doc/structkaldi_1_1FrameExtractionOptions.html
+       http://kaldi-asr.org/doc/structkaldi_1_1FrameExtractionOptions.html
 
     .. [kaldi-mel]
-      http://kaldi-asr.org/doc/structkaldi_1_1MelBanksOptions.html
+       http://kaldi-asr.org/doc/structkaldi_1_1MelBanksOptions.html
 
     """
     def __init__(self, sample_rate=16000, frame_shift=0.01,

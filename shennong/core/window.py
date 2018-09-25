@@ -6,7 +6,7 @@ the kaldi implementation.
 Examples
 --------
 
->>> from shennong.window import window
+>>> from shennong.core.window import window
 >>> window(5, type='hamming')
 array([0.08, 0.54, 1.  , 0.54, 0.08], dtype=float32)
 >>> window(5, type='rectangular')

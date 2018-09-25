@@ -40,7 +40,7 @@ import kaldi.feat.fbank
 import kaldi.matrix
 
 from shennong.features.features import Features
-from shennong.features.processor import MelFeaturesProcessor
+from shennong.core.processor import MelFeaturesProcessor
 
 
 class FilterbankProcessor(MelFeaturesProcessor):

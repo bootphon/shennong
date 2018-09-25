@@ -4,7 +4,8 @@ import numpy as np
 import pytest
 
 from shennong.features import onehot, mfcc
-from shennong import window, alignment
+from shennong import alignment
+from shennong.core import window
 
 
 def test_base(alignments):

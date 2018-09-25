@@ -9,11 +9,10 @@ Python API reference
 
      import shennong
 
-
 .. toctree::
    :maxdepth: 2
 
    alignment
    audio
-   window
    features
+   core

@@ -1,9 +1,9 @@
-.. _window:
+.. _core.window:
 
 Window functions
 ~~~~~~~~~~~~~~~~
 
-.. automodule:: shennong.window
+.. automodule:: shennong.core.window
     :members:
     :inherited-members:
     :undoc-members:
