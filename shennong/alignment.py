@@ -24,6 +24,51 @@ This module provides two classes to operate on time alignments:
 * :class:`Alignment` is the class representing a time-alignment for a
   single *item*.
 
+Examples
+--------
+
+>>> from shennong.alignment import AlignmentCollection
+
+Load a file with time alignment for 34 items
+
+>>> alignments = AlignmentCollection.load('./test/data/alignment.txt')
+>>> len(alignments.keys())
+34
+
+Get the alignment of one item, an item from an AlignmentCollection is
+an instance of Alignment:
+
+>>> ali1 = alignments['S01F1522_0033']
+>>> type(ali1)
+<class 'shennong.alignment.Alignment'>
+>>> ali1.duration()
+0.64
+>>> print(ali1)
+0.0125 0.0425 m
+0.0425 0.1225 a
+0.1225 0.1825 s
+0.1825 0.2425 o
+0.2425 0.3025 r
+0.3025 0.3625 e
+0.3625 0.4325 k
+0.4325 0.4925 a
+0.4925 0.5625 r
+0.5625 0.6525 a
+
+Extract a subpart of the alignment, as an Alignment instance as well
+
+>>> ali2 = ali1[0.4325:0.6525]
+>>> print(ali2)
+0.4325 0.4925 a
+0.4925 0.5625 r
+0.5625 0.6525 a
+
+Phones sets are shared by an AlignmentCollection and Alignement
+instances derived from it:
+
+>>> alignments.phones_set == ali1.phones_set == ali2.phones_set
+True
+
 """
 
 import gzip
@@ -62,6 +107,7 @@ class AlignmentCollection(dict):
     """
     def __init__(self, data):
         self.phones_set = set()
+
         for i, entry in enumerate(data):
             if len(entry) != 4:
                 raise ValueError(
@@ -175,7 +221,8 @@ class Alignment:
 
     An Alignment handles a time alignment of phones, i.e. a suite of
     phones linked with their onset and offset timestamps. See the
-    `validate` method for a list constraints applying to the `data`.
+    :func:`validate` method for a list constraints applying to the
+    `data`.
 
     Parameters
     ----------
@@ -417,10 +464,7 @@ class Alignment:
     def to_list(self):
         """Returns the alignment as a list of triplets (onset, offset, phone)
 
-        See Also
-        --------
-        Alignment.from_list
-            The reverse operation
+        This is the reverse operation of :func:`from_list`.
 
         """
         return [(self.onsets[i], self.offsets[i], self.phones[i])
@@ -449,3 +493,7 @@ class Alignment:
         if len(self.phones) == 0:
             return 0
         return self.offsets[-1] - self.onsets[0]
+
+    def purge_phones_set(self):
+        """Removes from the `phones_set` the phones not present in alignment"""
+        self._phones_set = set(self.phones)

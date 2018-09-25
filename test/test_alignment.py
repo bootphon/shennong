@@ -256,10 +256,20 @@ def test_save(tmpdir, alignments, sort, compress):
     assert alignments == alignments2
 
 
-def test_phones_set(alignments):
+@pytest.mark.parametrize('purge', [True, False])
+def test_phones_set(alignment_file, purge):
+    alignments = AlignmentCollection.load(alignment_file)
+    if purge is True:
+        for a in alignments.values():
+            a.purge_phones_set()
+
     # make sure all the items share the same phone set
     sets = [a.phones_set for a in alignments.values()]
-    assert all(sets[i] == sets[i+1] for i in range(len(sets) - 1))
+    all_phones_shared = all(sets[i] == sets[i+1] for i in range(len(sets) - 1))
+    if purge is True:
+        assert not all_phones_shared
+    else:
+        assert all_phones_shared
 
     # wheras this is not required for the real phones in each item
     v = list(alignments.values())
