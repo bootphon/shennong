@@ -1,4 +1,6 @@
 name: shennong
+channels:
+  - pykaldi
 dependencies:
   - python=3.7
   - cython
@@ -6,6 +8,7 @@ dependencies:
   - h5py
   - ipython
   - numpy
+  - pykaldi
   - pyparsing
   - pytest
   - pytest-runner

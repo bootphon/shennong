@@ -15,11 +15,6 @@ be adapted to other Linux distributions easilly.
         conda env create --name shennong -f environment.yml
         conda activate shennong
 
-* Install `pykaldi` following the instructions
-  [here](https://github.com/pykaldi/pykaldi#installation). Do not
-  create a new virtual environment but install it in the `shennong`
-  environment instead.
-
 * Then install the shennong package:
 
         python setup.py install
