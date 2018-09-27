@@ -4,6 +4,47 @@ import h5features as h5f
 import numpy as np
 
 
+class FeaturesCollection(dict):
+    @staticmethod
+    def load(filename, format='h5features'):
+        pass
+
+    def save(self, filename, format='h5features'):
+        pass
+
+    def by_speaker(self, spk2utt):
+        """Returns a dict of :class:`FeaturesCollection` indexed by speakers
+
+        Parameters
+        ----------
+        spk2utt : dict
+            A mapping of speakers to their associated utterances
+            (items in the FeaturesCollection). We must have
+            ``spk2utt.values() == self.keys()``.
+
+        Returns
+        -------
+        features : dict of FeaturesCollection
+            A list of FeaturesCollection instances, one per speaker
+            defined in `utt2spk`
+
+        Raises
+        ------
+        ValueError
+            If one utterance in the collection is not mapped in
+            `spk2utt`.
+
+        """
+        undefined_utts = set(self.keys()).difference(set(spk2utt.values()))
+        if len(undefined_utts) != 0:
+            raise ValueError(
+                'following utterances are not defined in spk2utt: {}'
+                .format(sorted(undefined_utts)))
+
+        return {spk: FeaturesCollection({utt: self[utt] for utt in utts})
+                for spk, utts in spk2utt}
+
+
 class Features:
     def __init__(self, data, times, properties=None, validate=True):
         self._data = data

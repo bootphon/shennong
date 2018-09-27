@@ -4,8 +4,8 @@
 
 from setuptools import setup, find_packages
 
-
-VERSION = open('VERSION', 'r').read().strip()
+import shennong
+VERSION = shennong.__version__
 
 
 setup(

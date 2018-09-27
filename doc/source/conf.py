@@ -24,7 +24,8 @@ copyright = '2018, Mahieu Bernard'
 author = 'Mathieu Bernard'
 
 
-VERSION = open('../../VERSION', 'r').read()
+import shennong
+VERSION = shennong.__version__
 
 # The short X.Y version
 version = '.'.join(VERSION.split('.')[:2])
