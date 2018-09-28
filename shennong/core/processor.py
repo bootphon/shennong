@@ -172,7 +172,7 @@ class MelFeaturesProcessor(FeaturesProcessor):
         """If true, output only frames that completely fit in the file
 
         When True the number of frames depends on the `frame_length`.
-        If false, the number of frames depends only on the
+        If False, the number of frames depends only on the
         `frame_shift`, and we reflect the data at the ends.
 
         """

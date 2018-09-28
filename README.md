@@ -19,7 +19,7 @@ be adapted to other Linux distributions easilly.
 
         python setup.py install
 
-* Tests the installation is working (this executes all the unit tests
+* Test the installation is working (this executes all the unit tests
   stored in the `test/` folder):
 
         python setup.py test
