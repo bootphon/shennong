@@ -88,7 +88,7 @@ def test_framed(alignments):
     assert all(feat.data.sum(axis=1) != 0)
     assert feat.shape[1] == len(ali.get_phones_inventory())
 
-    length = onehot.FramedOneHotProcessor().frame_length
+    length = onehot.FramedOneHotProcessor().frame.frame_length
     assert ali.duration() - length <= feat.times[-1]
     assert feat.times[-1] <= ali.duration() + length/2
 

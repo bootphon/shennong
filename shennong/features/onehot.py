@@ -22,6 +22,7 @@ import operator
 import numpy as np
 
 from shennong.core.processor import FeaturesProcessor
+from shennong.core.frame import Frame
 from shennong.features.features import Features
 import shennong.core.window
 
@@ -102,11 +103,10 @@ class OneHotProcessor(_OneHotBase):
         # build a bijection phone <-> onehot index
         phone2index = self._phone2index(alignment)
 
-        # initialize the data matrix with zeros, dtype is int8 because
-        # np.bool_ are stored as bytes as well TODO should data be a
+        # initialize the data matrix with zeros, TODO should data be a
         # scipy.sparse matrix?
         data = np.zeros(
-            (alignment.phones.shape[0], len(phone2index)), dtype=np.int8)
+            (alignment.phones.shape[0], len(phone2index)), dtype=np.bool)
 
         # fill the data with onehot encoding of phones
         for i, p in enumerate(alignment.phones):
@@ -133,18 +133,20 @@ class FramedOneHotProcessor(_OneHotBase):
                  window_type='povey', blackman_coeff=0.42):
         super().__init__(phones=phones)
 
-        self.sample_rate = sample_rate
-        self.frame_shift = frame_shift
-        self.frame_length = frame_length
+        self.frame = Frame(
+            sample_rate=sample_rate,
+            frame_shift=frame_shift,
+            frame_length=frame_length)
+
         self.window_type = window_type
         self.blackman_coeff = blackman_coeff
 
     def parameters(self):
         params = super().parameters()
         params.update({
-            'sample_rate': self.sample_rate,
-            'frame_shitf': self.frame_shift,
-            'frame_length': self.frame_length,
+            'sample_rate': self.frame.sample_rate,
+            'frame_shift': self.frame.frame_shift,
+            'frame_length': self.frame.frame_length,
             'window_type': self.window_type,
             'blackman_coeff': self.blackman_coeff})
         return params
@@ -154,26 +156,21 @@ class FramedOneHotProcessor(_OneHotBase):
         phone2index = self._phone2index(alignment)
 
         # sample the alignment at the requested sample rate
-        sampled = alignment.at_sample_rate(self.sample_rate)
+        sampled = alignment.at_sample_rate(self.frame.sample_rate)
 
-        shift = self.frame_shift * self.sample_rate
-        length = self.frame_length * self.sample_rate
-
-        k = math.ceil((sampled.shape[0] - length) / shift)
-        frames = np.repeat(np.arange(k), 2).reshape(k, 2)
-        frames = (frames * shift + (0, length)).astype(np.int)
-        assert frames[0, 0] == 0
-        assert frames[-1, 1] <= sampled.shape[0]
+        # get the frames as pairs (istart:istop)
+        frame_boundaries = self.frame.boundaries(sampled.shape[0])
 
         # allocate the features data
-        data = np.zeros((k, len(phone2index)), dtype=np.int8)
+        data = np.zeros(
+            (frame_boundaries.shape[0], len(phone2index)), dtype=np.bool)
 
         # allocate the window function
         window = shennong.core.window.window(
-            length, type=self.window_type,
+            self.frame.samples_per_frame, type=self.window_type,
             blackman_coeff=self.blackman_coeff)
 
-        for i, (onset, offset) in enumerate(frames):
+        for i, (onset, offset) in enumerate(frame_boundaries):
             framed = sampled[onset:offset]
             # the frame is made of a single phone, no needs to compute
             # a window function
@@ -199,5 +196,5 @@ class FramedOneHotProcessor(_OneHotBase):
 
         return Features(
             data,
-            frames.mean(axis=1) / self.sample_rate,
+            frame_boundaries.mean(axis=1) / self.frame.sample_rate,
             properties=prop)
