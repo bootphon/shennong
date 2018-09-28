@@ -63,12 +63,6 @@ Extract a subpart of the alignment, as an Alignment instance as well
 0.4925 0.5625 r
 0.5625 0.6525 a
 
-Phones sets are shared by an AlignmentCollection and Alignement
-instances derived from it:
-
->>> alignments.phones_set == ali1.phones_set == ali2.phones_set
-True
-
 """
 
 import gzip
@@ -99,15 +93,8 @@ class AlignmentCollection(dict):
         If one element of `data` is not a quadruplet, if the Alignment
         mapped to an `item` cannot be instanciated.
 
-    Attributes
-    ----------
-    phones_set : set
-        The set of all the phones present in the alignment
-
     """
     def __init__(self, data):
-        self.phones_set = set()
-
         for i, entry in enumerate(data):
             if len(entry) != 4:
                 raise ValueError(
@@ -115,7 +102,6 @@ class AlignmentCollection(dict):
                     .format(i+1, len(entry)))
 
             item = entry[0]
-            self.phones_set.add(entry[3])
 
             # first init of the dict with lists of entries
             if item not in self.keys():
@@ -125,8 +111,7 @@ class AlignmentCollection(dict):
         # second init: from list to Alignment
         for item, data in self.items():
             try:
-                self[item] = Alignment.from_list(
-                    data, phones_set=self.phones_set, validate=True)
+                self[item] = Alignment.from_list(data, validate=True)
             except ValueError as err:
                 raise ValueError('item {}: {}'.format(item, err))
 
@@ -215,6 +200,17 @@ class AlignmentCollection(dict):
         return [item + ' ' + '{} {} {}'.format(l[0], l[1], l[2])
                 for l in self[item].to_list()]
 
+    def get_phones_inventory(self):
+        """Returns the different phones composing the collection
+
+        Returns
+        -------
+        phones : set
+            Unique phones present in the collection's alignments
+
+        """
+        return set.union(*(v.get_phones_inventory() for v in self.values()))
+
 
 class Alignment:
     """Time alignment of phones
@@ -230,8 +226,6 @@ class Alignment:
         The array of (onset, offset) timestamps for each aligned phone
     phones : array of str, shape = [nphones, 1]
         The array of aligned phones
-    phones_set : set
-        The set of the distinct phones present in the alignement
     validate : bool, optional
         When True, checks the alignment is in a valid format, when
         False does not perform any verification, default is True
@@ -243,15 +237,9 @@ class Alignment:
         correctly formatted
 
     """
-    def __init__(self, times, phones, phones_set=None, validate=True):
+    def __init__(self, times, phones, validate=True):
         self._times = times
         self._phones = phones
-
-        # if the phone set is unspecified, take it from the alignment
-        if phones_set is None:
-            self._phones_set = set(self.phones)
-        else:
-            self._phones_set = phones_set
 
         if validate is True:
             self.validate()
@@ -271,13 +259,8 @@ class Alignment:
         """The aligned phones associated with timestamps"""
         return self._phones
 
-    @property
-    def phones_set(self):
-        """A set made of the different phones in the alignment"""
-        return self._phones_set
-
     @staticmethod
-    def from_list(data, phones_set=None, validate=True):
+    def from_list(data, validate=True):
         """Build an Alignment from a list of (tstart, tsop, phone) triplets
 
         This method checks all elements in the `data` list have 3
@@ -291,10 +274,6 @@ class Alignment:
             representing a time aligned phone. `tstart` and `tstop`
             are the onset and offset of the pronunciation (in
             seconds). `phone` is a string representation of the phone.
-        phones_set : set,
-            optional The set of the different phones present in the
-            alignment. If not specified the `phones_set` is built from
-            the phones in `data`.
 
         """
         # check we have 3 fields in each data entry
@@ -307,7 +286,7 @@ class Alignment:
         times = np.array([d[:2] for d in data], dtype=np.float)
         phones = np.array([d[2] for d in data])
         return Alignment(
-            times, phones, phones_set=phones_set, validate=validate)
+            times, phones, validate=validate)
 
     def validate(self):
         """Raises a ValueError is the Alignment is not consistent
@@ -347,13 +326,6 @@ class Alignment:
                 raise ValueError(
                     'mismatch in tstop/tstart timestamps')
 
-        # make sure all phones in alignment are present in phones_set
-        diff = set(self.phones).difference(set(self.phones_set))
-        if len(diff) != 0:
-            raise ValueError(
-                'following phones are in alignment but not in phones_set: '
-                '{}'.format(', '.join(diff)))
-
     def is_valid(self):
         """Returns True if the Alignment is consistent, False otherwise"""
         try:
@@ -364,8 +336,7 @@ class Alignment:
 
     def __eq__(self, other):
         return (np.array_equal(self._times, other._times)
-                and np.array_equal(self.phones, other.phones)
-                and self.phones_set == other.phones_set)
+                and np.array_equal(self.phones, other.phones))
 
     def __getitem__(self, time):
         """Returns data aligned in `time` slice
@@ -414,10 +385,7 @@ class Alignment:
 
         # deal with corner cases
         if tstart >= tstop or tstart >= tmax or tstop <= tmin:
-            return Alignment(
-                np.array([]), np.array([]),
-                phones_set=self.phones_set,
-                validate=False)
+            return Alignment(np.array([]), np.array([]), validate=False)
 
         if tstart == tmin and tstop == tmax:
             return self
@@ -451,10 +419,7 @@ class Alignment:
             times[0, 0] = tstart
             times[-1, 1] = tstop
 
-        return Alignment(
-            times, phones,
-            phones_set=self.phones_set,
-            validate=False)
+        return Alignment(times, phones, validate=False)
 
     def __repr__(self):
         return '\n'.join(
@@ -494,6 +459,13 @@ class Alignment:
             return 0
         return self.offsets[-1] - self.onsets[0]
 
-    def purge_phones_set(self):
-        """Removes from the `phones_set` the phones not present in alignment"""
-        self._phones_set = set(self.phones)
+    def get_phones_inventory(self):
+        """Returns the different phones composing the alignment
+
+        Returns
+        -------
+        phones : set
+            Unique phones present in the alignment
+
+        """
+        return set(self.phones)

@@ -39,13 +39,13 @@ class _OneHotBase(FeaturesProcessor):
     def _phones_set(self, alignment):
         # if no phones list specified, take them from the alignment
         if self.phones is None:
-            return alignment.phones_set
-
-        errors = [p for p in set(alignment.phones) if p not in self.phones]
-        if errors != []:
-            raise ValueError(
-                'following phones are in alignment but not defined in the '
-                'onehot features processor: {}'.format(errors))
+            return alignment.get_phones_inventory()
+        else:
+            errors = [p for p in set(alignment.phones) if p not in self.phones]
+            if errors != []:
+                raise ValueError(
+                    'following phones are in alignment but not defined in the '
+                    'onehot features processor: {}'.format(errors))
         return self.phones
 
     def _phone2index(self, alignment):

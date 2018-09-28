@@ -17,7 +17,6 @@ def test_simple(ali):
     assert ali._times.dtype == np.float
     assert ali.duration() == pytest.approx(3.001)
 
-    assert ali.phones_set == {'a', 'b', 'c'}
     assert np.array_equal(np.array(['a', 'b', 'c']), ali.phones)
     assert np.array([[0, 1], [1, 2], [2, 3.001]]) == pytest.approx(ali._times)
 
@@ -76,25 +75,13 @@ def test_attributes(ali):
     with pytest.raises(AttributeError):
         ali.phones = []
 
-    with pytest.raises(AttributeError):
-        ali.phones_set = []
-
 
 def test_list(ali):
-    ali2 = Alignment(
-        np.array([[0, 1], [1, 2]]), np.array(['a', 'b']),
-        phones_set=ali.phones_set)
+    ali2 = Alignment(np.array([[0, 1], [1, 2]]), np.array(['a', 'b']))
 
     assert ali[:2] == ali2
     assert ali2.to_list() == [(0, 1, 'a'), (1, 2, 'b')]
     assert Alignment.from_list(ali.to_list()) == ali
-
-    ali3 = Alignment(
-        np.array([[0, 1], [1, 2]]), np.array(['a', 'b']))
-
-    assert ali2.phones_set != ali3.phones_set
-    assert ali2 != ali3
-    assert ali2.to_list() == [(0, 1, 'a'), (1, 2, 'b')]
 
 
 def test_repr(ali):
@@ -233,9 +220,14 @@ def test_sample_rate():
 def test_load(alignments):
     assert 'S01F1522_0001' in alignments
     assert len(alignments) == 34
+    for a in alignments.values():
+        assert a.is_valid()
 
-    assert 'e:' in alignments.phones_set
-    assert len(alignments.phones_set) == 32
+
+def test_inventory(alignments):
+    phones = alignments.get_phones_inventory()
+    assert 'e:' in phones
+    assert len(phones) == 32
 
 
 @pytest.mark.parametrize(
@@ -254,24 +246,3 @@ def test_save(tmpdir, alignments, sort, compress):
     assert alignments['S01F1522_0001'] == alignments2['S01F1522_0001']
     assert alignments['S01F1522_0001'] != alignments2['S01F1522_0002']
     assert alignments == alignments2
-
-
-@pytest.mark.parametrize('purge', [True, False])
-def test_phones_set(alignment_file, purge):
-    alignments = AlignmentCollection.load(alignment_file)
-    if purge is True:
-        for a in alignments.values():
-            a.purge_phones_set()
-
-    # make sure all the items share the same phone set
-    sets = [a.phones_set for a in alignments.values()]
-    all_phones_shared = all(sets[i] == sets[i+1] for i in range(len(sets) - 1))
-    if purge is True:
-        assert not all_phones_shared
-    else:
-        assert all_phones_shared
-
-    # wheras this is not required for the real phones in each item
-    v = list(alignments.values())
-    assert not all(
-        set(v[i].phones) == set(v[i+1].phones) for i in range(len(v) - 1))
