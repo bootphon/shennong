@@ -4,7 +4,7 @@ import kaldi.feat.window
 import numpy as np
 
 
-class Frame:
+class Frames:
     def __init__(self, sample_rate=16000,
                  frame_shift=0.01, frame_length=0.025,
                  snip_edges=True):
@@ -12,6 +12,7 @@ class Frame:
         self.sample_rate = sample_rate
         self.frame_shift = frame_shift
         self.frame_length = frame_length
+        self.snip_edges = snip_edges
 
     @property
     def sample_rate(self):
@@ -63,12 +64,12 @@ class Frame:
     @property
     def samples_per_frame(self):
         """The number of samples in one frame"""
-        return self.frame_length * self.sample_rate
+        return int(self.frame_length * self.sample_rate)
 
     @property
     def samples_per_shift(self):
         """The number of samples between two shifts"""
-        return self.frame_shift * self.sample_rate
+        return int(self.frame_shift * self.sample_rate)
 
     def nframes(self, nsamples):
         """Returns the number of frames extracted from `nframes`
@@ -92,18 +93,18 @@ class Frame:
             nsamples, self._options, flush=True))
 
     def first_sample_of_frame(self, frame):
-        """Returns the index of the first sample of the frame indexed `frame`
+        """Returns the index of the first sample of frame indexed `frame`"""
+        return frame * self.samples_per_shift
 
-        If `snip_edges` is True, it just returns :math:`frame *
-        shift`. If `snip_edges` is False, the formula is a little more
-        complicated and the result may be negative.
-
-        """
-        return int(kaldi.feat.window.first_sample_of_frame(
-            frame, self._options))
+    def last_sample_of_frame(self, frame):
+        """Returns the index+1 of the last sample of frame indexed `frame`"""
+        return self.first_sample_of_frame(frame) + self.samples_per_frame
 
     def boundaries(self, nsamples):
         """Returns an array of (istart, istop) index boundaires of frames
+
+        If `snip_edges` is True, the last frame offset boundary can
+        exceed `nsamples`.
 
         Parameters
         ----------
@@ -118,31 +119,64 @@ class Frame:
 
         """
         nframes = self.nframes(nsamples)
-        first = np.asarray(
-            [self.first_sample_of_frame(i) for i in range(nframes)])
-        return (first.repeat(2).reshape(nframes, 2)
+        first = [self.first_sample_of_frame(i) for i in range(nframes)]
+        return (np.asarray(first).repeat(2).reshape(nframes, 2)
                 + (0, self.samples_per_frame)).astype(np.int)
 
-    def framed_array(self, array):
+    def framed_array(self, array, writeable=False):
         """Returns an `array` divided in frames
 
         Parameters
         ----------
         array : array, shape = [x, ...]
             The array to be divided in frames
+        writeable : bool, optional
+            Default to False, When True, the returned array is
+            writable but the frames are made of copies of the original
+            `array`. When False, the result is read-only but this
+            optimizes the process: no explicit copy is made of the
+            orognal `array`, only views are used. (see
+            https://docs.scipy.org/doc/numpy-1.15.0/reference/generated/
+            numpy.lib.stride_tricks.as_strided.html)
 
         Returns
         -------
         frames : array, shape = [nframes(x), samples_per_frame, ...]
+            The frames computed from the original `array`
 
         """
-        nsamples = array.shape[0]
-        shape = (
-            self.nframes(nsamples), self.samples_per_frame) + array.shape[1:]
+        nframes = self.nframes(array.shape[0])
 
-        strides = (
-            array.strides[0] * self.samples_per_shift,
-            array.strides[0]) + array.strides[1:]
+        # special case when not sniping edges: mirror the data in the
+        # last frames
+        if not self.snip_edges:
+            nmirror = self.last_sample_of_frame(nframes-1) - array.shape[0]
+            array = np.hstack((array, array[-nmirror-1:-1][::-1]))
 
-        return np.lib.stride_tricks.as_strided(
-            array, shape=shape, strides=strides)
+        if writeable is True:
+            return self._make_frames_by_copy(array)
+        else:
+            return self._make_frames_by_views(array)
+
+        def _make_frames_by_views(self, array):
+            nframes = self.nframes(array.shape[0])
+
+            # shape of the frames
+            shape = (nframes, self.samples_per_frame)
+
+            # concatenate the shape for supplementary dimensions
+            shape = shape + array.shape[1:]
+
+            # strides for the framed array
+            strides = (array.strides[0] * self.samples_per_shift,
+                       array.strides[0])
+
+            # don't touch the strides for the additional dimensions
+            strides = strides + array.strides[1:]
+
+            return np.lib.stride_tricks.as_strided(
+                array, shape=shape, strides=strides, writeable=False)
+
+        def _make_frames_by_copy(self, array):
+            # TODO implement and test it!
+            pass
