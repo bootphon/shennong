@@ -4,12 +4,18 @@ before_script:
 
 shennong-build:
   stage: build
+  only:
+    refs:
+      - master
   script:
     - conda activate shennong-ci
     - python setup.py install
 
 shennong-test:
   stage: test
+  only:
+    refs:
+      - master
   script:
     - conda activate shennong-ci
     - python setup.py test
@@ -17,6 +23,9 @@ shennong-test:
 # documentation is available on https://coml.lscp.ens.fr/shennong
 shennong-doc:
   stage: deploy
+  only:
+    refs:
+      - master
   script:
     - conda activate shennong-ci
     - sphinx-build doc/source doc/build
@@ -25,6 +34,9 @@ shennong-doc:
 # shennong package is available on oberon with "source activate shennong"
 shennong-deploy:
   stage: deploy
+  only:
+    refs:
+      - master
   script:
     - conda activate shennong
     - cd /cm/shared/apps/shennong
