@@ -8,4 +8,3 @@ Core componants
 
    core.processor
    core.window
-   core.gmm
