@@ -23,9 +23,9 @@ Create 1000 samples of a stereo signal at 16 kHz:
 (1000, 2)
 >>> audio.sample_rate
 16000
->>> audio.nchannels()
+>>> audio.nchannels
 2
->>> audio.duration()
+>>> audio.duration
 0.0625
 
 Save the `AudioData` instance as a wav file, load an existing wav
@@ -42,16 +42,18 @@ instances of AudioData as well):
 
 >>> left = audio.channel(0)
 >>> right = audio.channel(1)
->>> left.duration() == right.duration() == audio.duration()
+>>> left.duration == right.duration == audio.duration
 True
->>> left.nchannels() == right.nchannels() == 1
+>>> left.nchannels == right.nchannels == 1
 True
 
 """
 
 import os
 import numpy as np
+import scipy.signal
 import scipy.io.wavfile
+import warnings
 
 
 class AudioData:
@@ -73,6 +75,23 @@ class AudioData:
         if self.sample_rate != self.sample_rate:
             return False
         return np.array_equal(self.data, other.data)
+
+    @property
+    def duration(self):
+        """The duration of the signal, in seconds"""
+        return self.nsamples / self.sample_rate
+
+    @property
+    def nchannels(self):
+        """The number of audio channels in the signal"""
+        if self.data.ndim == 1:
+            return 1
+        return self.data.shape[1]
+
+    @property
+    def nsamples(self):
+        """The number of samples in the signal"""
+        return self.data.shape[0]
 
     @staticmethod
     def load(wav_file):
@@ -127,16 +146,6 @@ class AudioData:
 
         scipy.io.wavfile.write(wav_file, self.sample_rate, self.data)
 
-    def duration(self):
-        """The duration of the signal, in seconds"""
-        return self.data.shape[0] / self.sample_rate
-
-    def nchannels(self):
-        """The number of audio channels in the signal"""
-        if self.data.ndim == 1:
-            return 1
-        return self.data.shape[1]
-
     def channel(self, index):
         """Build a mono signal from a multi-channel one
 
@@ -153,16 +162,45 @@ class AudioData:
         Raises
         ------
         ValueError
-            If `index` >= `nchannels()`
+            If `index` >= :func:`nchannels`
 
         """
-        if index == 0 and self.nchannels() == 1:
+        if index == 0 and self.nchannels == 1:
             return self
 
-        if index >= self.nchannels():
+        if index >= self.nchannels:
             raise ValueError(
                 'not enough channels ({}) to extract the index {} '
                 '(indices count starts at 0)'.format(
-                    self.nchannels(), index))
+                    self.nchannels, index))
 
         return AudioData(self.data[:, index], self.sample_rate)
+
+    def resample(self, sample_rate):
+        """Returns the audio signal resampled at the given `sample_rate`
+
+        This method relies on :func:`scipy.signal.resample`
+
+        Parameters
+        ----------
+        sample_rate : int
+            The sample frequency used to resample the signal, in Hz
+
+        Returns
+        -------
+        audio : AudioData
+            An AudioData instance containing the resampled signal
+
+        """
+        if sample_rate == self.sample_rate:
+            return self
+
+        # number of samples in the resampled signal
+        nsamples = int(self.nsamples * sample_rate / self.sample_rate)
+
+        # scipy method issues warnings we want to inhibate
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', category=FutureWarning)
+            data = scipy.signal.resample(self.data, nsamples)
+
+        return AudioData(data, sample_rate)

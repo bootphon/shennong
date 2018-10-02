@@ -283,10 +283,10 @@ class PitchProcessor(FeaturesProcessor):
             not mono). If `sample_rate` != `signal.sample_rate`.
 
         """
-        if signal.nchannels() != 1:
+        if signal.nchannels != 1:
             raise ValueError(
                 'audio signal must have one channel, but it has {}'
-                .format(signal.nchannels()))
+                .format(signal.nchannels))
 
         if self.sample_rate != signal.sample_rate:
             raise ValueError(

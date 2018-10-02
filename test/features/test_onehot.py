@@ -97,7 +97,7 @@ def test_compare_mfcc(audio):
     # check if the frames are the same as for mfcc (using the same
     # signal duration)
     ali = alignment.Alignment.from_list(
-        [(0, 1, 'a'), (1, audio.duration(), 'b')])
+        [(0, 1, 'a'), (1, audio.duration, 'b')])
 
     Onehot = onehot.FramedOneHotProcessor
 

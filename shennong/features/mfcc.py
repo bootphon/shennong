@@ -181,10 +181,10 @@ class MfccProcessor(MelFeaturesProcessor):
             not mono). If `sample_rate` != `signal.sample_rate`.
 
         """
-        if signal.nchannels() != 1:
+        if signal.nchannels != 1:
             raise ValueError(
                 'signal must have one dimension, but it has {}'
-                .format(signal.nchannels()))
+                .format(signal.nchannels))
 
         if self.sample_rate != signal.sample_rate:
             raise ValueError(
