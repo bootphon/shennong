@@ -1,10 +1,44 @@
-"""Extract frames from raw signals"""
+"""Provides the Frames class to extract frames from raw signals
+
+Extracts overlapping frames from raw (sampled) signals::
+
+    array ---> Frames ---> array
+
+Examples
+--------
+
+>>> import numpy as np
+>>> from shennong.core.frames import Frames
+
+Build an signal signal
+
+>>> a = np.arange(10)
+>>> a
+array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+
+Computes frames of 3s with a shift of 1s (here we assume fs=1Hz
+for simplicity)
+
+>>> f = Frames(sample_rate=1, frame_shift=1, frame_length=3)
+>>> b = f.make_frames(a)
+>>> b
+array([[0, 1, 2],
+       [1, 2, 3],
+       [2, 3, 4],
+       [3, 4, 5],
+       [4, 5, 6],
+       [5, 6, 7],
+       [6, 7, 8],
+       [7, 8, 9]])
+
+"""
 
 import kaldi.feat.window
 import numpy as np
 
 
 class Frames:
+    """Extract frames from raw signals"""
     def __init__(self, sample_rate=16000,
                  frame_shift=0.01, frame_length=0.025,
                  snip_edges=True):
@@ -146,8 +180,8 @@ class Frames:
         # special case when not sniping edges: mirror the data in the
         # last frames
         if not self.snip_edges:
-            nmirror = self.last_sample_of_frame(nframes-1) - array.shape[0]
-            array = np.concatenate((array, array[-nmirror-1:-1][::-1]))
+            n = self.last_sample_of_frame(nframes-1) - array.shape[0]
+            array = np.concatenate((array, array[-n-1:-1][::-1]))
 
         if writeable is True:
             return self._make_frames_by_copy(array, nframes)
@@ -157,24 +191,28 @@ class Frames:
     def _make_frames_by_view(self, array, nframes):
         # shape of the frames, concatenate the shape for supplementary
         # dimensions
-        shape = (nframes, self.samples_per_frame)
-        shape = shape + array.shape[1:]
+        shape = (nframes, self.samples_per_frame) + array.shape[1:]
 
         # strides for the framed array, don't touch the strides for
         # the additional dimensions
         strides = (array.strides[0] * self.samples_per_shift,
-                   array.strides[0])
-        strides = strides + array.strides[1:]
+                   array.strides[0]) + array.strides[1:]
 
         return np.lib.stride_tricks.as_strided(
             array, shape=shape, strides=strides, writeable=False)
 
     def _make_frames_by_copy(self, array, nframes):
+        # the frames boundaries
         boundaries = self.boundaries(nframes)
+        nsamples = self.samples_per_frame
 
+        # allocate the framed array
         framed = np.empty(
-            (nframes, self.samples_per_frame) + array.shape[1:],
+            (nframes, nsamples) + array.shape[1:],
             dtype=array.dtype)
+
+        # build the frames
         for i, (start, stop) in enumerate(boundaries):
+            assert stop - start == nsamples
             framed[i] = array[start:stop]
         return framed

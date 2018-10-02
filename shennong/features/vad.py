@@ -31,8 +31,6 @@
 ###############################################################################
 """Voice Activity Detection"""
 
-import math
-
 import numpy as np
 
 from shennong.core.processor import FeaturesProcessor
@@ -142,25 +140,24 @@ class VadProcessor(FeaturesProcessor):
         # compute energy on framed powered  data
         energy = self.frame.framed_array(data).sum(axis=1).asdtype(np.float64)
 
+        # compress the energy if required
         if self.compression == 'sqrt':
             energy = np.sqrt(energy)
         elif self.compression == 'log':
             energy = np.log(energy)
 
-        # normalize the energy
+        # normalize the energy and transpose the vector
         energy -= energy.mean()
         energy /= energy.std()
+        energy = energy[:, np.newaxis]
 
-        # initialization
+        # GMM initialization
         mm = np.array((-1.00, 0.00, 1.00))[:, np.newaxis]
         ee = np.array((1.00, 1.00, 1.00))[:, np.newaxis]
         ww = np.array((0.33, 0.33, 0.33))
-
         GMM = gmm.gmm_eval_prep(ww, mm, ee)
 
-        energy = energy[:, np.newaxis]
-
-        for i in range(self.nrealignments):
+        for _ in range(self.nrealignments):
             # collect GMM statistics
             llh, N, F, S = gmm.gmm_eval(energy, GMM, return_accums=2)
 
