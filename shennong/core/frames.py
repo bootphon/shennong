@@ -94,22 +94,19 @@ class Frames:
 
     def first_sample_of_frame(self, frame):
         """Returns the index of the first sample of frame indexed `frame`"""
-        return frame * self.samples_per_shift
+        return int(frame * self.samples_per_shift)
 
     def last_sample_of_frame(self, frame):
         """Returns the index+1 of the last sample of frame indexed `frame`"""
-        return self.first_sample_of_frame(frame) + self.samples_per_frame
+        return int(self.first_sample_of_frame(frame) + self.samples_per_frame)
 
-    def boundaries(self, nsamples):
-        """Returns an array of (istart, istop) index boundaires of frames
-
-        If `snip_edges` is True, the last frame offset boundary can
-        exceed `nsamples`.
+    def boundaries(self, nframes):
+        """Returns an array of (istart, istop) index boundaries of frames
 
         Parameters
         ----------
-        nsamples : int
-            The number of samples in the input
+        nframes : int
+            The number of frames to generate
 
         Returns
         -------
@@ -118,12 +115,11 @@ class Frames:
             `nsamples` samples.
 
         """
-        nframes = self.nframes(nsamples)
         first = [self.first_sample_of_frame(i) for i in range(nframes)]
         return (np.asarray(first).repeat(2).reshape(nframes, 2)
                 + (0, self.samples_per_frame)).astype(np.int)
 
-    def framed_array(self, array, writeable=False):
+    def make_frames(self, array, writeable=False):
         """Returns an `array` divided in frames
 
         Parameters
@@ -151,32 +147,34 @@ class Frames:
         # last frames
         if not self.snip_edges:
             nmirror = self.last_sample_of_frame(nframes-1) - array.shape[0]
-            array = np.hstack((array, array[-nmirror-1:-1][::-1]))
+            array = np.concatenate((array, array[-nmirror-1:-1][::-1]))
 
         if writeable is True:
-            return self._make_frames_by_copy(array)
+            return self._make_frames_by_copy(array, nframes)
         else:
-            return self._make_frames_by_views(array)
+            return self._make_frames_by_view(array, nframes)
 
-        def _make_frames_by_views(self, array):
-            nframes = self.nframes(array.shape[0])
+    def _make_frames_by_view(self, array, nframes):
+        # shape of the frames, concatenate the shape for supplementary
+        # dimensions
+        shape = (nframes, self.samples_per_frame)
+        shape = shape + array.shape[1:]
 
-            # shape of the frames
-            shape = (nframes, self.samples_per_frame)
+        # strides for the framed array, don't touch the strides for
+        # the additional dimensions
+        strides = (array.strides[0] * self.samples_per_shift,
+                   array.strides[0])
+        strides = strides + array.strides[1:]
 
-            # concatenate the shape for supplementary dimensions
-            shape = shape + array.shape[1:]
+        return np.lib.stride_tricks.as_strided(
+            array, shape=shape, strides=strides, writeable=False)
 
-            # strides for the framed array
-            strides = (array.strides[0] * self.samples_per_shift,
-                       array.strides[0])
+    def _make_frames_by_copy(self, array, nframes):
+        boundaries = self.boundaries(nframes)
 
-            # don't touch the strides for the additional dimensions
-            strides = strides + array.strides[1:]
-
-            return np.lib.stride_tricks.as_strided(
-                array, shape=shape, strides=strides, writeable=False)
-
-        def _make_frames_by_copy(self, array):
-            # TODO implement and test it!
-            pass
+        framed = np.empty(
+            (nframes, self.samples_per_frame) + array.shape[1:],
+            dtype=array.dtype)
+        for i, (start, stop) in enumerate(boundaries):
+            framed[i] = array[start:stop]
+        return framed

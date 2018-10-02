@@ -19,8 +19,12 @@ def test_frames_1_1(snip_edges):
         f.boundaries(10),
         np.repeat(np.arange(10), 2).reshape(10, 2) + (0, 1))
 
+    print()
+    print(f.make_frames(np.arange(10)))
+    print(np.arange(10)[:, np.newaxis])
+
     assert(np.array_equal(
-        f.framed_array(np.arange(10)),
+        f.make_frames(np.arange(10)),
         np.arange(10)[:, np.newaxis]))
 
 
@@ -35,13 +39,18 @@ def test_frames_2_1(snip_edges):
     assert f.samples_per_shift == 1
 
     assert np.array_equal(
-        f.boundaries(10),
+        f.boundaries(n),
         np.repeat(np.arange(n), 2).reshape(n, 2) + (0, 2))
 
     framed = np.arange(n).repeat(2).reshape(n, 2) + (0, 1)
     if not snip_edges:
         framed[-1, -1] = 8
-    assert np.array_equal(f.framed_array(np.arange(10)), framed)
+
+    print()
+    print(f.make_frames(np.arange(10)))
+    print(framed)
+
+    assert np.array_equal(f.make_frames(np.arange(10)), framed)
 
 
 @pytest.mark.parametrize('snip_edges', [True, False])
@@ -54,11 +63,11 @@ def test_frames_2_2(snip_edges):
     assert f.samples_per_shift == 2
 
     assert np.array_equal(
-        f.boundaries(10),
+        f.boundaries(5),
         np.repeat(np.arange(5) * 2, 2).reshape(5, 2) + (0, 2))
 
     assert np.array_equal(
-        f.framed_array(np.arange(10)),
+        f.make_frames(np.arange(10)),
         np.repeat(np.arange(5) * 2, 2).reshape(5, 2) + (0, 1))
 
 
@@ -72,11 +81,11 @@ def test_frames_1_2(snip_edges):
     assert f.samples_per_shift == 2
 
     assert np.array_equal(
-        f.boundaries(10),
+        f.boundaries(5),
         np.repeat(np.arange(5) * 2, 2).reshape(5, 2) + (0, 1))
 
     assert np.array_equal(
-        f.framed_array(np.arange(10)),
+        f.make_frames(np.arange(10)),
         (np.arange(5) * 2)[:, np.newaxis])
 
 
@@ -91,14 +100,14 @@ def test_frames_3_1(snip_edges):
     assert f.samples_per_shift == 1
 
     assert np.array_equal(
-        f.boundaries(10),
+        f.boundaries(n),
         np.repeat(np.arange(n), 2).reshape(n, 2) + (0, 3))
 
     framed = np.arange(n).repeat(3).reshape(n, 3) + (0, 1, 2)
     if snip_edges is False:
         framed[-2, -1] = 8
         framed[-1, -2:] = (8, 7)
-    assert np.array_equal(f.framed_array(np.arange(10)), framed)
+    assert np.array_equal(f.make_frames(np.arange(10)), framed)
 
 
 @pytest.mark.parametrize('snip_edges', [True, False])
@@ -112,18 +121,19 @@ def test_frames_5_3(snip_edges):
     assert f.samples_per_shift == 3
 
     assert np.array_equal(
-        f.boundaries(10),
+        f.boundaries(n),
         np.repeat(np.arange(n) * 3, 2).reshape(n, 2) + (0, 5))
 
     framed = (np.arange(n) * 3).repeat(5).reshape(n, 5) + (0, 1, 2, 3, 4)
     if snip_edges is False:
         framed[-1, -1] = 8
-    assert np.array_equal(f.framed_array(np.arange(10)), framed)
+    assert np.array_equal(f.make_frames(np.arange(10)), framed)
 
 
 @pytest.mark.parametrize(
-    'ndim, snip_edges', [(n, s) for n in (1, 2, 3) for s in (True, False)])
-def test_framed_array(ndim, snip_edges):
+    'ndim, snip_edges, writeable',
+    [(n, bool(s), bool(w)) for n in (1, 2, 3) for s in (0, 1) for w in (0, 1)])
+def test_make_frames(ndim, snip_edges, writeable):
     # in that test we use default parameters (fs=16kHz, length=20ms,
     # shift=10ms)
     f = Frames(snip_edges=snip_edges)
@@ -137,13 +147,21 @@ def test_framed_array(ndim, snip_edges):
         shape = shape + (2,)
     if ndim >= 3:
         shape = shape + (2,)
-    array = np.random.random(shape)
 
-    # frame it
-    frames = f.framed_array(array)
-    print(array.shape, frames.shape)
-    # TODO rebuild it
+    aref = np.random.random(shape)
+    array = np.copy(aref)
 
+    # make the frames (by copy or by view)
+    frames = f.make_frames(array, writeable=writeable)
 
-def test_discountinuous_array():
-    pass
+    assert np.array_equal(array, aref)
+
+    assert frames.shape == (
+        f.nframes(aref.shape[0]), f.samples_per_frame) + aref.shape[1:]
+
+    if writeable is False:
+        with pytest.raises(ValueError):
+            frames[0] = 0
+    else:
+        frames[0] = -1
+        assert (frames[0] == -1).all()

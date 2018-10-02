@@ -16,13 +16,12 @@ phonemes. They come in two flavours:
 """
 
 import collections
-import math
 import operator
 
 import numpy as np
 
 from shennong.core.processor import FeaturesProcessor
-from shennong.core.frame import Frame
+from shennong.core.frames import Frames
 from shennong.features.features import Features
 import shennong.core.window
 
@@ -133,7 +132,7 @@ class FramedOneHotProcessor(_OneHotBase):
                  window_type='povey', blackman_coeff=0.42):
         super().__init__(phones=phones)
 
-        self.frame = Frame(
+        self.frame = Frames(
             sample_rate=sample_rate,
             frame_shift=frame_shift,
             frame_length=frame_length)
@@ -159,7 +158,8 @@ class FramedOneHotProcessor(_OneHotBase):
         sampled = alignment.at_sample_rate(self.frame.sample_rate)
 
         # get the frames as pairs (istart:istop)
-        frame_boundaries = self.frame.boundaries(sampled.shape[0])
+        nframes = self.frame.nframes(sampled.shape[0])
+        frame_boundaries = self.frame.boundaries(nframes)
 
         # allocate the features data
         data = np.zeros(

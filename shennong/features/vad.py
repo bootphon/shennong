@@ -37,7 +37,7 @@ import numpy as np
 
 from shennong.core.processor import FeaturesProcessor
 from shennong.features.features import Features
-from shennong.core import gmm, frame
+from shennong.core import gmm, frames
 
 
 def framing(a, window, shift=1):
@@ -102,7 +102,7 @@ class VadProcessor(FeaturesProcessor):
     def __init__(self, sample_rate=16000, frame_shift=0.01,
                  frame_length=0.025, nrealignments=5, threshold=0.3,
                  compression=None):
-        self.frame = frame.Frame(
+        self.frame = frames.Frames(
             sample_rate=sample_rate,
             frame_shift=frame_shift,
             frame_length=frame_length)
