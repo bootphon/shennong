@@ -35,7 +35,17 @@
 # speech.fit.vutbr.cz/software/but-phonexia-bottleneck-feature-extractor      #
 #                                                                             #
 ###############################################################################
-"""Voice Activity Detection"""
+"""Voice Activity Detection
+
+Performs energy-based voice activity detection on a speech signal::
+
+   :class:`AudioData` ---> VadProcessor ---> :class:`Features`
+
+This VAD is mainly used as a preprocessing step for the
+:class:`BottleneckProcessor`, but it can be used in a standalone way
+as well.
+
+"""
 
 import numpy as np
 import scipy.linalg as spl
@@ -230,15 +240,35 @@ def _gmm_update(N, F, S):
 
 
 class VadProcessor(FeaturesProcessor):
+    """Voice Activity Detection from speech signals
+
+    Parameters
+    ----------
+    sample_rate : int, optional
+        Sample frequency used for frames, in Hz, default to 16kHz
+    frame_shift : float, optional
+        Frame shift in seconds, default to 10ms
+    frame_length : float, optional
+        Frame length in seconds, default to 25ms
+    niter : int, optional
+        Number of GMM EM iterations, default to 5
+    threshold : float, optional
+        Threshold on log-likelihoods for VAD decision, below the
+        threshold is speech, above is non-speech; default to 0.3
+    compression : {None, 'log', 'sqrt'}
+        If 'log' or 'sqrt', apply a compression on the signal energy
+        before estimating the VAD, default is to do no compression.
+
+    """
     def __init__(self, sample_rate=16000, frame_shift=0.01,
-                 frame_length=0.025, nrealignments=5, threshold=0.3,
+                 frame_length=0.025, niter=5, threshold=0.3,
                  compression=None):
         self.frames = frames.Frames(
             sample_rate=sample_rate,
             frame_shift=frame_shift,
             frame_length=frame_length)
 
-        self.nrealignments = nrealignments
+        self.niter = niter
         self.threshold = threshold
 
         if compression is not None and compression not in ('log', 'sqtr'):
@@ -252,7 +282,7 @@ class VadProcessor(FeaturesProcessor):
             'sample_rate': self.frames.sample_rate,
             'frame_shift': self.frames.frame_shift,
             'frame_length': self.frames.frame_length,
-            'nrealignments': self.nrealignments,
+            'niter': self.niter,
             'threshold': self.threshold,
             'compression': self.compression}
 
@@ -290,7 +320,7 @@ class VadProcessor(FeaturesProcessor):
         ww = np.array((0.33, 0.33, 0.33))
         GMM = _gmm_eval_prep(ww, mm, ee)
 
-        for _ in range(self.nrealignments):
+        for _ in range(self.niter):
             # collect GMM statistics
             llh, N, F, S = _gmm_eval(energy, GMM, return_accums=2)
 

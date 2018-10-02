@@ -127,6 +127,32 @@ class OneHotProcessor(_OneHotBase):
 
 
 class FramedOneHotProcessor(_OneHotBase):
+    """One-hot encoding on framed signals
+
+    Computes the one-hot encoding on framed signals (i.e. on
+    overlapping time windows)
+
+    Parameters
+    ----------
+    phones : sequence, optional
+        The phones composing the alignment. Specify the phones if you
+        want to have consistant one-hot vectors accross different
+        :class:`Features`. By default the phones are extracted from
+        the alignment in :func:`process`.
+    sample_rate : int, optional
+        Sample frequency used for frames, in Hz, default to 16kHz
+    frame_shift : float, optional
+        Frame shift in seconds, default to 10ms
+    frame_length : float, optional
+        Frame length in seconds, default to 25ms
+    window_type : {'povey', 'hanning', 'hamming', 'rectangular', 'blackman'}
+        The type of the window, default is 'povey' (like hamming but
+        goes to zero at edges)
+    blackman_coeff : float, optional
+        The constant coefficient for generalized Blackman window, used
+        only when `window_type` is 'blackman', default is 0.42.
+
+    """
     def __init__(self, phones=None, sample_rate=16000,
                  frame_shift=0.01, frame_length=0.025,
                  window_type='povey', blackman_coeff=0.42):
