@@ -20,10 +20,10 @@ import operator
 
 import numpy as np
 
+import shennong.core.window
 from shennong.core.processor import FeaturesProcessor
 from shennong.core.frames import Frames
 from shennong.features.features import Features
-import shennong.core.window
 
 
 class _OneHotBase(FeaturesProcessor):
