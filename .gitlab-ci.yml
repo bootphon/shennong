@@ -4,18 +4,12 @@ before_script:
 
 shennong-build:
   stage: build
-  only:
-    refs:
-      - master
   script:
     - conda activate shennong-ci
     - python setup.py install
 
 shennong-test:
   stage: test
-  only:
-    refs:
-      - master
   script:
     - conda activate shennong-ci
     - python setup.py test
