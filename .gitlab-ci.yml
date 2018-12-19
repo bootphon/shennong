@@ -6,7 +6,7 @@ shennong-build:
   stage: build
   script:
     - conda activate shennong-ci
-    - conda install --file environment.yml
+    - conda env update -f environment.yml
     - python setup.py install
 
 shennong-test:
@@ -36,6 +36,6 @@ shennong-deploy:
     - conda activate shennong
     - cd /shared/apps/shennong
     - git pull origin master
-    - conda install --file environment.yml
+    - conda env update -f environment.yml
     - python setup.py install
     - python setup.py test
