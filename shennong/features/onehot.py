@@ -57,8 +57,8 @@ class OneHotProcessor(_OneHotBase):
     """Simple version of one hot features encoding
 
     The `OneHotProcessor` directly converts an :class:`Alignment` to
-    :class:`features.Features` while preserving the timestamps of the original
-    alignment.
+    :class:`features.Features` while preserving the timestamps of the
+    original alignment.
 
     Parameters
     ----------

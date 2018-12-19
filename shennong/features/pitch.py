@@ -9,7 +9,8 @@ speech recognition systems
 Uses the Kaldi implementation of pitch extraction and postprocessing
 (see [Ghahremani2014]_ and [kaldi-pitch]_).
 
-    *AudioData* ---> PitchProcessor ---> PitchPostProcessor ---> *Features*
+    :class:`AudioData` ---> PitchProcessor ---> PitchPostProcessor \
+    ---> :class:`Features`
 
 Examples
 --------
@@ -504,17 +505,27 @@ class PitchPostProcessor(FeaturesProcessor):
         -------
         pitch : Features, shape = [n, 1 2 3 or 4]
             The post-processed pitch usable as speech features. The
-            output columns are 'pov_features',
-            'add_normalized_log_pitch', delta_pitch' and
-            'raw_log_pitch', in that order,if their respective options
-            are set to True.
+            output columns are 'pov_feature', 'normalized_log_pitch',
+            delta_pitch' and 'raw_log_pitch', in that order,if their
+            respective options are set to True.
 
         Raises
         ------
         ValueError
-            If `raw_pitch` has not exactly two columns
+            If `raw_pitch` has not exactly two columns. If all the
+            following options are False: 'add_pov_feature',
+            'add_normalized_log_pitch', 'add_delta_pitch' and
+            'add_raw_log_pitch' (at least one of them must be True).
 
         """
+        # check at least one required option is True
+        if not (self.add_pov_feature or self.add_normalized_log_pitch
+                or self.add_delta_pitch or self.add_raw_log_pitch):
+            raise ValueError(
+                'at least one of the following options must be True: '
+                'add_pov_feature, add_normalized_log_pitch, '
+                'add_delta_pitch, add_raw_log_pitch')
+
         if raw_pitch.shape[1] != 2:
             raise ValueError(
                 'data shape must be (_, 2), but it is (_, {})'

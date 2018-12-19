@@ -3,7 +3,7 @@
 Extract MFCC (Mel Frequency Cepstral Coeficients) from an audio
 signal. Uses the Kaldi implementation (see [kaldi-mfcc]_)::
 
-    *AudioData* ---> MfccProcessor ---> *Features*
+    :class:`AudioData` ---> MfccProcessor ---> :class:`Features`
 
 Examples
 --------

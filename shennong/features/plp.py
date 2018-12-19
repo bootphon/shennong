@@ -6,7 +6,7 @@ Extract PLP (Perceptual Linear Predictive analysis of speech) from an
 audio signal. Uses the Kaldi implementation (see [Hermansky1990]_ and
 [kaldi-plp]_).
 
-    *AudioData* ---> PlpProcessor ---> *Features*
+    :class:`AudioData` ---> PlpProcessor ---> :class:`Features`
 
 Examples
 --------

@@ -89,12 +89,12 @@ def test_post_pitch_output(raw_pitch, options):
         add_delta_pitch=options[2],
         add_raw_log_pitch=options[3])
 
-    if sum(options) != 0:
+    if sum(options):
         d = p.process(raw_pitch)
         assert d.shape == (raw_pitch.shape[0], sum(options))
         assert d.shape[1] == sum(options)
         assert np.array_equal(raw_pitch.times, d.times)
     else:  # all False not supported by Kaldi
-        with pytest.raises(RuntimeError) as err:
+        with pytest.raises(ValueError) as err:
             p.process(raw_pitch)
-        'C++ exception' in str(err)
+        assert 'must be True' in str(err)

@@ -14,7 +14,7 @@ def test_params():
 @pytest.mark.parametrize('num_ceps', [0, 1, 5, 13, 23, 25])
 def test_num_ceps(audio, num_ceps):
     proc = PlpProcessor(num_ceps=num_ceps)
-    if 0 < proc.num_ceps <= proc.lpc_order+1:
+    if 0 < proc.num_ceps:
         feat = proc.process(audio)
         assert feat.shape == (142, num_ceps)
 
