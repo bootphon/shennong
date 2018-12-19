@@ -1,11 +1,12 @@
 before_script:
   # load the requested modules on oberon
-  - module load python-anaconda
+  - module load anaconda/3
 
 shennong-build:
   stage: build
   script:
     - conda activate shennong-ci
+    - conda install --file environment.yml
     - python setup.py install
 
 shennong-test:
@@ -33,7 +34,8 @@ shennong-deploy:
       - master
   script:
     - conda activate shennong
-    - cd /cm/shared/apps/shennong
+    - cd /shared/apps/shennong
     - git pull origin master
+    - conda install --file environment.yml
     - python setup.py install
     - python setup.py test
