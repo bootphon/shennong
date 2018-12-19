@@ -11,6 +11,8 @@ def test_load(audio):
     assert audio.nchannels == 1
     assert audio.duration == pytest.approx(1.437, rel=1e-3)
     assert audio.data.shape == (23001,)
+    assert audio.nsamples == 23001
+    assert audio.dtype == np.int16
 
 
 def test_load_notwav():
@@ -24,8 +26,8 @@ def test_equal(audio):
     audio2 = AudioData(audio.data, audio.sample_rate)
     assert audio == audio2
 
-    audio2 = AudioData(audio.data, 10)
-    assert audio == audio2
+    audio2 = AudioData(audio.data, audio.sample_rate + 1)
+    assert audio != audio2
 
     audio2 = AudioData(audio.data * 2, audio.sample_rate)
     assert audio.duration == audio2.duration

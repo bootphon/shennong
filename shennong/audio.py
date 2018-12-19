@@ -57,7 +57,7 @@ import warnings
 
 
 class AudioData:
-    """Audio signal with associated sample rate
+    """Audio signal with associated sample rate and dtype
 
     Attributes
     ----------
@@ -68,13 +68,23 @@ class AudioData:
 
     """
     def __init__(self, data, sample_rate):
-        self.data = data
-        self.sample_rate = sample_rate
+        self._data = data
+        self._sample_rate = sample_rate
 
     def __eq__(self, other):
-        if self.sample_rate != self.sample_rate:
+        if self.sample_rate != other.sample_rate:
             return False
         return np.array_equal(self.data, other.data)
+
+    @property
+    def data(self):
+        """The numpy array of audio data"""
+        return self._data
+
+    @property
+    def sample_rate(self):
+        """The sample frequency of the signal, in Hertz"""
+        return self._sample_rate
 
     @property
     def duration(self):
@@ -92,6 +102,11 @@ class AudioData:
     def nsamples(self):
         """The number of samples in the signal"""
         return self.data.shape[0]
+
+    @property
+    def dtype(self):
+        """The numeric type of samples"""
+        return self.data.dtype
 
     @staticmethod
     def load(wav_file):
