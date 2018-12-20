@@ -55,6 +55,8 @@ import scipy.signal
 import scipy.io.wavfile
 import warnings
 
+from shennong import log
+
 
 class AudioData:
     """Audio signal with associated sample rate and dtype
@@ -133,6 +135,7 @@ class AudioData:
 
         try:
             # load the audio signal
+            log.debug('loading %s', wav_file)
             sample_rate, data = scipy.io.wavfile.read(wav_file)
 
             # build and return the AudioData instance

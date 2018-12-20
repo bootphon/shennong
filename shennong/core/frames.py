@@ -10,7 +10,7 @@ Examples
 >>> import numpy as np
 >>> from shennong.core.frames import Frames
 
-Build an signal signal
+Build a discrete signal
 
 >>> a = np.arange(10)
 >>> a

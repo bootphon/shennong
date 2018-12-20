@@ -10,10 +10,9 @@ See https://coml.lscp.ens.fr/shennong for a complete documentation.
 
 import logging
 
-
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.StreamHandler())
-logger.setLevel(logging.INFO)
+from .utils import get_logger
 
 
-__version__ = '0.0.dev1'
+log = get_logger(__name__, level=logging.INFO)
+
+__version__ = '0.0.1-dev'
