@@ -258,11 +258,15 @@ class VadProcessor(FeaturesProcessor):
     compression : {None, 'log', 'sqrt'}
         If 'log' or 'sqrt', apply a compression on the signal energy
         before estimating the VAD, default is to do no compression.
+    bugfix : bool, optional
+        A bug in the original code results in negative squares when
+        computing signal energy. Default is to reproduce the bug, set
+        to True to avoid the bug.
 
     """
     def __init__(self, sample_rate=16000, frame_shift=0.01,
                  frame_length=0.025, niter=5, threshold=0.3,
-                 compression=None):
+                 compression=None, bugfix=False):
         self.frames = frames.Frames(
             sample_rate=sample_rate,
             frame_shift=frame_shift,
@@ -270,6 +274,7 @@ class VadProcessor(FeaturesProcessor):
 
         self.niter = niter
         self.threshold = threshold
+        self.bugfix = bool(bugfix)
 
         if compression is not None and compression not in ('log', 'sqtr'):
             raise ValueError(
@@ -286,21 +291,14 @@ class VadProcessor(FeaturesProcessor):
             'threshold': self.threshold,
             'compression': self.compression}
 
-    def process(self, signal):
-        if signal.nchannels() != 1:
-            raise ValueError(
-                'audio signal must have one channel, but it has {}'
-                .format(signal.nchannels()))
+    def _compute_energy(self, data):
+        # np.int16 may not be sufficient to store squared values
+        if self.bugfix:
+            data = data.astype(np.int16) ** 2
+        else:
+            data = data.astype(np.float64) ** 2
 
-        if self.frames.sample_rate != signal.sample_rate:
-            raise ValueError(
-                'processor and signal mismatche in sample rates: '
-                '{} != {}'.format(self.frames.sample_rate, signal.sample_rate))
-
-        # power signal for energy computation
-        data = signal.data ** 2
-
-        # compute energy on framed powered  data
+        # compute energy frames
         energy = self.frames.make_frames(data).sum(axis=1).astype(np.float64)
 
         # compress the energy if required
@@ -309,9 +307,43 @@ class VadProcessor(FeaturesProcessor):
         elif self.compression == 'log':
             energy = np.log(energy)
 
+        return energy
+
+    def process(self, signal):
+        """Estimates the Voica Activity Detection on the given `signal`
+
+        Parameters
+        ----------
+        signal : AudioData
+            The speech signal where to look for voiced frames
+
+        Returns
+        -------
+        vad : array of bool, shape = [nframes, 1]
+            For each extracted frame from the `signal`, True for
+            voice, False for non-voice.
+
+        """
+        if signal.nchannels != 1:
+            raise ValueError(
+                'audio signal must have one channel, but it has {}'
+                .format(signal.nchannels))
+
+        if self.frames.sample_rate != signal.sample_rate:
+            raise ValueError(
+                'processor and signal mismatche in sample rates: '
+                '{} != {}'.format(self.frames.sample_rate, signal.sample_rate))
+
+        # compute the signal energy
+        energy = self._compute_energy(signal.data)
+
         # normalize the energy and transpose the vector
         energy -= energy.mean()
-        energy /= energy.std()
+        std = energy.std()
+        if std == 0:
+            raise ValueError(
+                'standard deviation at zero, is the input signal correct?')
+        energy /= std
         energy = energy[:, np.newaxis]
 
         # GMM initialization
