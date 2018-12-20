@@ -5,9 +5,6 @@ PYTEST ?= pytest
 
 .PHONY: build doc test
 
-clean:
-	$(PYTHON) setup.py clean
-	rm -rf .eggs .pytest_cache doc/build test/__pycache__
 
 build:
 	$(PYTHON) setup.py build
@@ -26,3 +23,7 @@ test: build
 
 xtest: build
 	$(PYTEST) -x
+
+clean:
+	$(PYTHON) setup.py clean
+	rm -rf .eggs .pytest_cache doc/build test/__pycache__

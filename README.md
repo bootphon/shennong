@@ -17,12 +17,12 @@ be adapted to other Linux distributions easilly.
 
 * Then install the shennong package:
 
-        python setup.py install
+        make install
 
 * Test the installation is working (this executes all the unit tests
   stored in the `test/` folder):
 
-        python setup.py test
+        make test
 
 
 ## Docker
@@ -51,7 +51,6 @@ To build the documentation under the `doc/build` folder, please follow those ste
 
 * Build the docs:
 
-        cd docs
-        sphinx-build . build
+        make doc
 
 * The documentation is now available at `doc/build/index.html`
