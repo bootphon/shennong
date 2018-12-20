@@ -11,11 +11,12 @@ def test_params():
     assert len(PlpProcessor().parameters()) == 24
 
 
-@pytest.mark.parametrize('num_ceps', [0, 1, 5, 13, 23, 25])
+@pytest.mark.parametrize('num_ceps', [-1, 0, 1, 5, 13, 23, 25])
 def test_num_ceps(audio, num_ceps):
     proc = PlpProcessor(num_ceps=num_ceps)
     if 0 < proc.num_ceps:
         feat = proc.process(audio)
+        assert proc.num_ceps == num_ceps
         assert feat.shape == (142, num_ceps)
 
         proc.use_energy = False

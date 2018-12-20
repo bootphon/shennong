@@ -96,7 +96,7 @@ class PlpProcessor(MelFeaturesProcessor):
     def num_ceps(self):
         """Number of cepstra in PLP computation (including C0)
 
-        Must be smaller of equal to `lpc_order` + 1.
+        Should be smaller or equal to `lpc_order` + 1.
 
         """
         return self._options.num_ceps

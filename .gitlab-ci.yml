@@ -26,7 +26,7 @@ shennong-doc:
     - sphinx-build doc/source doc/build
     - scp -r doc/build/* coml.lscp.ens.fr:/var/www/html/shennong
 
-# shennong package is available on oberon with "source activate shennong"
+# shennong package is available on oberon with "conda activate shennong"
 shennong-deploy:
   stage: deploy
   only:
