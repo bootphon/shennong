@@ -1,8 +1,10 @@
 """Test of the module shennong.audio"""
 
+import tempfile
 import numpy as np
 import pytest
 
+from kaldi.util.table import SequentialWaveReader
 from shennong.audio import AudioData
 
 
@@ -70,3 +72,21 @@ def test_resample(audio, fs):
     assert audio2.sample_rate == fs
     assert audio2.nsamples == int(
         audio.nsamples * fs / audio.sample_rate)
+
+
+def test_compare_kaldi(wav_file):
+    a1 = AudioData.load(wav_file).data
+
+    with tempfile.NamedTemporaryFile('w+') as tfile:
+        tfile.write('test {}\n'.format(wav_file))
+        tfile.seek(0)
+        with SequentialWaveReader('scp,t:' + tfile.name) as reader:
+            for key, wave in reader:
+                a2 = wave.data().numpy()
+
+    assert a1.max() == a2.max()
+    assert a1.min() == a2.min()
+    assert len(a1) == len(a2.flatten()) == 23001
+    assert a1.dtype == np.int16 and a2.dtype == np.float32
+    assert a1.shape == (23001,) and a2.shape == (1, 23001)
+    assert pytest.approx(a1, a2)

@@ -1,8 +1,10 @@
 """Test of the module shennong.features.mfcc"""
 
+import tempfile
 import numpy as np
 import pytest
 
+from kaldi.util.table import SequentialWaveReader
 from shennong.audio import AudioData
 from shennong.features.mfcc import MfccProcessor
 
@@ -67,3 +69,27 @@ def test_output(audio):
         data = np.random.random((1000, 2))
         stereo = AudioData(data, sample_rate=16000)
         MfccProcessor(sample_rate=stereo.sample_rate).process(stereo)
+
+
+def test_kaldi_audio(wav_file, audio):
+    # make sure we have results when loading a wav file with
+    # shennong.AudioData and with the Kaldi code.
+    with tempfile.NamedTemporaryFile('w+') as tfile:
+        tfile.write('test {}\n'.format(wav_file))
+        tfile.seek(0)
+        with SequentialWaveReader('scp,t:' + tfile.name) as reader:
+            for key, wave in reader:
+                audio_kaldi = AudioData(
+                    wave.data().numpy().reshape(audio.data.shape),
+                    audio.sample_rate)
+
+    assert audio.duration == audio_kaldi.duration
+    assert audio.dtype == np.int16
+    assert audio_kaldi.dtype == np.float32
+
+    mfcc = MfccProcessor().process(audio)
+    mfcc_kaldi = MfccProcessor().process(audio_kaldi)
+    assert mfcc.shape == mfcc_kaldi.shape
+    assert np.array_equal(mfcc.times, mfcc_kaldi.times)
+    assert mfcc.properties == mfcc_kaldi.properties
+    assert pytest.approx(mfcc.data, mfcc_kaldi.data)
