@@ -71,8 +71,19 @@ class Features:
         return self.data.shape
 
     @property
+    def dtype(self):
+        """The type of the features data"""
+        return self.data.dtype
+
+    @property
     def properties(self):
-        """A dictionnary of properties used to buidld the features"""
+        """A dictionnary of properties used to build the features
+
+        Properties are references to the features extraction pipeline,
+        parameters and source audio file used to generate the
+        features.
+
+        """
         return self._properties
 
     def __eq__(self, other):

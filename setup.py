@@ -1,19 +1,31 @@
 #!/usr/bin/env python
 
-"""Setup script for the shennong-features package"""
+"""Setup script for the shennong toolbox package"""
 
-from setuptools import setup, find_packages
-
+import codecs
+import setuptools
 import shennong
-VERSION = shennong.__version__
 
 
-setup(
+setuptools.setup(
+    # general description
     name='shennong',
     description='A toolbox for unsupervised speech recognition',
-    version=VERSION,
-    packages=find_packages(),
-    zip_safe=True,
+    version=shennong.__version__,
+
+    # python package dependancies
     setup_requires=['pytest-runner', 'numpy', 'scipy'],
-    tests_require=['pytest']
+    tests_require=['pytest'],
+
+    # packages for code and data
+    packages=setuptools.find_packages(),
+    package_data={'shennong': ['share/bottleneck/*']},
+
+    # metadata for upload to PyPI
+    author='Mathieu Bernard, INRIA',
+    author_email='mathieu.a.bernard@inria.fr',
+    license='GPL3',
+    url='https://coml/lscp.ens.fr/shennong',
+    long_description=codecs.open('README.md', encoding='utf-8').read(),
+    zip_safe=True,
 )

@@ -310,7 +310,7 @@ class VadProcessor(FeaturesProcessor):
         return energy
 
     def process(self, signal):
-        """Estimates the Voica Activity Detection on the given `signal`
+        """Estimates the Voice Activity Detection on the given `signal`
 
         Parameters
         ----------
