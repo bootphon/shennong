@@ -71,6 +71,20 @@ def test_output(audio):
         MfccProcessor(sample_rate=stereo.sample_rate).process(stereo)
 
 
+@pytest.mark.parametrize('sample_rate', [8000, 44100])
+def test_subover_sample(audio, sample_rate):
+    audio_resamp = audio.resample(sample_rate)
+
+    proc1 = MfccProcessor(sample_rate=sample_rate)
+    feat = proc1.process(audio_resamp)
+    assert feat.shape == (140, 13)
+
+    proc2 = MfccProcessor()
+    with pytest.raises(ValueError) as err:
+        proc2.process(audio_resamp)
+        assert 'mismatch in sample rate' in err
+
+
 def test_kaldi_audio(wav_file, audio):
     # make sure we have results when loading a wav file with
     # shennong.AudioData and with the Kaldi code.

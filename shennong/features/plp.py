@@ -229,7 +229,7 @@ class PlpProcessor(MelFeaturesProcessor):
 
         if self.sample_rate != signal.sample_rate:
             raise ValueError(
-                'processor and signal mismatche in sample rates: '
+                'processor and signal mismatch in sample rates: '
                 '{} != {}'.format(self.sample_rate, signal.sample_rate))
 
         data = kaldi.matrix.SubMatrix(

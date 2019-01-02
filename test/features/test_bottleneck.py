@@ -27,7 +27,8 @@ def test_weights(weights):
         'context', 'b3', 'bn_mean', 'W1', 'b1']
 
 
-# @pytest.mark.parametrize('weights', ['BabelMulti', 'FisherMono', 'FisherTri'])
-# def test_process(audio, weights):
-#     proc = BottleneckProcessor(weights=weights)
-#     feat = proc.process(audio)
+@pytest.mark.parametrize('weights', ['BabelMulti', 'FisherMono', 'FisherTri'])
+def test_process(audio, weights):
+    proc = BottleneckProcessor(weights=weights)
+    feat = proc.process(audio)
+    assert feat.shape == (140, 80)

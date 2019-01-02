@@ -43,6 +43,30 @@
 
     :class:`AudioData` ---> BottleneckProcessor ---> :class:`Features`
 
+This module provides the class BottleneckProcessor which computes
+stacked bottleneck features from audio signals. Features are extracted
+from pre-trained neural networks. Two networks are trained on English
+data only and the third is trained in multilingual fashion on data
+coming from 17 different languages.
+
+Examples
+--------
+
+>>> from shennong.audio import AudioData
+>>> from shennong.features.bottleneck import BottleneckProcessor
+>>> audio = AudioData.load('./test/data/test.wav')
+
+Initialize the bottleneck processor to use the multilingual network
+(BabelMulti):
+
+>>> processor = BottleneckProcessor(weights='BabelMulti')
+
+Compute the features:
+
+>>> features = processor.process(audio)
+>>> features.shape
+(140, 80)
+
 References
 ----------
 
@@ -364,7 +388,7 @@ def _gmm_update(N, F, S):
     return weights, means, covs
 
 
-def _compute_vad(s, win_length=200, win_overlap=120,
+def _compute_vad(s, log, win_length=200, win_overlap=120,
                  n_realignment=5, threshold=0.3, bugfix=False):
     # power signal for energy computation
     if bugfix is False:
@@ -500,8 +524,8 @@ class BottleneckProcessor(FeaturesProcessor):
         """The name of the pretrained weights used to extract the features"""
         return self._weights
 
-    @staticmethod
-    def available_weights():
+    @classmethod
+    def available_weights(cls):
         """Return the pretrained weights files as a dict (name -> file)
 
         Returns
@@ -542,7 +566,7 @@ class BottleneckProcessor(FeaturesProcessor):
             raise RuntimeError('no weights file found in {}'.format(directory))
         for k in expected_files.keys():
             if k not in files:
-                log.warning('weights file for "%s" is unavailable', k)
+                cls.log.warning('weights file for "%s" is unavailable', k)
 
         return files
 
@@ -579,20 +603,16 @@ class BottleneckProcessor(FeaturesProcessor):
 
         """
         # force resampling to 8 kHz and add some dithering
-        # TODO force 16 bits
         duration = signal.duration
         signal = signal.resample(8000).data
         signal = _add_dither(signal, 0.1)
 
-        # define parameters to extract mel filterbanks
+        # define parameters to extract mel filterbanks. Those
+        # parameters cannot be tuned because the networks are trained
+        # with them...
         frame_length = 200
         frame_overlap = 120
         window = np.hamming(frame_length)
-
-        # global context
-        left_ctx = right_ctx = 15
-        # context to extract first BN
-        left_ctx_bn1 = right_ctx_bn1 = self._weights_data['context']
 
         # from audio signal to mel filterbank
         fbank_mx = _mel_fbank_mx(
@@ -603,7 +623,8 @@ class BottleneckProcessor(FeaturesProcessor):
         # (vad input format could be an instance of Alignment, or
         # simply an array of bool).
         vad = _compute_vad(
-            signal, win_length=frame_length, win_overlap=frame_overlap)
+            signal, self.log,
+            win_length=frame_length, win_overlap=frame_overlap)
 
         # ensure we have some voiced frames in the signal
         voiced_frames = sum(vad)
@@ -613,28 +634,30 @@ class BottleneckProcessor(FeaturesProcessor):
         self.log.info('%d frames of speech detected (on %d total frames)',
                       voiced_frames, len(vad))
 
+        # center the mel features from voiced frames mean
         fea -= np.mean(fea[vad], axis=0)
+
+        # add a global context to the mel features
+        left_ctx = right_ctx = 15
         fea = np.r_[np.repeat(fea[[0]], left_ctx, axis=0),
                     fea,
                     np.repeat(fea[[-1]], right_ctx, axis=0)]
 
+        # compute the network output from mel features
+        left_ctx_bn1 = right_ctx_bn1 = self._weights_data['context']
         nn_input = _preprocess_nn_input(fea, left_ctx_bn1, right_ctx_bn1)
         nn_output = np.vstack(_create_nn_extract_st_BN(
             nn_input, self._weights_data, 2)[0])
 
-        # compute the timestamps axis
+        # compute the timestamps for each output frame
         sample_rate = nn_output.shape[0] / duration
         frames = Frames(
-            sample_rate=sample_rate, frame_shift=frame_overlap/8000,
+            sample_rate=sample_rate,
+            frame_shift=frame_overlap/8000,
             frame_length=frame_length/8000)
         times = frames.boundaries(nn_output.shape[0]) / sample_rate
         times = times.mean(axis=1)
         assert times[-2] <= duration <= times[-1]
-
-        # nframes = nn_output.shape[0]
-        # frame_shift = frame_overlap / 8000
-        # frame_length = frame_length / 8000
-        # times = np.arange(nframes) * frame_shift + frame_length / 2.0
 
         # return the final bottleneck features
         return Features(nn_output, times, self.parameters())
