@@ -32,10 +32,10 @@ def test_pitch_params():
 
 
 def test_output(audio):
-    assert PitchProcessor(frame_shift=0.01).process(audio).shape == (142, 2)
-    assert PitchProcessor(frame_shift=0.02).process(audio).shape == (71, 2)
+    assert PitchProcessor(frame_shift=0.01).process(audio).shape == (140, 2)
+    assert PitchProcessor(frame_shift=0.02).process(audio).shape == (70, 2)
     assert PitchProcessor(
-        frame_shift=0.02, frame_length=0.05).process(audio).shape == (70, 2)
+        frame_shift=0.02, frame_length=0.05).process(audio).shape == (69, 2)
 
     # sample rate mismatch
     with pytest.raises(ValueError):

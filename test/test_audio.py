@@ -11,9 +11,9 @@ from shennong.audio import AudioData
 def test_load(audio):
     assert audio.sample_rate == 16000
     assert audio.nchannels == 1
-    assert audio.duration == pytest.approx(1.437, rel=1e-3)
-    assert audio.data.shape == (23001,)
-    assert audio.nsamples == 23001
+    assert audio.duration == pytest.approx(1.419, rel=1e-3)
+    assert audio.data.shape == (22713,)
+    assert audio.nsamples == 22713
     assert audio.dtype == np.int16
 
 
@@ -86,7 +86,7 @@ def test_compare_kaldi(wav_file):
 
     assert a1.max() == a2.max()
     assert a1.min() == a2.min()
-    assert len(a1) == len(a2.flatten()) == 23001
+    assert len(a1) == len(a2.flatten()) == 22713
     assert a1.dtype == np.int16 and a2.dtype == np.float32
-    assert a1.shape == (23001,) and a2.shape == (1, 23001)
+    assert a1.shape == (22713,) and a2.shape == (1, 22713)
     assert pytest.approx(a1, a2)

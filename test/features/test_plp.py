@@ -17,11 +17,11 @@ def test_num_ceps(audio, num_ceps):
     if 0 < proc.num_ceps:
         feat = proc.process(audio)
         assert proc.num_ceps == num_ceps
-        assert feat.shape == (142, num_ceps)
+        assert feat.shape == (140, num_ceps)
 
         proc.use_energy = False
         feat = proc.process(audio)
-        assert feat.shape == (142, num_ceps)
+        assert feat.shape == (140, num_ceps)
     else:
         with pytest.raises(RuntimeError):
             proc.process(audio)
@@ -38,10 +38,10 @@ def test_htk_compat(audio):
 
 
 def test_output(audio):
-    assert PlpProcessor(frame_shift=0.01).process(audio).shape == (142, 13)
-    assert PlpProcessor(frame_shift=0.02).process(audio).shape == (71, 13)
+    assert PlpProcessor(frame_shift=0.01).process(audio).shape == (140, 13)
+    assert PlpProcessor(frame_shift=0.02).process(audio).shape == (70, 13)
     assert PlpProcessor(
-        frame_shift=0.02, frame_length=0.05).process(audio).shape == (70, 13)
+        frame_shift=0.02, frame_length=0.05).process(audio).shape == (69, 13)
 
     # sample rate mismatch
     with pytest.raises(ValueError):

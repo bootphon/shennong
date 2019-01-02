@@ -33,7 +33,7 @@ def test_num_bins(audio, use_energy, num_bins):
     p = FilterbankProcessor(use_energy=use_energy, num_bins=num_bins)
 
     if num_bins >= 3:
-        assert p.process(audio).shape == (142, ncols)
+        assert p.process(audio).shape == (140, ncols)
     else:
         with pytest.raises(RuntimeError):
             p.process(audio)
@@ -49,11 +49,11 @@ def test_energy(audio):
 
 def test_output(audio):
     assert FilterbankProcessor(
-        frame_shift=0.01).process(audio).shape == (142, 23)
+        frame_shift=0.01).process(audio).shape == (140, 23)
     assert FilterbankProcessor(
-        frame_shift=0.02).process(audio).shape == (71, 23)
+        frame_shift=0.02).process(audio).shape == (70, 23)
     assert FilterbankProcessor(
-        frame_shift=0.02, frame_length=0.05).process(audio).shape == (70, 23)
+        frame_shift=0.02, frame_length=0.05).process(audio).shape == (69, 23)
 
     # sample rate mismatch
     with pytest.raises(ValueError):

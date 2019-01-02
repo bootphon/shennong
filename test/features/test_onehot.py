@@ -104,11 +104,11 @@ def test_compare_mfcc(audio):
     feat = Onehot(frame_shift=0.01).process(ali)
     feat_mfcc = mfcc.MfccProcessor(frame_shift=0.01).process(audio)
 
-    assert feat.shape == (142, 2)
+    assert feat.shape == (140, 2)
     assert feat.times == pytest.approx(feat_mfcc.times)
-    assert Onehot(frame_shift=0.02).process(ali).shape == (71, 2)
+    assert Onehot(frame_shift=0.02).process(ali).shape == (70, 2)
     assert Onehot(
-        frame_shift=0.02, frame_length=0.05).process(ali).shape == (70, 2)
+        frame_shift=0.02, frame_length=0.05).process(ali).shape == (69, 2)
 
 
 @pytest.mark.parametrize('window', window.types())
