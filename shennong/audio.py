@@ -218,7 +218,7 @@ class AudioData:
         # number of samples in the resampled signal
         nsamples = int(self.nsamples * sample_rate / self.sample_rate)
 
-        # scipy method issues warnings we want to inhibate
+        # scipy method issues warnings we want to inhibit
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', category=FutureWarning)
             data = scipy.signal.resample(self.data, nsamples)
