@@ -16,30 +16,26 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('wav', help='wav file to compute features on')
 
-    # load the WAV file
+    # load the wav file
     wav_file = parser.parse_args().wav
     audio = AudioData.load(wav_file)
 
     # initialize features processors
     processors = {
-        'mfcc': MfccProcessor(
-            frame_shift=0.015, frame_length=0.025),
-        'plp': PlpProcessor(
-            frame_shift=0.015, frame_length=0.025),
-        'filterbank': FilterbankProcessor(
-            frame_shift=0.015, frame_length=0.025),
-        'bottleneck': BottleneckProcessor(
-            weights='FisherTri')}
+        'mfcc': MfccProcessor(),
+        'plp': PlpProcessor(),
+        'filterbank': FilterbankProcessor(),
+        'bottleneck': BottleneckProcessor(weights='BabelMulti')}
 
     # compute the features for all processors
     features = {k: v.process(audio) for k, v in processors.items()}
 
-    # plot the results
+    # plot the audio signal and the resulting features
     fig, axes = plt.subplots(nrows=len(processors)+1)
-
-    axes[0].plot(
-        np.arange(0.0, audio.nsamples) / audio.sample_rate, audio.data)
+    time = np.arange(0.0, audio.nsamples) / audio.sample_rate
+    axes[0].plot(time, audio.data)
     axes[0].set_title('audio')
+    axes[0].set_xlim(0.0, audio.duration)
 
     for n, (k, v) in enumerate(features.items(), start=1):
         axes[n].imshow(v.data.T, aspect='auto')
