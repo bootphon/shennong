@@ -144,7 +144,7 @@ class FilterbankProcessor(MelFeaturesProcessor):
         return params
 
     def process(self, signal, vtln_warp=1.0):
-        """Compute filterbank features with the specified options
+        """Computes filterbank features with the specified options
 
         Do an optional feature-level vocal tract length normalization
         (VTLN) when `vtln_warp` != 1.0.

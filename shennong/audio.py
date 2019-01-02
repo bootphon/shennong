@@ -55,7 +55,7 @@ import scipy.signal
 import scipy.io.wavfile
 import warnings
 
-from shennong import log
+from shennong.utils import get_logger
 
 
 class AudioData:
@@ -69,6 +69,8 @@ class AudioData:
         The sample frequency of the `data`, in Hertz
 
     """
+    log = get_logger(__name__)
+
     def __init__(self, data, sample_rate):
         self._data = data
         self._sample_rate = sample_rate
@@ -110,8 +112,8 @@ class AudioData:
         """The numeric type of samples"""
         return self.data.dtype
 
-    @staticmethod
-    def load(wav_file):
+    @classmethod
+    def load(cls, wav_file):
         """Initialize an AudioData instance from a WAV file
 
         Parameters
@@ -135,7 +137,7 @@ class AudioData:
 
         try:
             # load the audio signal
-            log.debug('loading %s', wav_file)
+            cls.log.info('loading %s', wav_file)
             sample_rate, data = scipy.io.wavfile.read(wav_file)
 
             # build and return the AudioData instance
