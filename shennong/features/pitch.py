@@ -42,7 +42,7 @@ instance of `Features`:
 >>> type(pitch)
 <class 'shennong.features.features.Features'>
 >>> pitch.shape
-(142, 2)
+(140, 2)
 
 The pitch post-processor works in the same way, input is the pitch,
 output are features usable by speech processing tools:
@@ -50,7 +50,7 @@ output are features usable by speech processing tools:
 >>> postprocessor = PitchPostProcessor()  # use default options
 >>> postpitch = postprocessor.process(pitch)
 >>> postpitch.shape
-(142, 3)
+(140, 3)
 
 References
 ----------

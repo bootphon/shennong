@@ -20,14 +20,14 @@ features:
 >>> processor.use_energy = False
 >>> fbank = processor.process(audio)
 >>> fbank.shape
-(142, 23)
+(140, 23)
 
 Using energy adds a column to the output:
 
 >>> processor.use_energy = True
 >>> fbank = processor.process(audio)
 >>> fbank.shape
-(142, 24)
+(140, 24)
 
 References
 ----------
