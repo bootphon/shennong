@@ -224,3 +224,42 @@ class AudioData:
             data = scipy.signal.resample(self.data, nsamples)
 
         return AudioData(data, sample_rate)
+
+    # TODO
+    # def astype(self, dtype):
+    #     """Returns the audio signal converted to the `dtype` numeric type
+
+    #     The valid types are:
+
+    #     ========== =========== ===========
+    #     Type       Min         Max
+    #     ========== =========== ===========
+    #     np.uint8   0           255
+    #     np.int16   -32768      +32767
+    #     np.int32   -2147483648 +2147483647
+    #     np.float32 -1.0        +1.0
+    #     np.float64 -1.0        +1.0
+    #     ========== =========== ===========
+
+    #     Parameters
+    #     ----------
+    #     dtype : numeric type
+    #         The dtype must be an integeger or a floating-point type in
+    #         the types described above.
+
+    #     """
+    #     if self.dtype == dtype:
+    #         return self
+
+    #     # TODO
+    #     # if data.dtype == np.uint8:
+    #     #     return (data.astype(np.float32) - 128) / 128
+    #     # elif data.dtype == np.int16:
+    #     #     return data.astype(np.float32) / 32768
+    #     # elif data.dtype == np.int32:
+    #     #     return data.astype(np.float32) / 2147483648
+    #     # elif data.dtype == np.float32:
+    #     #    return data.astype(np.float32)
+    #     # else:
+    #     #     raise ValueError(
+    #     #         'unsuported type for audio samples: {}'.format(data.dtype))
