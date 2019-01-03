@@ -1,6 +1,6 @@
 """Compute time derivatives on existing features
 
-Uses the Kaldi implementation (see [kaldi-delta]_)
+Uses the Kaldi implementation (see [kaldi-delta]_):
 
     :class:`Features` ---> DeltaProcessor ---> :class:`Features`
 

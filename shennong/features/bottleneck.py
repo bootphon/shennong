@@ -39,30 +39,37 @@
 # https://gitlab.coml.lscp.ens.fr/mbernard/bottleneckfeatureextractor         #
 #                                                                             #
 ###############################################################################
-"""Extraction of bottleneck features from audio signals
+"""Extraction of bottleneck features from a speech signal
 
-    :class:`AudioData` ---> BottleneckProcessor ---> :class:`Features`
+    :class:`AudioData` --> BottleneckProcessor --> :class:`Features`
 
 This module provides the class BottleneckProcessor which computes
-stacked bottleneck features from audio signals. Features are extracted
-from pre-trained neural networks. Two networks are trained on English
-data only and the third is trained in multilingual fashion on data
-coming from 17 different languages.
+stacked bottleneck features from audio signals (see [Silnova2018]_ and
+[Fer2017]_). This is an adpatation of the original code released on
+[bottleneck-site]_. Features are extracted from one of the three
+provided pre-trained neural networks:
+
+* *FisherMono*: Trained on Fisher English (parts 1 and 2 datasets,
+  about 2000 hours of clean telephone speech) with 120 phoneme states
+  as output classes (40 phonemes, 3 state for each phoneme).
+
+* *FisherTri*: Trained on the same datasets as *FisherMono*, with 2423
+  triphones as output classes.
+
+* *BabelMulti*: Trained on 17 languages from the IARPA
+  [BABEL-project]_, with 3096 output classes (3 phoneme states per
+  each language stacked together).
 
 Examples
 --------
 
+Compute bottleneck features on some speech using the multilingual
+network (*BabelMulti*):
+
 >>> from shennong.audio import AudioData
 >>> from shennong.features.bottleneck import BottleneckProcessor
 >>> audio = AudioData.load('./test/data/test.wav')
-
-Initialize the bottleneck processor to use the multilingual network
-(BabelMulti):
-
 >>> processor = BottleneckProcessor(weights='BabelMulti')
-
-Compute the features:
-
 >>> features = processor.process(audio)
 >>> features.shape
 (140, 80)
@@ -72,6 +79,9 @@ References
 
 .. [bottleneck-site]
      https://speech.fit.vutbr.cz/software/but-phonexia-bottleneck-feature-extractor
+
+.. [BABEL-project]
+     https://www.iarpa.gov/index.php/research-programs/babel
 
 .. [Silnova2018] Anna Silnova, Pavel Matejka, Ondrej Glembek, Oldrich
      Plchot, Ondrej Novotny, Frantisek Grezl, Petr Schwarz, Lukas
@@ -488,7 +498,7 @@ def _create_nn_extract_st_BN(X, param_dict, bn_position):
 
 
 class BottleneckProcessor(FeaturesProcessor):
-    """Extracts bottleneck features on pre-trained NN from a speech signal
+    """Extracts bottleneck features on a pre-trained NN from a speech signal
 
     Parameters
     ----------
@@ -501,17 +511,17 @@ class BottleneckProcessor(FeaturesProcessor):
         If the `weights` are invalid
 
     RuntimeError
-        If the weights files cannot be found (meaning hennong is not
+        If the weights file cannot be found (meaning shennong is not
         correctly installed on your system)
 
     """
-    log = get_logger(__name__)
+    _log = get_logger(__name__)
 
     def __init__(self, weights='BabelMulti'):
         _available_weights = self.available_weights()
         try:
             weights_file = _available_weights[weights]
-            self.log.info('loading %s', weights_file)
+            self._log.info('loading %s', os.path.basename(weights_file))
             self._weights_data = np.load(_available_weights[weights])
             self._weights = weights
         except KeyError:
@@ -533,13 +543,13 @@ class BottleneckProcessor(FeaturesProcessor):
         weight_files : dict
             A mapping 'weights name' -> 'weights files', where the
             files are absolutes paths to compressed numpy array (.npz
-            format). The 'weights name' is BabelMulti, FicsherMono or
-            FisherTri.
+            format). The 'weights name' is either *BabelMulti*,
+            *FisherMono* or *FisherTri*.
 
         Raises
         ------
         RuntimeError
-            If the directory shennong/share/bottleneck is not found,
+            If the directory `shennong/share/bottleneck` is not found,
             or if all the weights files are missing in it.
 
         """
@@ -577,7 +587,7 @@ class BottleneckProcessor(FeaturesProcessor):
         """Computes bottleneck features on an audio `signal`
 
         Use a pre-trained neural network to extract bottleneck
-        features. Features have a frame shift of 15 ms and frame
+        features. Features have a frame shift of 10 ms and frame
         length of 25 ms.
 
         Parameters
@@ -603,36 +613,37 @@ class BottleneckProcessor(FeaturesProcessor):
 
         """
         # force resampling to 8 kHz and add some dithering
-        duration = signal.duration
         signal = signal.resample(8000).data
-        signal = _add_dither(signal, 0.1)
 
         # define parameters to extract mel filterbanks. Those
         # parameters cannot be tuned because the networks are trained
-        # with them...
+        # with them... frame_noverlap is the number of samples to
+        # overlap in each frame, so the frame_shift is 200 - 120 = 80
         frame_length = 200
-        frame_overlap = 120
-        window = np.hamming(frame_length)
-
-        # from audio signal to mel filterbank
-        fbank_mx = _mel_fbank_mx(
-            window.size, 8000, numchans=24, lofreq=64.0, hifreq=3800.0)
-        fea = _fbank_htk(signal, window, frame_overlap, fbank_mx)
+        frame_noverlap = 120
+        frame_shift = frame_length - frame_noverlap
 
         # voice activity detection TODO implement user-provided VAD
         # (vad input format could be an instance of Alignment, or
         # simply an array of bool).
         vad = _compute_vad(
-            signal, self.log,
-            win_length=frame_length, win_overlap=frame_overlap)
+            signal, self._log,
+            win_length=frame_length, win_overlap=frame_noverlap)
 
         # ensure we have some voiced frames in the signal
         voiced_frames = sum(vad)
         if not voiced_frames:
             raise RuntimeError(
                 'no voice detected in signal, failed to extract features')
-        self.log.info('%d frames of speech detected (on %d total frames)',
-                      voiced_frames, len(vad))
+        self._log.info('%d frames of speech detected (on %d total frames)',
+                       voiced_frames, len(vad))
+
+        # from audio signal to mel filterbank
+        signal = _add_dither(signal, 0.1)
+        window = np.hamming(frame_length)
+        fbank_mx = _mel_fbank_mx(
+            window.size, 8000, numchans=24, lofreq=64.0, hifreq=3800.0)
+        fea = _fbank_htk(signal, window, frame_noverlap, fbank_mx)
 
         # center the mel features from voiced frames mean
         fea -= np.mean(fea[vad], axis=0)
@@ -650,14 +661,8 @@ class BottleneckProcessor(FeaturesProcessor):
             nn_input, self._weights_data, 2)[0])
 
         # compute the timestamps for each output frame
-        sample_rate = nn_output.shape[0] / duration
-        frames = Frames(
-            sample_rate=sample_rate,
-            frame_shift=frame_overlap/8000,
-            frame_length=frame_length/8000)
-        times = frames.boundaries(nn_output.shape[0]) / sample_rate
-        times = times.mean(axis=1)
-        assert times[-2] <= duration <= times[-1]
+        times = (np.arange(nn_output.shape[0]) * frame_shift
+                 + frame_length / 2.0) / 8000
 
         # return the final bottleneck features
         return Features(nn_output, times, self.parameters())

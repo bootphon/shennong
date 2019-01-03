@@ -4,4 +4,4 @@
 *.egg-info
 doc/build
 build
-examples/dev.py
+dev/*

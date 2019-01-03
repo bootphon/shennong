@@ -1,6 +1,7 @@
 """Test of the module shennong.features.bottleneck"""
 
 import os
+import struct
 import numpy as np
 import pytest
 
@@ -28,7 +29,17 @@ def test_weights(weights):
 
 
 @pytest.mark.parametrize('weights', ['BabelMulti', 'FisherMono', 'FisherTri'])
-def test_process(audio, weights):
+def test_process(audio, mfcc, weights):
     proc = BottleneckProcessor(weights=weights)
     feat = proc.process(audio)
     assert feat.shape == (140, 80)
+    assert np.allclose(feat.times, mfcc.times)
+
+
+# may fail to have approx arrays (because of random signal
+# dithering), so we authorize 5 successive runs
+@pytest.mark.flaky(reruns=5)
+def test_compare_original(audio_8k, bottleneck_original):
+    feat = BottleneckProcessor(weights='BabelMulti').process(audio_8k)
+    assert bottleneck_original.shape == feat.shape
+    assert bottleneck_original == pytest.approx(feat.data, abs=1e-2)
