@@ -33,9 +33,9 @@ shennong-deploy:
     refs:
       - master
   script:
-    - conda activate shennong
     - cd /shared/apps/shennong
     - git pull origin master
     - conda env update -n shennong -f environment.yml
+    - conda activate shennong
     - python setup.py install
     - python setup.py test
