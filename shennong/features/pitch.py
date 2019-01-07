@@ -294,9 +294,11 @@ class PitchProcessor(FeaturesProcessor):
                 'processor and signal mismatch in sample rates: '
                 '{} != {}'.format(self.sample_rate, signal.sample_rate))
 
+        # force 16 bits integers
+        signal = signal.astype(np.int16).data
         data = kaldi.matrix.SubMatrix(
             kaldi.feat.pitch.compute_kaldi_pitch(
-                self._options, kaldi.matrix.SubVector(signal.data))).numpy()
+                self._options, kaldi.matrix.SubVector(signal))).numpy()
 
         return Features(
             data, self.times(data.shape[0]), self.parameters())

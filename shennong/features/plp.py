@@ -44,9 +44,9 @@ References
 
 """
 
-
 import kaldi.feat.plp
 import kaldi.matrix
+import numpy as np
 
 from shennong.features.features import Features
 from shennong.core.processor import MelFeaturesProcessor
@@ -232,9 +232,11 @@ class PlpProcessor(MelFeaturesProcessor):
                 'processor and signal mismatch in sample rates: '
                 '{} != {}'.format(self.sample_rate, signal.sample_rate))
 
+        # force 16 bits integers
+        signal = signal.astype(np.int16).data
         data = kaldi.matrix.SubMatrix(
             kaldi.feat.plp.Plp(self._options).compute(
-                kaldi.matrix.SubVector(signal.data), vtln_warp)).numpy()
+                kaldi.matrix.SubVector(signal), vtln_warp)).numpy()
 
         return Features(
             data, self.times(data.shape[0]), self.parameters())

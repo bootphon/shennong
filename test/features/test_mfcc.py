@@ -85,7 +85,8 @@ def test_subover_sample(audio, sample_rate):
         assert 'mismatch in sample rate' in err
 
 
-def test_kaldi_audio(wav_file, audio):
+@pytest.mark.parametrize('dtype', [np.int16, np.int32, np.float32, np.float64])
+def test_kaldi_audio(wav_file, audio, dtype):
     # make sure we have results when loading a wav file with
     # shennong.AudioData and with the Kaldi code.
     with tempfile.NamedTemporaryFile('w+') as tfile:
@@ -95,11 +96,14 @@ def test_kaldi_audio(wav_file, audio):
             for key, wave in reader:
                 audio_kaldi = AudioData(
                     wave.data().numpy().reshape(audio.data.shape),
-                    audio.sample_rate)
+                    audio.sample_rate, validate=False)
 
+    audio = audio.astype(dtype)
     assert audio.duration == audio_kaldi.duration
-    assert audio.dtype == np.int16
+    assert audio.dtype == dtype
+    assert audio.is_valid()
     assert audio_kaldi.dtype == np.float32
+    assert not audio_kaldi.is_valid()  # not in [-1, 1] but [-2**15, 2**15-1]
 
     mfcc = MfccProcessor().process(audio)
     mfcc_kaldi = MfccProcessor().process(audio_kaldi)

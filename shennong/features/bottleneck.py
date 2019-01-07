@@ -612,8 +612,8 @@ class BottleneckProcessor(FeaturesProcessor):
             activity detection preprocessing step.
 
         """
-        # force resampling to 8 kHz and add some dithering
-        signal = signal.resample(8000).data
+        # force resampling to 8 kHz and 16 bits integers
+        signal = signal.resample(8000).astype(np.int16).data
 
         # define parameters to extract mel filterbanks. Those
         # parameters cannot be tuned because the networks are trained
