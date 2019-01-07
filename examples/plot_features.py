@@ -22,9 +22,9 @@ def main():
 
     # initialize features processors
     processors = {
-        'mfcc': MfccProcessor(),
-        'plp': PlpProcessor(),
-        'filterbank': FilterbankProcessor(),
+        'mfcc': MfccProcessor(sample_rate=audio.sample_rate),
+        'plp': PlpProcessor(sample_rate=audio.sample_rate),
+        'filterbank': FilterbankProcessor(sample_rate=audio.sample_rate),
         'bottleneck': BottleneckProcessor(weights='BabelMulti')}
 
     # compute the features for all processors
