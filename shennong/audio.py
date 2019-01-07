@@ -1,12 +1,29 @@
 """Provides the `AudioData` class that handles audio signals
 
-The `AudioData` class allows to load, save and manipulate
-multichannels audio data. `AudioData` is the input to feature
-extraction models.
-
 .. note::
 
    For now, only WAV files are supported for input/output.
+
+The `AudioData` class allows to load, save and manipulate
+multichannels audio data.
+
+The underlying audio samples can be of one of the following types
+(with the corresponding min and max):
+
+    ========== =========== ===========
+    Type       Min         Max
+    ========== =========== ===========
+    np.int16   -32768      +32767
+    np.int32   -2147483648 +2147483647
+    np.float32 -1.0        +1.0
+    np.float64 -1.0        +1.0
+    ========== =========== ===========
+
+When loading an audio file with :meth:`load`, those min/max are
+expected to be respected. When creating an `AudioData` instance from a
+raw data array, the `validate` parameter in the class constructor and
+the method :meth:`is_valid` make sure the data type and min/max are
+respected.
 
 Examples
 --------
@@ -29,12 +46,22 @@ dtype('float64')
 >>> audio.duration
 0.0625
 
+Resample the signal to 8 kHz and convert it to 16 bits integers:
+
+>>> audio2 = audio.resample(8000).astype(np.int16)
+>>> audio2.sample_rate
+8000
+>>> audio2.duration == audio.duration
+True
+>>> audio2.dtype
+dtype('int16')
+
 Save the `AudioData` instance as a wav file, load an existing wav
 file as an `AudioData` instance:
 
 >>> audio.save('stereo.wav')
->>> audio2 = AudioData.load('stereo.wav')
->>> audio == audio2
+>>> audio3 = AudioData.load('stereo.wav')
+>>> audio == audio3
 True
 >>> os.remove('stereo.wav')
 
@@ -60,23 +87,24 @@ from shennong.utils import get_logger
 
 
 class AudioData:
-    """Audio signal with associated sample rate and dtype
+    """Create an audio signal with the given `data` and `sample_rate`
 
     Attributes
     ----------
     data : numpy array, shape = [nsamples, nchannels]
-        The waveform audio signal
+        The waveform audio signal, must be of one of the supported
+        types (see above)
     sample_rate : float
         The sample frequency of the `data`, in Hertz
     validate : bool, optional
         When True, make sure the underlying data is valid (see
-        :method:`is_valid`), default to True
+        :meth:`is_valid`), default to True
 
     Raises
     ------
     ValueError
         If `validate` is True and the audio data if not valid (see
-        :method:`is_valid`)
+        :meth:`is_valid`)
 
     """
     _log = get_logger(__name__)
@@ -128,7 +156,7 @@ class AudioData:
 
     @classmethod
     def load(cls, wav_file):
-        """Initialize an AudioData instance from a WAV file
+        """Creates an `AudioData` instance from a WAV file
 
         Parameters
         ----------
@@ -162,7 +190,7 @@ class AudioData:
                 '{}: cannot read file, is it a wav?'.format(wav_file))
 
     def save(self, wav_file):
-        """Save the audio data to a `wav_file`
+        """Saves the audio data to a `wav_file`
 
         Parameters
         ----------
@@ -182,7 +210,7 @@ class AudioData:
         scipy.io.wavfile.write(wav_file, self.sample_rate, self.data)
 
     def channel(self, index):
-        """Build a mono signal from a multi-channel one
+        """Builds a mono signal from a multi-channel one
 
         Parameters
         ----------
@@ -214,7 +242,7 @@ class AudioData:
     def resample(self, sample_rate):
         """Returns the audio signal resampled at the given `sample_rate`
 
-        This method relies on :func:`scipy.signal.resample`
+        This method relies on :func:`scipy.signal.resample`.
 
         Parameters
         ----------
@@ -239,22 +267,22 @@ class AudioData:
             data = scipy.signal.resample(self.data, nsamples)
 
         # resampling cast to float64, reformat to the original dtype
-        return AudioData(data.astype(self.dtype), sample_rate)
+        return AudioData(data.astype(self.dtype), sample_rate, validate=False)
 
     @staticmethod
     def _is_valid_dtype(dtype):
-        """Return True if `dtype` is a supported data type, False otherwise"""
+        """Returns True if `dtype` is a supported data type, False otherwise"""
         supported_types = [np.dtype(t) for t in (
             np.int16, np.int32, np.float32, np.float64)]
         return dtype in supported_types
 
     def is_valid(self):
-        """Return True if the audio data are valid, False otherwise
+        """Returns True if the audio data is valid, False otherwise
 
-        An AudioData instance is valid if the underlying data type is
-        supported (must be np.int16, np.int32, np.float32 or
+        An `AudioData` instance is valid if the underlying data type
+        is supported (must be np.int16, np.int32, np.float32 or
         np.float64), and if the samples min/max are within the
-        expected boundaries for the given data type.
+        expected boundaries for the given data type (see above).
 
         """
         # make sure the data type is valid
@@ -289,16 +317,8 @@ class AudioData:
     def astype(self, dtype):
         """Returns the audio signal converted to the `dtype` numeric type
 
-        The valid types are:
-
-        ========== =========== ===========
-        Type       Min         Max
-        ========== =========== ===========
-        np.int16   -32768      +32767
-        np.int32   -2147483648 +2147483647
-        np.float32 -1.0        +1.0
-        np.float64 -1.0        +1.0
-        ========== =========== ===========
+        The valid types are np.int16, np.int32, np.float32 or
+        np.float64, see above for the types min and max.
 
         Parameters
         ----------
@@ -313,7 +333,7 @@ class AudioData:
 
         """
         # do nothing if we already have the requested dtype
-        if self.dtype == dtype:
+        if self.dtype is np.dtype(dtype):
             return self
 
         # make sure we support the requested dtype
@@ -323,24 +343,24 @@ class AudioData:
         # starting from int16
         if self.dtype is np.dtype(np.int16):
             if dtype is np.int32:
-                data = (self.data * 2**15).astype(dtype)
+                data = self.data * 2**15
             else:  # float32 or float64
-                data = (self.data / 2**15).astype(dtype)
+                data = self.data / 2**15
 
         # starting from int32
         elif self.dtype is np.dtype(np.int32):
             if dtype is np.int16:
-                data = (self.data / 2**15).astype(dtype)
+                data = self.data / 2**15
             else:  # float32 or float64
-                data = (self.data / 2**31).astype(dtype)
+                data = self.data / 2**31
 
         # starting from float32 or float64
         else:
             if dtype is np.int16:
-                data = (self.data * 2**15).astype(dtype)
+                data = self.data * 2**15
             elif dtype is np.int32:
-                data = (self.data * 2**31).astype(dtype)
+                data = self.data * 2**31
             else:  # float32 or float64
-                data = self.data.astype(dtype)
+                data = self.data
 
-        return AudioData(data, self.sample_rate, validate=False)
+        return AudioData(data.astype(dtype), self.sample_rate, validate=False)
