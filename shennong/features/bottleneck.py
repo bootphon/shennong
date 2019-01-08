@@ -107,7 +107,7 @@ import scipy.linalg as spl
 import scipy.fftpack
 
 from shennong.utils import get_logger
-from shennong.core.processor import FeaturesProcessor
+from shennong.features.base import FeaturesProcessor
 from shennong.features.features import Features
 
 

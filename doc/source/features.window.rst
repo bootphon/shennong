@@ -3,7 +3,7 @@
 Window functions
 ~~~~~~~~~~~~~~~~
 
-.. automodule:: shennong.core.window
+.. automodule:: shennong.features.window
     :members:
     :inherited-members:
     :undoc-members:

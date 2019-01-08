@@ -3,10 +3,44 @@
 This is usefull when computing frames for features extraction. Uses
 the kaldi implementation.
 
+The implemented window functions :math:`w(n)` are, with `length` noted
+:math:`N`:
+
+* **rectangular**:
+
+  .. math::
+
+     w(n) = 1
+
+* **hanning**:
+
+  .. math::
+
+     w(n) = \\frac{1}{2} - \\frac{1}{2} cos(\\frac{2\\pi n}{N-1})
+
+* **hamming**:
+
+  .. math::
+
+     w(n) = 0.54 - 0.46 cos(\\frac{2\\pi n}{N-1})
+
+* **povey** (like `hamming` but goes to zero at edges):
+
+  .. math::
+
+     w(n) = (\\frac{1}{2} - \\frac{1}{2} cos(\\frac{2\\pi n}{N-1}))^{0.85}
+
+* **blackman**, with `blackman_coeff` noted as :math:`\\alpha`:
+
+  .. math::
+
+     w(n) = \\alpha - \\frac{1}{2} cos(\\frac{2\\pi n}{N-1}) + \
+            (\\frac{1}{2} - \\alpha) cos(\\frac{4\\pi n}{N-1})
+
 Examples
 --------
 
->>> from shennong.core.window import window
+>>> from shennong.features.window import window
 >>> window(5, type='hamming')
 array([0.08, 0.54, 1.  , 0.54, 0.08], dtype=float32)
 >>> window(5, type='rectangular')
@@ -29,40 +63,6 @@ def types():
 
 def window(length, type='povey', blackman_coeff=0.42):
     """Returns a window of the given `type` and `length`
-
-    With `length` noted :math:`N`, the window functions :math:`w(n)`
-    are expressed as follows:
-
-    * **rectangular**:
-
-      .. math::
-
-         w(n) = 1
-
-    * **hanning**:
-
-      .. math::
-
-         w(n) = \\frac{1}{2} - \\frac{1}{2} cos(\\frac{2\\pi n}{N-1})
-
-    * **hamming**:
-
-      .. math::
-
-         w(n) = 0.54 - 0.46 cos(\\frac{2\\pi n}{N-1})
-
-    * **povey** (like `hamming` but goes to zero at edges):
-
-      .. math::
-
-         w(n) = (\\frac{1}{2} - \\frac{1}{2} cos(\\frac{2\\pi n}{N-1}))^{0.85}
-
-    * **blackman**, with `blackman_coeff` noted as :math:`\\alpha`:
-
-      .. math::
-
-         w(n) = \\alpha - \\frac{1}{2} cos(\\frac{2\\pi n}{N-1}) + \
-                (\\frac{1}{2} - \\alpha) cos(\\frac{4\\pi n}{N-1})
 
     Parameters
     ----------

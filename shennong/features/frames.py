@@ -8,7 +8,7 @@ Examples
 --------
 
 >>> import numpy as np
->>> from shennong.core.frames import Frames
+>>> from shennong.features.frames import Frames
 
 Build a discrete signal
 

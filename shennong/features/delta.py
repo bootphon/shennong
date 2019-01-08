@@ -44,7 +44,7 @@ References
 import kaldi.feat.functions
 import kaldi.matrix
 
-from shennong.core.processor import FeaturesProcessor
+from shennong.features.base import FeaturesProcessor
 from shennong.features.features import Features
 
 

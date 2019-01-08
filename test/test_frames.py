@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import random
 
-from shennong.core.frames import Frames
+from shennong.features.frames import Frames
 
 
 @pytest.mark.parametrize('snip_edges', [True, False])

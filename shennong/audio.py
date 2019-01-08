@@ -5,10 +5,8 @@
    For now, only WAV files are supported for input/output.
 
 The `AudioData` class allows to load, save and manipulate
-multichannels audio data.
-
-The underlying audio samples can be of one of the following types
-(with the corresponding min and max):
+multichannels audio data. The underlying audio samples can be of one
+of the following types (with the corresponding min and max):
 
     ========== =========== ===========
     Type       Min         Max
@@ -19,11 +17,11 @@ The underlying audio samples can be of one of the following types
     np.float64 -1.0        +1.0
     ========== =========== ===========
 
-When loading an audio file with :meth:`load`, those min/max are
-expected to be respected. When creating an `AudioData` instance from a
-raw data array, the `validate` parameter in the class constructor and
-the method :meth:`is_valid` make sure the data type and min/max are
-respected.
+When loading an audio file with :func:`AudioData.load`, those min/max
+are expected to be respected. When creating an `AudioData` instance
+from a raw data array, the `validate` parameter in the class
+constructor and the method :func:`AudioData.is_valid` make sure the
+data type and min/max are respected.
 
 Examples
 --------

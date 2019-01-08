@@ -12,7 +12,6 @@ Python API reference
 .. toctree::
    :maxdepth: 2
 
-   alignment
    audio
+   alignment
    features
-   core

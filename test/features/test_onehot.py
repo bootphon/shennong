@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
-from shennong.features import onehot, mfcc
 from shennong import alignment
-from shennong.core import window
+from shennong.features import onehot, mfcc
+from shennong.features import window
 
 
 @pytest.mark.parametrize('params', [
