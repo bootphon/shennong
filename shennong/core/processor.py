@@ -6,14 +6,11 @@ import kaldi.feat.window
 import kaldi.feat.mel
 import numpy as np
 
+from shennong.base import BaseProcessor
 
-class FeaturesProcessor(metaclass=abc.ABCMeta):
+
+class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
     """Base class of all the features extraction models"""
-    @abc.abstractmethod
-    def parameters(self):
-        """Returns a dict of all the processor's parameters"""
-        pass
-
     @abc.abstractmethod
     def process(self, signal):
         """Returns some features processed from an input `signal`"""
@@ -242,24 +239,6 @@ class MelFeaturesProcessor(FeaturesProcessor):
     @vtln_high.setter
     def vtln_high(self, value):
         self._mel_options.vtln_high = value
-
-    def parameters(self):
-        return {
-            'sample_rate': self.sample_rate,
-            'frame_shift': self.frame_shift,
-            'frame_length': self.frame_length,
-            'dither': self.dither,
-            'preemph_coeff': self.preemph_coeff,
-            'remove_dc_offset': self.remove_dc_offset,
-            'window_type': self.window_type,
-            'round_to_power_of_two': self.round_to_power_of_two,
-            'blackman_coeff': self.blackman_coeff,
-            'snip_edges': self.snip_edges,
-            'num_bins': self.num_bins,
-            'low_freq': self.low_freq,
-            'high_freq': self.high_freq,
-            'vtln_low': self.vtln_low,
-            'vtln_high': self.vtln_high}
 
     def times(self, nframes):
         """Returns the time label for the rows given by the `process` method"""

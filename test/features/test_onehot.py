@@ -8,6 +8,35 @@ from shennong import alignment
 from shennong.core import window
 
 
+@pytest.mark.parametrize('params', [
+    {'phones': ['a', 'b', 'c'], 'times': 'onset'},
+    {'phones': None, 'times': 'offset'}])
+def test_params(params):
+    proc = onehot.OneHotProcessor(**params)
+    assert params == proc.get_params()
+
+    proc = onehot.OneHotProcessor()
+    proc.set_params(**params)
+    assert params == proc.get_params()
+
+
+def test_params_framed():
+    params = {
+        'phones': ['a', 'b', 'c'],
+        'sample_rate': 2,
+        'frame_shift': 10,
+        'frame_length': 25,
+        'window_type': 'blackman',
+        'blackman_coeff': 0.5}
+
+    proc = onehot.FramedOneHotProcessor(**params)
+    assert params == proc.get_params()
+
+    proc = onehot.FramedOneHotProcessor()
+    proc.set_params(**params)
+    assert params == proc.get_params()
+
+
 def test_base(alignments):
     class Base(onehot._OneHotBase):
         def process(self, signal):
@@ -54,12 +83,14 @@ def test_simple(alignments, times):
     all_phones = alignments.get_phones_inventory()
 
     # no phones_set specification, used the ones from ali1
-    feat1 = onehot.OneHotProcessor(times=times, phones=phn1).process(ali1)
+    proc = onehot.OneHotProcessor(times=times, phones=phn1)
+    feat1 = proc.process(ali1)
     assert feat1.shape == (ali1.phones.shape[0], len(phn1))
     assert all(feat1.data.sum(axis=1) == 1)
     assert np.array_equal(feat1.times, tim1)
     assert set(feat1.properties.keys()) == set(
         ['phone2index', 'phones', 'times'])
+    assert proc.get_params()['times'] == times
     assert feat1.properties['times'] == times
 
     # phones_set used is the one from the whole alignment collection

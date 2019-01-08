@@ -238,23 +238,6 @@ class PitchProcessor(FeaturesProcessor):
     def upsample_filter_width(self, value):
         self._options.upsample_filter_width = value
 
-    def parameters(self):
-        """Returns the values of all the parameters in a dict"""
-        return {
-            'sample_rate': self.sample_rate,
-            'frame_shift': self.frame_shift,
-            'frame_length': self.frame_length,
-            'min_f0': self.min_f0,
-            'max_f0': self.max_f0,
-            'soft_min_f0': self.soft_min_f0,
-            'penalty_factor': self.penalty_factor,
-            'lowpass_cutoff': self.lowpass_cutoff,
-            'resample_freq': self.resample_freq,
-            'delta_pitch': self.delta_pitch,
-            'nccf_ballast': self.nccf_ballast,
-            'lowpass_filter_width': self.lowpass_filter_width,
-            'upsample_filter_width': self.upsample_filter_width}
-
     def times(self, nframes):
         """Returns the time label for the rows given by the `process` method"""
         return np.arange(nframes) * self.frame_shift + self.frame_length / 2.0
@@ -301,7 +284,7 @@ class PitchProcessor(FeaturesProcessor):
                 self._options, kaldi.matrix.SubVector(signal))).numpy()
 
         return Features(
-            data, self.times(data.shape[0]), self.parameters())
+            data, self.times(data.shape[0]), self.get_params())
 
 
 class PitchPostProcessor(FeaturesProcessor):
@@ -477,23 +460,6 @@ class PitchPostProcessor(FeaturesProcessor):
     def add_raw_log_pitch(self, value):
         self._options.add_raw_log_pitch = value
 
-    def parameters(self):
-        """Returns the values of all the parameters in a dict"""
-        return {
-            'pitch_scale': self.pitch_scale,
-            'pov_scale': self.pov_scale,
-            'pov_offset': self.pov_offset,
-            'delta_pitch_scale': self.delta_pitch_scale,
-            'delta_pitch_noise_stddev': self.delta_pitch_noise_stddev,
-            'normalization_left_context': self.normalization_left_context,
-            'normalization_right_context': self.normalization_right_context,
-            'delta_window': self.delta_window,
-            'delay': self.delay,
-            'add_pov_feature': self.add_pov_feature,
-            'add_normalized_log_pitch': self.add_normalized_log_pitch,
-            'add_delta_pitch': self.add_delta_pitch,
-            'add_raw_log_pitch': self.add_raw_log_pitch}
-
     def process(self, raw_pitch):
         """Post process a raw pitch data as specified by the options
 
@@ -538,4 +504,4 @@ class PitchPostProcessor(FeaturesProcessor):
                 self._options, kaldi.matrix.SubMatrix(raw_pitch.data))).numpy()
 
         return Features(
-            data, raw_pitch.times, self.parameters())
+            data, raw_pitch.times, self.get_params())

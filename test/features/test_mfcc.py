@@ -10,7 +10,21 @@ from shennong.features.mfcc import MfccProcessor
 
 
 def test_params():
-    assert len(MfccProcessor().parameters()) == 21
+    assert len(MfccProcessor().get_params()) == 21
+
+
+def test_set_params():
+    m = MfccProcessor()
+
+    assert m.get_params()['sample_rate'] == 16000
+    m.set_params(sample_rate=0)
+    assert m.get_params()['sample_rate'] == 0
+
+    assert m.get_params()['window_type'] == 'povey'
+    m.set_params(window_type='hanning')
+    assert m.get_params()['window_type'] == 'hanning'
+    with pytest.raises(ValueError):
+        m.set_params(window_type='foo')
 
 
 @pytest.mark.parametrize('num_ceps', [0, 1, 5, 13, 23, 25])

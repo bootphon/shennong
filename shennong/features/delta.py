@@ -81,11 +81,6 @@ class DeltaProcessor(FeaturesProcessor):
                 'window must be in [1, 999], it is {}'.format(value))
         self._options.window = value
 
-    def parameters(self):
-        return {
-            'order': self.order,
-            'window': self.window}
-
     def process(self, features):
         """Compute deltas on `features` with the specified options
 
@@ -106,4 +101,4 @@ class DeltaProcessor(FeaturesProcessor):
             kaldi.feat.functions.compute_deltas(
                 self._options, kaldi.matrix.SubMatrix(features.data))).numpy()
 
-        return Features(data, features.times, self.parameters())
+        return Features(data, features.times, self.get_params())

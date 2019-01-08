@@ -108,7 +108,6 @@ import scipy.fftpack
 
 from shennong.utils import get_logger
 from shennong.core.processor import FeaturesProcessor
-from shennong.core.frames import Frames
 from shennong.features.features import Features
 
 
@@ -521,7 +520,7 @@ class BottleneckProcessor(FeaturesProcessor):
         _available_weights = self.available_weights()
         try:
             weights_file = _available_weights[weights]
-            self._log.info('loading %s', os.path.basename(weights_file))
+            self._log.debug('loading %s', os.path.basename(weights_file))
             self._weights_data = np.load(_available_weights[weights])
             self._weights = weights
         except KeyError:
@@ -579,9 +578,6 @@ class BottleneckProcessor(FeaturesProcessor):
                 cls.log.warning('weights file for "%s" is unavailable', k)
 
         return files
-
-    def parameters(self):
-        return {'weights': self.weights}
 
     def process(self, signal):
         """Computes bottleneck features on an audio `signal`
@@ -665,4 +661,4 @@ class BottleneckProcessor(FeaturesProcessor):
                  + frame_length / 2.0) / 8000
 
         # return the final bottleneck features
-        return Features(nn_output, times, self.parameters())
+        return Features(nn_output, times, self.get_params())

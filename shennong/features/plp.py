@@ -177,20 +177,6 @@ class PlpProcessor(MelFeaturesProcessor):
     def htk_compat(self, value):
         self._options.htk_compat = value
 
-    def parameters(self):
-        params = super().parameters()
-        params.update({
-            'lpc_order': self.lpc_order,
-            'num_ceps': self.num_ceps,
-            'use_energy': self.use_energy,
-            'energy_floor': self.energy_floor,
-            'raw_energy': self.raw_energy,
-            'compress_factor': self.compress_factor,
-            'cepstral_lifter': self.cepstral_lifter,
-            'cepstral_scale': self.cepstral_scale,
-            'htk_compat': self.htk_compat})
-        return params
-
     def process(self, signal, vtln_warp=1.0):
         """Compute PLP features with the specified options
 
@@ -239,4 +225,4 @@ class PlpProcessor(MelFeaturesProcessor):
                 kaldi.matrix.SubVector(signal), vtln_warp)).numpy()
 
         return Features(
-            data, self.times(data.shape[0]), self.parameters())
+            data, self.times(data.shape[0]), self.get_params())

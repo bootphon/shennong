@@ -15,7 +15,7 @@ def test_params():
         d.window = 2000
     d.window = 1
 
-    assert d.parameters() == {'order': 0, 'window': 1}
+    assert d.get_params() == {'order': 0, 'window': 1}
 
 
 @pytest.mark.parametrize(

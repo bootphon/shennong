@@ -28,7 +28,11 @@ def test_pitch_params():
         'lowpass_filter_width': 0,
         'upsample_filter_width': 0}
     p = PitchProcessor(**opts)
-    assert p.parameters() == opts
+    assert p.get_params() == opts
+
+    p = PitchProcessor()
+    p.set_params(**opts)
+    assert p.get_params() == opts
 
 
 def test_output(audio):
@@ -64,17 +68,21 @@ def test_post_pitch_params():
         'add_delta_pitch': False,
         'add_raw_log_pitch': False}
     p = PitchPostProcessor(**opts)
-    assert p.parameters() == opts
+    assert p.get_params() == opts
+
+    p = PitchPostProcessor()
+    p.set_params(**opts)
+    assert p.get_params() == opts
 
 
 def test_post_pitch(raw_pitch):
     post_processor = PitchPostProcessor()
-    params = post_processor.parameters()
+    params = post_processor.get_params()
     data = post_processor.process(raw_pitch)
     assert data.shape[1] == 3
     assert raw_pitch.shape[0] == data.shape[0]
     assert np.array_equal(raw_pitch.times, data.times)
-    assert params == post_processor.parameters()
+    assert params == post_processor.get_params()
 
 
 @pytest.mark.parametrize('options', [

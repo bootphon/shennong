@@ -20,7 +20,24 @@ def test_params():
         'use_power': False}
     p = FilterbankProcessor(**params)
 
-    params_out = p.parameters()
+    params_out = p.get_params()
+    for k, v in params.items():
+        assert params_out[k] == v
+
+
+def test_set_params():
+    params = {
+        'num_bins': 0,
+        'use_energy': True,
+        'energy_floor': 10.0,
+        'raw_energy': False,
+        'htk_compat': True,
+        'use_log_fbank': False,
+        'use_power': False}
+    p = FilterbankProcessor()
+    p.set_params(**params)
+
+    params_out = p.get_params()
     for k, v in params.items():
         assert params_out[k] == v
 

@@ -8,7 +8,7 @@ from shennong.features.plp import PlpProcessor
 
 
 def test_params():
-    assert len(PlpProcessor().parameters()) == 24
+    assert len(PlpProcessor().get_params()) == 24
 
 
 @pytest.mark.parametrize('num_ceps', [-1, 0, 1, 5, 13, 23, 25])

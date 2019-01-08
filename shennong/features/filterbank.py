@@ -133,17 +133,6 @@ class FilterbankProcessor(MelFeaturesProcessor):
     def use_power(self, value):
         self._options.use_power = value
 
-    def parameters(self):
-        params = super().parameters()
-        params.update({
-            'use_energy': self.use_energy,
-            'energy_floor': self.energy_floor,
-            'raw_energy': self.raw_energy,
-            'htk_compat': self.htk_compat,
-            'use_log_fbank': self.use_log_fbank,
-            'use_power': self.use_power})
-        return params
-
     def process(self, signal, vtln_warp=1.0):
         """Computes filterbank features with the specified options
 
@@ -193,4 +182,4 @@ class FilterbankProcessor(MelFeaturesProcessor):
                 kaldi.matrix.SubVector(signal), vtln_warp)).numpy()
 
         return Features(
-            data, self.times(data.shape[0]), self.parameters())
+            data, self.times(data.shape[0]), self.get_params())

@@ -33,9 +33,6 @@ class _OneHotBase(FeaturesProcessor):
         else:
             self.phones = sorted(set(phones))
 
-    def parameters(self):
-        return {'phones': self.phones}
-
     def _phones_set(self, alignment):
         # if no phones list specified, take them from the alignment
         if self.phones is None:
@@ -66,7 +63,7 @@ class OneHotProcessor(_OneHotBase):
         The phones composing the alignment. Specify the phones if you
         want to have consistant one-hot vectors accross different
         :class:`Features`. By default the phones are extracted from
-        the alignment in :func:`process`.
+        the alignment in :meth:`process`.
     times : {'mean', 'onset', 'offset'}, optional
         The features timestamps are either the alignments `onsets`,
         `offsets` or :math:`\\frac{onset + offset}{2}` if `mean` is
@@ -81,22 +78,12 @@ class OneHotProcessor(_OneHotBase):
     def __init__(self, phones=None, times='mean'):
         super().__init__(phones=phones)
 
-        if times is 'onsets':
-            times = 'onset'
-        if times is 'offsets':
-            times = 'offset'
-        if times is 'means':
-            times = 'mean'
+        # check `times` is correct
         if times not in ('mean', 'onset', 'offset'):
             raise ValueError(
                 'times must be "mean", "onset" or "offset" but is'
                 .format(times))
-        self._times = times
-
-    def parameters(self):
-        params = super().parameters()
-        params.update({'times': self._times})
-        return params
+        self.times = times
 
     def process(self, alignment):
         # build a bijection phone <-> onehot index
@@ -113,14 +100,16 @@ class OneHotProcessor(_OneHotBase):
 
         # times are simply (onset + offset) / 2 if 'mean' as
         # parameters, else 'onset' or 'offset
-        if self._times is 'mean':
+        if self.times is 'mean':
             times = alignment._times.mean(axis=1)
-        elif self._times is 'onset':
+        elif self.times is 'onset':
             times = alignment.onsets
         else:
             times = alignment.offsets
 
-        prop = self.parameters()
+        # add the phones index to the features proerties allows to
+        # reconstruct the phones sequence from the onehot vectors
+        prop = self.get_params()
         prop.update({'phone2index': phone2index})
 
         return Features(data, times, properties=prop)
@@ -166,15 +155,37 @@ class FramedOneHotProcessor(_OneHotBase):
         self.window_type = window_type
         self.blackman_coeff = blackman_coeff
 
-    def parameters(self):
-        params = super().parameters()
-        params.update({
-            'sample_rate': self.frame.sample_rate,
-            'frame_shift': self.frame.frame_shift,
-            'frame_length': self.frame.frame_length,
-            'window_type': self.window_type,
-            'blackman_coeff': self.blackman_coeff})
-        return params
+    @property
+    def sample_rate(self):
+        """The processor operation sample rate
+
+        Must match the sample rate of the signal specified in
+        `process`
+
+        """
+        return self.frame.sample_rate
+
+    @sample_rate.setter
+    def sample_rate(self, value):
+        self.frame.sample_rate = value
+
+    @property
+    def frame_shift(self):
+        """Frame shift in seconds"""
+        return self.frame.frame_shift
+
+    @frame_shift.setter
+    def frame_shift(self, value):
+        self.frame.frame_shift = value
+
+    @property
+    def frame_length(self):
+        """Frame length in seconds"""
+        return self.frame.frame_length
+
+    @frame_length.setter
+    def frame_length(self, value):
+        self.frame.frame_length = value
 
     def process(self, alignment):
         # build a bijection phone <-> onehot index
@@ -217,7 +228,7 @@ class FramedOneHotProcessor(_OneHotBase):
 
             data[i, phone2index[winner]] = 1
 
-        prop = self.parameters()
+        prop = self.get_params()
         prop.update({'phone2index': phone2index})
 
         return Features(
