@@ -1,4 +1,4 @@
-"""Test of the module shennong.core.frame"""
+"""Test of the module shennong.features.frame"""
 
 import numpy as np
 import pytest

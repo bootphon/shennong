@@ -2,7 +2,7 @@
 
 Uses the Kaldi implementation (see [kaldi-delta]_):
 
-    :class:`Features` ---> DeltaProcessor ---> :class:`Features`
+    :class:`Features` --> DeltaProcessor --> :class:`Features`
 
 Examples
 --------

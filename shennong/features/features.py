@@ -19,7 +19,7 @@ class FeaturesCollection(dict):
         ----------
         spk2utt : dict
             A mapping of speakers to their associated utterances
-            (items in the FeaturesCollection). We must have
+            (items in the ``FeaturesCollection``). We must have
             ``spk2utt.values() == self.keys()``.
 
         Returns
