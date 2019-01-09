@@ -66,14 +66,24 @@ class Features:
         return self._times
 
     @property
-    def shape(self):
-        """The shape of the features data, as (nframes, nlabels)"""
-        return self.data.shape
-
-    @property
     def dtype(self):
         """The type of the features data"""
         return self.data.dtype
+
+    @property
+    def shape(self):
+        """The shape of the features data, as (nframes, ndims)"""
+        return self.data.shape
+
+    @property
+    def ndims(self):
+        """The number of dimensions of a features frame (feat.shape[1])"""
+        return self.shape[1]
+
+    @property
+    def nframes(self):
+        """The number of features frames (feat.shape[0])"""
+        return self.shape[0]
 
     @property
     def properties(self):
