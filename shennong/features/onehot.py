@@ -23,15 +23,23 @@ import numpy as np
 import shennong.features.window
 from shennong.features.base import FeaturesProcessor
 from shennong.features.frames import Frames
-from shennong.features.features import Features
+from shennong.features import Features
 
 
 class _OneHotBase(FeaturesProcessor):
     def __init__(self, phones=None):
-        if phones is None:
-            self.phones = None
+        self.phones = phones
+
+    @property
+    def phones(self):
+        return self._phones
+
+    @phones.setter
+    def phones(self, value):
+        if value is None:
+            self._phones = None
         else:
-            self.phones = sorted(set(phones))
+            self._phones = sorted(set(value))
 
     def _phones_set(self, alignment):
         # if no phones list specified, take them from the alignment

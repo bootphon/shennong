@@ -10,6 +10,19 @@ from shennong.features.plp import PlpProcessor
 def test_params():
     assert len(PlpProcessor().get_params()) == 24
 
+    params = {
+        'num_bins': 0,
+        'use_energy': True,
+        'energy_floor': 10.0,
+        'raw_energy': False,
+        'htk_compat': True,
+        'htk_compat': True}
+    p = PlpProcessor(**params)
+    out_params = p.get_params()
+    assert len(out_params) == 24
+
+    assert PlpProcessor().set_params(**params).get_params() == out_params
+
 
 @pytest.mark.parametrize('num_ceps', [-1, 0, 1, 5, 13, 23, 25])
 def test_num_ceps(audio, num_ceps):

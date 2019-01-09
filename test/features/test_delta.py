@@ -17,6 +17,12 @@ def test_params():
 
     assert d.get_params() == {'order': 0, 'window': 1}
 
+    p = {'order': 0, 'window': 1}
+    d = DeltaProcessor()
+    assert d.get_params()['order'] == 2
+    d.set_params(**p)
+    assert d.get_params() == p
+
 
 @pytest.mark.parametrize(
     'order, window',

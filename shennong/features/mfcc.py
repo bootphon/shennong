@@ -42,7 +42,7 @@ import kaldi.feat.mfcc
 import kaldi.matrix
 
 from shennong.features.base import MelFeaturesProcessor
-from shennong.features.features import Features
+from shennong.features import Features
 
 
 class MfccProcessor(MelFeaturesProcessor):

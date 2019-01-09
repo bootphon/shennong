@@ -49,7 +49,7 @@ import kaldi.matrix
 import numpy as np
 
 from shennong.features.base import MelFeaturesProcessor
-from shennong.features.features import Features
+from shennong.features import Features
 
 
 class PlpProcessor(MelFeaturesProcessor):

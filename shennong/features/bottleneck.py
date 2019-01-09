@@ -108,7 +108,7 @@ import scipy.fftpack
 
 from shennong.utils import get_logger
 from shennong.features.base import FeaturesProcessor
-from shennong.features.features import Features
+from shennong.features import Features
 
 
 def _add_dither(signal, level):
@@ -517,21 +517,25 @@ class BottleneckProcessor(FeaturesProcessor):
     _log = get_logger(__name__)
 
     def __init__(self, weights='BabelMulti'):
-        _available_weights = self.available_weights()
-        try:
-            weights_file = _available_weights[weights]
-            self._log.debug('loading %s', os.path.basename(weights_file))
-            self._weights_data = np.load(_available_weights[weights])
-            self._weights = weights
-        except KeyError:
-            raise ValueError(
-                'invalid weights "{}", choose in "{}"'.format(
-                    weights, ', '.join(sorted(_available_weights.keys()))))
+        self.weights = weights
 
     @property
     def weights(self):
         """The name of the pretrained weights used to extract the features"""
         return self._weights
+
+    @weights.setter
+    def weights(self, value):
+        _available_weights = self.available_weights()
+        try:
+            weights_file = _available_weights[value]
+            self._log.debug('loading %s', os.path.basename(weights_file))
+            self._weights_data = np.load(_available_weights[value])
+            self._weights = value
+        except KeyError:
+            raise ValueError(
+                'invalid weights "{}", choose in "{}"'.format(
+                    value, ', '.join(sorted(_available_weights.keys()))))
 
     @classmethod
     def available_weights(cls):

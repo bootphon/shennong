@@ -5,6 +5,8 @@ import numpy as np
 
 
 class FeaturesCollection(dict):
+    # TODO features in the collection must have consistent dimension
+    # and origin (ie properties?).
     @staticmethod
     def load(filename, format='h5features'):
         pass

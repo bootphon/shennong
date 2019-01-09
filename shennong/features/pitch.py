@@ -69,7 +69,7 @@ import kaldi.matrix
 import numpy as np
 
 from shennong.features.base import FeaturesProcessor
-from shennong.features.features import Features
+from shennong.features import Features
 
 
 class PitchProcessor(FeaturesProcessor):

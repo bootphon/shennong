@@ -36,8 +36,10 @@ array([[0, 1, 2],
 import kaldi.feat.window
 import numpy as np
 
+from shennong.base import BaseProcessor
 
-class Frames:
+
+class Frames(BaseProcessor):
     """Extract frames from raw signals"""
     def __init__(self, sample_rate=16000,
                  frame_shift=0.01, frame_length=0.025,

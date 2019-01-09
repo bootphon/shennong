@@ -7,6 +7,30 @@ import pytest
 from shennong.features.bottleneck import BottleneckProcessor
 
 
+@pytest.mark.parametrize('weights', ['BabelMulti', 'FisherMono', 'FisherTri'])
+def test_params(weights):
+    p = {'weights': weights}
+    assert BottleneckProcessor(**p).get_params() == p
+
+    b = BottleneckProcessor()
+    assert b.weights == 'BabelMulti'
+    b.set_params(**p)
+    assert BottleneckProcessor(**p).get_params() == p
+    assert b.weights == weights
+
+
+def test_bad_params():
+    w = 'BadWeights'
+    with pytest.raises(ValueError) as err:
+        BottleneckProcessor(w)
+    assert 'invalid weights' in str(err)
+
+    b = BottleneckProcessor()
+    with pytest.raises(ValueError) as err:
+        b.set_params(**{'weights': w})
+    assert 'invalid weights' in str(err)
+
+
 def test_available_weights():
     weights = BottleneckProcessor.available_weights()
     assert len(weights) == 3

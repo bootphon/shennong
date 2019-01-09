@@ -7,6 +7,13 @@ import random
 from shennong.features.frames import Frames
 
 
+def test_params():
+    p = {'sample_rate': 1, 'frame_shift': 1,
+         'frame_length': 1, 'snip_edges': False}
+    assert Frames(**p).get_params() == p
+    assert Frames().set_params(**p).get_params() == p
+
+
 @pytest.mark.parametrize('snip_edges', [True, False])
 def test_frames_1_1(snip_edges):
     f = Frames(sample_rate=1, snip_edges=snip_edges)

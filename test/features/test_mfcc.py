@@ -12,6 +12,23 @@ from shennong.features.mfcc import MfccProcessor
 def test_params():
     assert len(MfccProcessor().get_params()) == 21
 
+    p = {'htk_compat': True, 'num_bins': 20, 'energy_floor': 1.0, 'dither': 2}
+    f = MfccProcessor(**p)
+
+    params_out = f.get_params()
+    assert len(params_out) == 21
+    for k, v in p.items():
+        assert params_out[k] == v
+    assert f.get_params() == params_out
+
+    f = MfccProcessor()
+    f.set_params(**params_out)
+    params_out = f.get_params()
+    assert len(params_out) == 21
+    for k, v in p.items():
+        assert params_out[k] == v
+    assert f.get_params() == params_out
+
 
 def test_set_params():
     m = MfccProcessor()
