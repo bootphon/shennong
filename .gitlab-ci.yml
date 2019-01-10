@@ -22,6 +22,7 @@ shennong-doc:
     refs:
       - master
   script:
+    - module load texlive/2018
     - conda activate shennong-ci
     - sphinx-build doc/source doc/build
     - scp -r doc/build/* coml.lscp.ens.fr:/var/www/html/shennong
