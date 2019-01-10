@@ -46,7 +46,7 @@ def test_cmvn(mfcc, norm_vars):
     assert cmvn1.shape == mfcc.shape
     assert cmvn1.dtype == mfcc.dtype
     assert np.array_equal(cmvn1.times, mfcc.times)
-    assert cmvn1.data.mean() == pytest.approx(0, abs=1e-7)
+    assert cmvn1.data.mean() == pytest.approx(0, abs=1e-6)
     if norm_vars is True:
         assert cmvn1.data.var(axis=0) == pytest.approx(np.ones(cmvn1.ndims))
     else:
