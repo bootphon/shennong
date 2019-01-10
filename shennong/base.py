@@ -17,6 +17,8 @@ class BaseProcessor(object):
     from :class:`sklearn.base.BaseEstimator`
 
     """
+    def __repr__(self):
+        return self.__class__.__name__
 
     @classmethod
     def _get_param_names(cls):
@@ -37,11 +39,11 @@ class BaseProcessor(object):
         for p in parameters:
             if p.kind == p.VAR_POSITIONAL:
                 raise RuntimeError(
-                    "shennong processors should always "
-                    "specify their parameters in the signature"
-                    " of their __init__ (no varargs)."
-                    " %s with constructor %s doesn't "
-                    " follow this convention."
+                    'shennong processors should always '
+                    'specify their parameters in the signature '
+                    'of their __init__ (no varargs). '
+                    '%s with constructor %s does not '
+                    'follow this convention.'
                     % (cls, init_signature))
         # Extract and sort argument names excluding 'self'
         return sorted([p.name for p in parameters])
@@ -94,15 +96,20 @@ class BaseProcessor(object):
             key, delim, sub_key = key.partition('__')
             if key not in valid_params:
                 raise ValueError(
-                    'Invalid parameter %s for processor %s. '
-                    'Check the list of available parameters '
+                    'invalid parameter %s for processor %s, '
+                    'check the list of available parameters '
                     'with `processor.get_params().keys()`.' %
                     (key, self))
 
             if delim:
                 nested_params[key][sub_key] = value
             else:
-                setattr(self, key, value)
+                try:
+                    setattr(self, key, value)
+                except AttributeError:
+                    raise ValueError(
+                        'cannot set attribute %s for %s'
+                        % (key, self))
                 valid_params[key] = value
 
         for key, sub_params in nested_params.items():

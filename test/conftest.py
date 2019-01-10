@@ -6,8 +6,9 @@ import numpy as np
 import pytest
 
 from shennong.audio import AudioData
-from shennong.features.mfcc import MfccProcessor
 from shennong.alignment import AlignmentCollection
+from shennong.features import Features, FeaturesCollection
+from shennong.features.mfcc import MfccProcessor
 
 
 @pytest.fixture(scope='session')
@@ -64,3 +65,17 @@ def bottleneck_original():
         if fh is not fea_file:
             fh.close()
     return m
+
+
+@pytest.fixture(scope='session')
+def features_collection():
+    # build a collection of 3 random features of same ndims, various
+    # nframes
+    dim = 10
+    feats = FeaturesCollection()
+    for n in range(3):
+        nframes = np.random.randint(5, 15)
+        feats[str(n)] = Features(
+            np.random.random((nframes, dim)),
+            np.arange(0, nframes))
+    return feats

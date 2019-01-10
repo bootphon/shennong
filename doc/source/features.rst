@@ -15,3 +15,4 @@ Features extraction
    features.onehot
    features.delta
    features.pitch
+   features.cmvn

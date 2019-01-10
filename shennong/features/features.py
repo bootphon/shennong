@@ -96,18 +96,41 @@ class Features:
         features.
 
         """
-        return self._properties
+        return self._properties or {}
 
     def __eq__(self, other):
         if self.shape != other.shape:
             return False
+
         if not np.array_equal(self.times, other.times):
             return False
-        if not self.properties == other.properties:
+
+        if not self.properties.keys() == other.properties.keys():
             return False
+
+        for k, v in self.properties.items():
+            w = other.properties[k]
+            if not type(v) == type(w):
+                return w
+            if isinstance(v, np.ndarray):
+                if not np.array_equal(v, w):
+                    return False
+            else:
+                if not v == w:
+                    return False
         if not np.array_equal(self.data, other.data):
             return False
         return True
+
+    def copy(self):
+        """Returns a copy of the features
+
+        Allocates new arrays for both data and times
+
+        """
+        return Features(
+            self.data.copy(), self.times.copy(),
+            properties=self.properties, validate=False)
 
     def is_valid(self):
         """Returns True if the features are in a valid state
