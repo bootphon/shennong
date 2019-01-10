@@ -24,6 +24,9 @@ be adapted to other Linux distributions easilly.
 
         make test
 
+* To update the `shennong` dependencies, use:
+
+        conda env update --name shennong -f environment.yml
 
 ## Docker
 
