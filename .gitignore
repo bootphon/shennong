@@ -5,3 +5,5 @@
 doc/build
 build
 dev/*
+.coverage
+htmlcov/*
