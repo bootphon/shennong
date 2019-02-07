@@ -14,7 +14,7 @@ class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def process(self, signal):
         """Returns some features processed from an input `signal`"""
-        pass
+        pass  # pragma: no cover
 
 
 class MelFeaturesProcessor(FeaturesProcessor):
@@ -246,4 +246,4 @@ class MelFeaturesProcessor(FeaturesProcessor):
 
     @abc.abstractmethod
     def process(self, signal):
-        pass
+        pass  # pragma: no cover

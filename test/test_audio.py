@@ -22,6 +22,25 @@ def test_load_notwav():
         AudioData.load(__file__)
 
 
+def test_load_badfile():
+    with pytest.raises(ValueError) as err:
+        AudioData.load('/spam/spam/with/eggs')
+    assert 'file not found' in str(err)
+
+
+def test_save(tmpdir, audio):
+    p = str(tmpdir.join('test.wav'))
+    audio.save(p)
+
+    # cannot overwrite an existing file
+    with pytest.raises(ValueError) as err:
+        audio.save(p)
+    assert 'file already exist' in str(err)
+
+    audio2 = AudioData.load(p)
+    assert audio == audio2
+
+
 def test_equal(audio):
     assert audio == audio
 
@@ -93,23 +112,40 @@ def test_isvalid(audio):
     audio4 = AudioData(data, audio.sample_rate, validate=False)
     assert not audio4.is_valid()
 
+    # brutal cast to invalid uint8 dtype
+    audio5 = AudioData(
+        audio.data.astype(np.uint8), audio.sample_rate, validate=False)
+    assert audio5.dtype is np.dtype(np.uint8)
+    assert not audio5.is_valid()
 
-@pytest.mark.parametrize(
-    'dtype', [np.int16, np.int32, np.float32, np.float64, float])
-def test_astype(audio, dtype):
+
+DTYPES = [np.int16, np.int32, np.float32, np.float64, float]
+
+
+@pytest.mark.parametrize('dtype', DTYPES)
+def test_astype(audio_tiny, dtype):
+    audio = audio_tiny
     assert audio.dtype is np.dtype(np.int16)
 
     # from int16 to dtype
     audio2 = audio.astype(dtype)
-    assert audio2.data.min() < 0 and audio2.data.max() > 0
     assert audio2.dtype is np.dtype(dtype)
     assert audio.dtype is np.dtype(np.int16)
+    assert audio2.is_valid()
 
     # back to int16
     audio3 = audio2.astype(np.int16)
     assert audio3.data == pytest.approx(audio.data)
     assert audio3.dtype is np.dtype(np.int16)
     assert audio.dtype is np.dtype(np.int16)
+
+    # from dtype to all other types that are not int16
+    for dtype2 in set(DTYPES) - set([np.int16, dtype]):
+        print(dtype2)
+        audio4 = audio2.astype(dtype2)
+        assert audio4.is_valid()
+        assert audio4.dtype is np.dtype(dtype2)
+        assert audio4.astype(np.int16).data == pytest.approx(audio.data)
 
 
 @pytest.mark.parametrize(

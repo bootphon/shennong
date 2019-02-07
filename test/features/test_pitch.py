@@ -5,6 +5,7 @@ import pytest
 
 from shennong.audio import AudioData
 from shennong.features.pitch import PitchProcessor, PitchPostProcessor
+from shennong.features import Features
 
 
 @pytest.fixture
@@ -83,6 +84,18 @@ def test_post_pitch(raw_pitch):
     assert raw_pitch.shape[0] == data.shape[0]
     assert np.array_equal(raw_pitch.times, data.times)
     assert params == post_processor.get_params()
+
+    bad_pitch = Features(
+        np.random.random((raw_pitch.nframes, 1)), raw_pitch.times)
+    with pytest.raises(ValueError) as err:
+        post_processor.process(bad_pitch)
+    assert 'data shape must be (_, 2), but it is (_, 1)' in str(err)
+
+    bad_pitch = Features(
+        np.random.random((raw_pitch.nframes, 3)), raw_pitch.times)
+    with pytest.raises(ValueError) as err:
+        post_processor.process(bad_pitch)
+    assert 'data shape must be (_, 2), but it is (_, 3)' in str(err)
 
 
 @pytest.mark.parametrize('options', [

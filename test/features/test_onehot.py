@@ -68,6 +68,13 @@ def test_bad_phones(alignments):
         proc.process(alignments['S01F1522_0001'])
 
 
+@pytest.mark.parametrize('times', ['spam', 'means', 'offsets'])
+def test_bad_times(alignments, times):
+    with pytest.raises(ValueError) as err:
+        onehot.OneHotProcessor(times=times)
+    assert 'times must be' in str(err)
+
+
 @pytest.mark.parametrize('times', ['mean', 'onset', 'offset'])
 def test_simple(alignments, times):
     # various tests on the class OneHotProcessor

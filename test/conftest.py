@@ -47,6 +47,11 @@ def audio_8k(wav_file_8k):
 
 
 @pytest.fixture(scope='session')
+def audio_tiny(audio):
+    return AudioData(audio.data[:10], audio.sample_rate)
+
+
+@pytest.fixture(scope='session')
 def bottleneck_original():
     fea_file = os.path.join(
         os.path.dirname(__file__), 'data', 'test.bottleneck.fea')

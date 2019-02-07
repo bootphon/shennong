@@ -24,6 +24,16 @@ def test_params():
     assert 'cannot set attribute stats for CmvnProcessor' in str(err)
 
 
+@pytest.mark.parametrize('dim', [-2, 0, 1, 3, 2.54, 'a'])
+def test_dim(dim):
+    if dim in (1, 3):
+        p = CmvnProcessor(dim)
+        assert p.dim == dim
+    else:
+        with pytest.raises(ValueError) as err:
+            CmvnProcessor(dim)
+        assert 'dimension must be a strictly positive integer' in str(err)
+
 @pytest.mark.parametrize('norm_vars', [True, False])
 def test_cmvn(mfcc, norm_vars):
     backup = mfcc.data.copy()
@@ -67,6 +77,20 @@ def test_cmvn(mfcc, norm_vars):
     assert np.array_equal(backup, mfcc.data)
 
 
+def test_pre_stats(mfcc):
+    with pytest.raises(ValueError) as err:
+        CmvnProcessor(mfcc.ndims, stats=1)
+    assert 'shape (2, 14), but is shaped as ()' in str(err)
+
+    with pytest.raises(ValueError) as err:
+        CmvnProcessor(mfcc.ndims, stats=np.random.random((2, mfcc.ndims)))
+    assert 'shape (2, 14), but is shaped as (2, 13)' in str(err)
+
+    stats = np.random.random((2, mfcc.ndims+1))
+    proc = CmvnProcessor(mfcc.ndims, stats=stats.copy())
+    assert stats == pytest.approx(proc.stats)
+
+
 def test_weights(mfcc):
     weights = np.zeros(mfcc.nframes)
     proc = CmvnProcessor(dim=mfcc.ndims)
@@ -88,6 +112,19 @@ def test_weights(mfcc):
     proc = CmvnProcessor(dim=mfcc.ndims)
     proc.accumulate(mfcc, weights=weights)
     assert proc.count == pytest.approx(0.2)
+
+
+def test_bad_weights(mfcc):
+    proc = CmvnProcessor(dim=mfcc.ndims)
+
+    with pytest.raises(ValueError) as err:
+        proc.accumulate(mfcc, weights=np.asarray([[1, 2], [3, 4]]))
+    assert 'weights must have a single dimension' in str(err)
+
+    with pytest.raises(ValueError) as err:
+        proc.accumulate(mfcc, weights=np.asarray([]))
+    assert 'there is 0 weights but {} feature frames'.format(
+        mfcc.nframes) in str(err)
 
 
 def test_skip_dims(mfcc):
@@ -136,6 +173,7 @@ def test_apply_baddim(features_collection):
     assert 'must have consistent dimensions' in str(err)
 
 
+@pytest.mark.flaky(reruns=10)
 def test_apply_cmvn_bycollection(features_collection):
     cmvns = apply_cmvn(features_collection, by_collection=True)
     cmvns = np.concatenate([f.data for f in cmvns.values()], axis=0)
@@ -146,6 +184,24 @@ def test_apply_cmvn_bycollection(features_collection):
     assert cmvns.var(axis=0) == pytest.approx(1, abs=1e-6)
 
 
+@pytest.mark.parametrize('skip_dims', [[0, 1], [-1], [13]])
+def test_apply_cmvn_skipdims(features_collection, skip_dims):
+    if skip_dims in ([-1], [13]):
+        with pytest.raises(ValueError) as err:
+            apply_cmvn(features_collection, skip_dims=skip_dims)
+        assert 'out of bounds dimensions' in str(err)
+    else:
+        cmvns = apply_cmvn(
+            features_collection, skip_dims=skip_dims, by_collection=False)
+        for feats in cmvns.values():
+            assert feats.data[:, 2:].mean(axis=0) == pytest.approx(0, abs=1e-6)
+            assert feats.data[:, 2:].var(axis=0) == pytest.approx(1, abs=1e-6)
+
+            assert feats.data[:, :2].mean(axis=0) != pytest.approx(0, abs=1e-6)
+            assert feats.data[:, :2].var(axis=0) != pytest.approx(1, abs=1e-6)
+
+
+@pytest.mark.flaky(reruns=10)
 def test_apply_cmvn_byfeatures(features_collection):
     cmvns = apply_cmvn(features_collection, by_collection=False)
     for feat in cmvns.values():

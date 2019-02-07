@@ -350,14 +350,14 @@ class AudioData:
             if dtype is np.int16:
                 data = self.data / 2**15
             else:  # float32 or float64
-                data = self.data / 2**31
+                data = self.data.astype(dtype) / 2**30
 
         # starting from float32 or float64
         else:
             if dtype is np.int16:
                 data = self.data * 2**15
             elif dtype is np.int32:
-                data = self.data * 2**31
+                data = self.data * 2**30
             else:  # float32 or float64
                 data = self.data
 

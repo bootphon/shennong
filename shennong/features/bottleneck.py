@@ -399,6 +399,8 @@ def _gmm_update(N, F, S):
 
 def _compute_vad(s, log, win_length=200, win_overlap=120,
                  n_realignment=5, threshold=0.3, bugfix=False):
+    warnings.filterwarnings('error')
+
     # power signal for energy computation
     if bugfix is False:
         s = s ** 2  # yields to negative squares because s are int16
@@ -413,8 +415,8 @@ def _compute_vad(s, log, win_length=200, win_overlap=120,
     # E = np.log(E)
 
     # normalize the energy
-    E -= E.mean()
     try:
+        E -= E.mean()
         E /= E.std()
         # initialization
         mm = np.array((-1.00, 0.00, 1.00))[:, np.newaxis]

@@ -11,6 +11,22 @@ def ali():
     return Alignment.from_list([(0, 1, 'a'), (1, 2, 'b'), (2, 3.001, 'c')])
 
 
+def test_bad_file():
+    with pytest.raises(ValueError) as err:
+        AlignmentCollection.load('/spam/spam/with/eggs')
+    assert 'file not found' in str(err)
+
+
+def test_bad_data():
+    with pytest.raises(ValueError) as err:
+        AlignmentCollection([['a', 1, 2, 'a'], ['a', 2, 3]])
+    assert 'alignment must have 4 columns but line 2 has 3' in str(err)
+
+    with pytest.raises(ValueError) as err:
+        AlignmentCollection([['a', 1, 2, 'a'], ['a', 1, 2, 'b']])
+    assert 'item a: mismatch in tstop/tstart timestamps' in str(err)
+
+
 def test_simple(ali):
     assert ali.phones.shape == (3,)
     assert ali._times.shape == (3, 2)
@@ -62,6 +78,10 @@ def test_valid(ali):
 
     with pytest.raises(ValueError):
         Alignment.from_list([(0, 1, 'a', 'a')])
+
+    with pytest.raises(ValueError) as err:
+        Alignment(np.asarray([[0, 1], [1, 2]]), np.asarray(['a', 'b', 'c']))
+    assert 'timestamps and phones must have the same length' in str(err)
 
 
 def test_attributes(ali):
@@ -239,6 +259,16 @@ def test_save(tmpdir, alignments, sort, compress):
         filename += '.gz'
 
     alignments.save(str(tmpdir.join(filename)), sort=sort, compress=compress)
+
+    # cannot rewrite an existing file
+    with pytest.raises(ValueError) as err:
+        alignments.save(str(tmpdir.join(filename)), sort=sort)
+    assert 'already exist' in str(err)
+
+    # cannot write in an unexisting directory
+    with pytest.raises(ValueError) as err:
+        alignments.save('/spam/spam/with/eggs', sort=sort)
+    assert 'cannot write to' in str(err)
 
     alignments2 = AlignmentCollection.load(
         str(tmpdir.join(filename)), compress=compress)

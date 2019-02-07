@@ -13,6 +13,7 @@ References
 
 """
 
+import numpy as np
 import kaldi.matrix
 import kaldi.transform.cmvn
 
@@ -29,6 +30,7 @@ class CmvnProcessor(FeaturesProcessor):
         The features dimension, must be strictly positive
 
     stats : array, shape = [2, dim+1]
+        Preaccumulated CMVN statistics (see :func:`CmvnProcessor:stats`)
 
     Raises
     ------
@@ -41,7 +43,7 @@ class CmvnProcessor(FeaturesProcessor):
         if not isinstance(dim, int) or dim <= 0:
             raise ValueError(
                 'dimension must be a strictly positive integer, it is {}'
-                .format(self._dim))
+                .format(dim))
         self._dim = dim
 
         # init the pykaldi cmvn class
@@ -49,6 +51,7 @@ class CmvnProcessor(FeaturesProcessor):
 
         # init the stats if specified
         if stats is not None:
+            stats = np.asarray(stats)
             if stats.shape != (2, self.dim+1):
                 raise ValueError(
                     'stats must be an array of shape {}, but is shaped as {}'
@@ -112,7 +115,7 @@ class CmvnProcessor(FeaturesProcessor):
         """
         # make sure weights have the expected dimension
         if weights is not None:
-            if weights.ndim > 1:
+            if weights.ndim != 1:
                 raise ValueError(
                     'weights must have a single dimension but have {}'
                     .format(weights.ndim))
@@ -261,8 +264,8 @@ def apply_cmvn(feats_collection, by_collection=True, norm_vars=True,
         sdmin, sdmax = min(skip_dims), max(skip_dims)
         if sdmin < 0 or sdmax >= dim:
             raise ValueError(
-                'out of bounds dimensions in skip_dims, must be in [0, {}[ '
-                'but are in [{}, {}['.format(dim, sdmin, sdmax))
+                'out of bounds dimensions in skip_dims, must be in [0, {}] '
+                'but are in [{}, {}]'.format(dim-1, sdmin, sdmax))
 
     if by_collection:
         # accumulate CMVN stats over the whole collection

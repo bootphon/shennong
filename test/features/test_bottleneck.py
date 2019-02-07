@@ -4,7 +4,9 @@ import os
 import numpy as np
 import pytest
 
-from shennong.features.bottleneck import BottleneckProcessor
+from shennong.features.bottleneck import BottleneckProcessor, _compute_vad
+from shennong.audio import AudioData
+from shennong.utils import null_logger
 
 
 @pytest.mark.parametrize('weights', ['BabelMulti', 'FisherMono', 'FisherTri'])
@@ -66,3 +68,15 @@ def test_compare_original(audio_8k, bottleneck_original):
     feat = BottleneckProcessor(weights='BabelMulti').process(audio_8k)
     assert bottleneck_original.shape == feat.shape
     assert bottleneck_original == pytest.approx(feat.data, abs=2e-2)
+
+
+def test_silence():
+    silence = AudioData(np.zeros((100,)), 16000)
+
+    with pytest.raises(RuntimeError) as err:
+        BottleneckProcessor().process(silence)
+    assert 'no voice detected in signal' in str(err)
+
+    # silence VAD all false
+    vad = _compute_vad(silence.data, null_logger(), bugfix=True)
+    assert not vad.any()
