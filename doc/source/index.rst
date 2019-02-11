@@ -44,11 +44,11 @@ Licence and copyright
    :alt: Inria
    :target: https://inria.fr/en
 
-**Copyright 2018 Mathieu Bernard, Inria**
+**Copyright 2018, 2019 Mathieu Bernard, Inria**
 
 This work is founded by the grant *ADT-193* from `Inria
 <https://inria.fr/en>`_ and developed within the `Cognitive Machine
-Learning <http://www.syntheticlearner.net/>`_ research team.
+Learning <https://coml.lscp.ens.fr>`_ research team.
 
 -----------------------
 

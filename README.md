@@ -1,7 +1,14 @@
-# shennong
+# Shennong
 
-A toolbox for unsupervised speech recognition. See the complete
-documentation at https://coml.lscp.ens.fr/shennong.
+* A Python toolbox for unsupervised speech recognition.
+
+* The [github repo](https://github.com/bootphon/shennong) is a
+  read-only mirror.
+
+* To submit issues or pull requests, go to the [gitlab
+  repo](https://gitlab.coml.lscp.ens.fr/mbernard/shennong).
+
+* See the complete documentation at https://coml.lscp.ens.fr/shennong.
 
 
 ## Installation

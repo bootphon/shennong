@@ -129,8 +129,10 @@ class Features:
 
         """
         return Features(
-            self.data.copy(), self.times.copy(),
-            properties=self.properties, validate=False)
+            self.data.copy(),
+            self.times.copy(),
+            properties=self.properties.copy(),
+            validate=False)
 
     def is_valid(self):
         """Returns True if the features are in a valid state
