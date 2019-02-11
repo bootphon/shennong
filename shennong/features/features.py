@@ -38,7 +38,7 @@ class FeaturesCollection(dict):
 
         """
         undefined_utts = set(self.keys()).difference(set(spk2utt.values()))
-        if len(undefined_utts) != 0:
+        if undefined_utts:
             raise ValueError(
                 'following utterances are not defined in spk2utt: {}'
                 .format(sorted(undefined_utts)))
@@ -97,6 +97,55 @@ class Features:
 
         """
         return self._properties or {}
+
+    def _to_dict(self):
+        """Returns the features as a dictionary
+
+        Returns
+        -------
+        features : dict
+            A dictionary with the following keys: 'data', 'times' and
+            'properties'.
+
+        """
+        return {
+            'data': self.data,
+            'times': self.times,
+            'properties': self.properties}
+
+    @staticmethod
+    def _from_dict(features):
+        """Return an instance of Features loaded from a dictionary
+
+        Parameters
+        ----------
+        features : dict
+            The dictionary to load the features from. Must have the
+            following keys: 'data', 'times' and
+            'properties'.
+
+        Returns
+        -------
+        An instance of ``Features``
+
+        Raises
+        ------
+        ValueError
+            If the ``features`` don't have the requested keys or if
+            the underlying features data is not valid.
+
+        """
+        requested_keys = {'data', 'times', 'properties'}
+        missing_keys = requested_keys - set(features.keys())
+        if missing_keys:
+            raise ValueError(
+                'cannot read features from dict, missing keys: {}'
+                .format(missing_keys))
+
+        return Features(
+            features['data'], features['times'],
+            properties=features['properties'],
+            validate=True)
 
     def __eq__(self, other):
         if self.shape != other.shape:
