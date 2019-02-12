@@ -1,6 +1,6 @@
 """Builds, saves, loads and manipulate features data"""
 
-import h5features as h5f
+
 import numpy as np
 
 
@@ -13,6 +13,13 @@ class FeaturesCollection(dict):
 
     def save(self, filename, format='h5features'):
         pass
+
+    def is_valid(self):
+        """Returns True if all the features in the collection are valid"""
+        for features in self.values():
+            if not features.is_valid():
+                return False
+        return True
 
     def by_speaker(self, spk2utt):
         """Returns a dict of :class:`FeaturesCollection` indexed by speakers
@@ -98,8 +105,14 @@ class Features:
         """
         return self._properties or {}
 
-    def _to_dict(self):
+    def _to_dict(self, array_as_list=False):
         """Returns the features as a dictionary
+
+        Parameters
+        ----------
+        array_as_list : bool, optional
+            When True, converts numpy arrays to lists, default to
+            False
 
         Returns
         -------
@@ -108,13 +121,18 @@ class Features:
             'properties'.
 
         """
+        def fun(x):
+            if array_as_list:
+                return x.tolist()
+            return x
+
         return {
-            'data': self.data,
-            'times': self.times,
+            'data': fun(self.data),
+            'times': fun(self.times),
             'properties': self.properties}
 
     @staticmethod
-    def _from_dict(features):
+    def _from_dict(features, validate=True):
         """Return an instance of Features loaded from a dictionary
 
         Parameters
@@ -123,6 +141,10 @@ class Features:
             The dictionary to load the features from. Must have the
             following keys: 'data', 'times' and
             'properties'.
+
+        validate : bool, optional
+            When True, validate the features before returning. Default
+            to True
 
         Returns
         -------
@@ -142,10 +164,15 @@ class Features:
                 'cannot read features from dict, missing keys: {}'
                 .format(missing_keys))
 
+        def fun(x):
+            if isinstance(x, list):
+                return np.asarray(x)
+            return x
+
         return Features(
-            features['data'], features['times'],
+            fun(features['data']), fun(features['times']),
             properties=features['properties'],
-            validate=True)
+            validate=validate)
 
     def __eq__(self, other):
         if self.shape != other.shape:
@@ -258,8 +285,3 @@ class Features:
             # TODO need a FeaturesParameter class: assign properties
             # per column
             self.properties.update(other.properties))
-
-    def save(self, filename, groupname=None, append=False):
-        h5data = h5f.Data()
-        with h5f.Writer(filename) as writer:
-            writer.write(h5data, groupname, append=append)
