@@ -34,6 +34,7 @@ def test_dim(dim):
             CmvnProcessor(dim)
         assert 'dimension must be a strictly positive integer' in str(err)
 
+
 @pytest.mark.parametrize('norm_vars', [True, False])
 def test_cmvn(mfcc, norm_vars):
     backup = mfcc.data.copy()
@@ -75,6 +76,8 @@ def test_cmvn(mfcc, norm_vars):
     assert proc.stats == pytest.approx(stats * 2)
 
     assert np.array_equal(backup, mfcc.data)
+    assert 'cmvn' in mfcc.properties
+    assert mfcc.properties['cmvn'].shape == (2, 14)
 
 
 def test_pre_stats(mfcc):

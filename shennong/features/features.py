@@ -1,6 +1,7 @@
 """Builds, saves, loads and manipulate features data"""
 
 
+import copy
 import numpy as np
 
 
@@ -123,13 +124,19 @@ class Features:
         """
         def fun(x):
             if array_as_list:
-                return x.tolist()
+                if isinstance(x, dict):
+                    return {
+                        k: v.tolist() if isinstance(v, np.ndarray) else v
+                        for k, v in x.items()}
+                else:
+                    return x.tolist()
             return x
 
+        # we may have arrays in properties as well (when using CMVN)
         return {
             'data': fun(self.data),
             'times': fun(self.times),
-            'properties': self.properties}
+            'properties': fun(self.properties)}
 
     @staticmethod
     def _from_dict(features, validate=True):
@@ -167,11 +174,13 @@ class Features:
         def fun(x):
             if isinstance(x, list):
                 return np.asarray(x)
+            elif isinstance(x, dict):
+                return {k: fun(v) for k, v in x.items()}
             return x
 
         return Features(
             fun(features['data']), fun(features['times']),
-            properties=features['properties'],
+            properties=fun(features['properties']),
             validate=validate)
 
     def __eq__(self, other):
@@ -207,7 +216,7 @@ class Features:
         return Features(
             self.data.copy(),
             self.times.copy(),
-            properties=self.properties.copy(),
+            properties=copy.deepcopy(self.properties),
             validate=False)
 
     def is_valid(self):
