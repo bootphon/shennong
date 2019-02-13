@@ -13,6 +13,7 @@ References
 
 """
 
+import copy
 import numpy as np
 import kaldi.matrix
 import kaldi.transform.cmvn
@@ -190,7 +191,7 @@ class CmvnProcessor(FeaturesProcessor):
         data = kaldi.matrix.SubMatrix(features.data)
         cmvn.apply(data, norm_vars=norm_vars, reverse=reverse)
 
-        prop = features.properties
+        prop = copy.deepcopy(features.properties)
         prop['cmvn'] = self.stats
         return Features(data.numpy(), features.times, properties=prop)
 
