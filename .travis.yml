@@ -1,3 +1,8 @@
+language: python
+
+# run on Travis 'new' container-based infrastructure
+sudo: false
+
 # no need of git history
 git:
   depth: 1
@@ -17,10 +22,10 @@ install:
   - conda env create --name shennong -f environment.yml
   - source activate shennong
   - make install
-  - pip install coverage
+  - pip install codecov
 
 script:
   - python setup.py test
 
 after_success:
-  - coverage
+  - codecov
