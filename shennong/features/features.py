@@ -4,59 +4,11 @@
 import copy
 import numpy as np
 
-
-class FeaturesCollection(dict):
-    # TODO features in the collection must have consistent dimension
-    # and origin (ie properties?).
-    @staticmethod
-    def load(filename, format='h5features'):
-        pass
-
-    def save(self, filename, format='h5features'):
-        pass
-
-    def is_valid(self):
-        """Returns True if all the features in the collection are valid"""
-        for features in self.values():
-            if not features.is_valid():
-                return False
-        return True
-
-    def by_speaker(self, spk2utt):
-        """Returns a dict of :class:`FeaturesCollection` indexed by speakers
-
-        Parameters
-        ----------
-        spk2utt : dict
-            A mapping of speakers to their associated utterances
-            (items in the ``FeaturesCollection``). We must have
-            ``spk2utt.values() == self.keys()``.
-
-        Returns
-        -------
-        features : dict of FeaturesCollection
-            A list of FeaturesCollection instances, one per speaker
-            defined in `utt2spk`
-
-        Raises
-        ------
-        ValueError
-            If one utterance in the collection is not mapped in
-            `spk2utt`.
-
-        """
-        undefined_utts = set(self.keys()).difference(set(spk2utt.values()))
-        if undefined_utts:
-            raise ValueError(
-                'following utterances are not defined in spk2utt: {}'
-                .format(sorted(undefined_utts)))
-
-        return {spk: FeaturesCollection({utt: self[utt] for utt in utts})
-                for spk, utts in spk2utt}
+from shennong.features.handlers import get_handler
 
 
 class Features:
-    def __init__(self, data, times, properties=None, validate=True):
+    def __init__(self, data, times, properties={}, validate=True):
         self._data = data
         self._times = times
         self._properties = properties
@@ -104,7 +56,7 @@ class Features:
         features.
 
         """
-        return self._properties or {}
+        return self._properties
 
     def _to_dict(self, array_as_list=False):
         """Returns the features as a dictionary
@@ -196,7 +148,7 @@ class Features:
         for k, v in self.properties.items():
             w = other.properties[k]
             if not type(v) == type(w):
-                return w
+                return False
             if isinstance(v, np.ndarray):
                 if not np.array_equal(v, w):
                     return False
@@ -294,3 +246,77 @@ class Features:
             # TODO need a FeaturesParameter class: assign properties
             # per column
             self.properties.update(other.properties))
+
+
+class FeaturesCollection(dict):
+    _value_type = Features
+
+    @classmethod
+    def load(cls, filename, handler=None):
+        """Loads a FeaturesCollection from a `filename`
+
+        Parameters
+        ----------
+        filename : str
+            The file to load
+        handler : str, optional
+            The file handler to use for loading, if not specified
+            guess the handler from the `filename` extension
+
+        Returns
+        -------
+        features : :class:`~shennong.features.FeaturesCollection`
+            The features loaded from the `filename`
+
+        Raises
+        ------
+        IOError
+            If the `filename` cannot be read
+        ValueError
+            If the `handler` or the file extension is not supported,
+            if the features loading fails.
+
+        """
+        return get_handler(cls, filename, handler).load()
+
+    def save(self, filename, handler=None, ):
+        get_handler(self.__class__, filename, handler).save(self)
+
+    def is_valid(self):
+        """Returns True if all the features in the collection are valid"""
+        for features in self.values():
+            if not features.is_valid():
+                return False
+        return True
+
+    def by_speaker(self, spk2utt):
+        """Returns a dict of :class:`FeaturesCollection` indexed by speakers
+
+        Parameters
+        ----------
+        spk2utt : dict
+            A mapping of speakers to their associated utterances
+            (items in the ``FeaturesCollection``). We must have
+            ``spk2utt.values() == self.keys()``.
+
+        Returns
+        -------
+        features : dict of FeaturesCollection
+            A list of FeaturesCollection instances, one per speaker
+            defined in `utt2spk`
+
+        Raises
+        ------
+        ValueError
+            If one utterance in the collection is not mapped in
+            `spk2utt`.
+
+        """
+        undefined_utts = set(self.keys()).difference(set(spk2utt.values()))
+        if undefined_utts:
+            raise ValueError(
+                'following utterances are not defined in spk2utt: {}'
+                .format(sorted(undefined_utts)))
+
+        return {spk: FeaturesCollection({utt: self[utt] for utt in utts})
+                for spk, utts in spk2utt}

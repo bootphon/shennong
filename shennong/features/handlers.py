@@ -4,10 +4,98 @@ import abc
 import json
 import os
 
+import h5features
 import numpy as np
 import scipy
 
-from shennong.features import Features, FeaturesCollection
+
+def supported_extensions():
+    """Returns the list of file extensions to save/load features
+
+    Returns
+    -------
+    handlers : dict
+        File extensions mapped to their related handler class
+
+    """
+    return {
+        '.npz': NumpyHandler,
+        '.mat': MatlabHandler,
+        '.json': JsonHandler,
+        '.h5f': H5featuresHandler,
+        '.ark': KaldiHandler}
+
+
+def supported_handlers():
+    """Returns the list of file format handlers to save/load features
+
+    Returns
+    -------
+    handlers : dict
+        Handlers names mapped to their related class
+
+    """
+    return {
+        'numpy': NumpyHandler,
+        'matlab': MatlabHandler,
+        'json': JsonHandler,
+        'h5features': H5featuresHandler,
+        'kaldi': KaldiHandler}
+
+
+def get_handler(cls, filename, handler=None):
+    """Returns the file handler from filename extension or handler name
+
+    Parameters
+    ----------
+    cls : class
+        Must be :class:`shennong.features.FeaturesCollection`, this is
+        a tweak to avoid circular imports
+    filename : str
+        The file to be handled (load or save)
+    handler : str, optional
+        If not None must be one of the :func:`supported_handlers`, if
+        not specified, guess the handler from the `filename`
+        extension using :func:`supported_extensions`.
+
+    Returns
+    -------
+    handler : instance of :class:`FeaturesHandler`
+        The guessed handler class, a child class of
+        :class:`FeaturesHandler`.
+
+    Raises
+    ------
+    ValueError
+        If the handler class cannot be guessed, or if `cls` is not
+        :class:`~shennong.features.FeaturesCollection`
+
+    """
+    if cls.__name__ != 'FeaturesCollection':
+        raise ValueError(
+            'The `cls` parameter must be shennong.features.FeaturesCollection')
+
+    if handler is None:
+        # guess handler from file extension
+        ext = os.path.splitext(filename)[1]
+        if not ext:
+            raise ValueError('no extension nor handler name specified')
+
+        try:
+            handler = supported_extensions()[ext]
+        except KeyError:
+            raise ValueError(
+                'invalid extension {}, must be in {}'.format(
+                    ext, list(supported_extensions().keys())))
+    else:
+        try:
+            handler = supported_handlers()[handler]
+        except KeyError:
+            raise ValueError(
+                'invalid handler {}, must be in {}'.format(
+                    handler, list(supported_handlers().keys())))
+
+    return handler(cls, filename)
 
 
 class FeaturesHandler(metaclass=abc.ABCMeta):
@@ -15,19 +103,23 @@ class FeaturesHandler(metaclass=abc.ABCMeta):
 
     This class must be specialized to handle a given file type.
 
+    Parameters
+    ----------
+    cls : class
+        Must be :class:`shennong.features.FeaturesCollection`, this is
+        a tweak to avoid circular imports
+    filename : str
+        The file to save/load features to/from
+
     """
-    def __init__(self, filename, append_ext=False):
+    def __init__(self, cls, filename):
+        self._features_collection = cls
+        self._features = self._features_collection._value_type
         self._filename = filename
-        if append_ext and not self._filename.endswith(self._extension()):
-            self._filename += self._extension()
 
     @property
     def filename(self):
         return self._filename
-
-    @abc.abstractstaticmethod
-    def _extension():
-        pass
 
     @abc.abstractmethod
     def _save(self, features):
@@ -90,10 +182,12 @@ class FeaturesHandler(metaclass=abc.ABCMeta):
         if os.path.isfile(self.filename):
             raise IOError('file already exists: {}'.format(self.filename))
 
-        if not isinstance(features, FeaturesCollection):
+        if not isinstance(features, self._features_collection):
             raise ValueError(
-                'features must be FeaturesCollection but are {}'
-                .format(type(features)))
+                'features must be {} but are {}'
+                .format(
+                    self._features_collection.__name__,
+                    features.__class__.__name__))
 
         if not features.is_valid():
             raise ValueError('features are not valid')
@@ -103,10 +197,6 @@ class FeaturesHandler(metaclass=abc.ABCMeta):
 
 class NumpyHandler(FeaturesHandler):
     """Saves and loads features to/from the numpy '.npz' format"""
-    @staticmethod
-    def _extension():
-        return '.npz'
-
     def _save(self, features, compress=True):
         # represent the features as dictionaries
         data = {k: v._to_dict() for k, v in features.items()}
@@ -117,18 +207,14 @@ class NumpyHandler(FeaturesHandler):
 
     def _load(self):
         data = np.load(open(self.filename, 'rb'))['features'].tolist()
-        features = FeaturesCollection()
+        features = self._features_collection()
         for k, v in data.items():
-            features[k] = Features._from_dict(v, validate=False)
+            features[k] = self._features._from_dict(v, validate=False)
         return features
 
 
 class MatlabHandler(FeaturesHandler):
     """Saves and loads features to/from the matlab '.mat' format"""
-    @staticmethod
-    def _extension():
-        return '.mat'
-
     def _save(self, features, compress=True):
         # represent the features as dictionaries
         data = {k: v._to_dict() for k, v in features.items()}
@@ -144,10 +230,10 @@ class MatlabHandler(FeaturesHandler):
             self.filename, appendmat=False, squeeze_me=True,
             mat_dtype=True, struct_as_record=False)
 
-        features = FeaturesCollection()
+        features = self._features_collection()
         for k, v in data.items():
             if k not in ('__header__', '__version__', '__globals__'):
-                features[k] = Features(
+                features[k] = self._features(
                     v.data, v.times,
                     self._load_properties(v.properties),
                     validate=False)
@@ -162,10 +248,6 @@ class MatlabHandler(FeaturesHandler):
 
 class JsonHandler(FeaturesHandler):
     """Saves and loads features to/from the JSON format"""
-    @staticmethod
-    def _extension():
-        return '.json'
-
     def _save(self, features):
         data = json.dumps(
             {k: v._to_dict(array_as_list=True) for k, v in features.items()},
@@ -174,29 +256,41 @@ class JsonHandler(FeaturesHandler):
 
     def _load(self):
         data = json.loads(open(self.filename, 'r').read())
-        features = FeaturesCollection()
+        features = self._features_collection()
         for k, v in data.items():
-            features[k] = Features._from_dict(v, validate=False)
+            features[k] = self._features._from_dict(v, validate=False)
         return features
 
 
 class H5featuresHandler(FeaturesHandler):
-    @staticmethod
-    def _extension():
-        return '.h5f'
+    """Saves and loads features to/from the h5features format"""
+    def _save(self, features, groupname='features',
+              compression='lzf', chunk_size='auto'):
+        data = h5features.Data(
+            list(features.keys()),
+            [f.times for f in features.values()],
+            [f.data for f in features.values()],
+            properties=[f.properties for f in features.values()])
 
-    def _save(self, features):
-        pass
+        h5features.Writer(
+            self.filename,
+            mode='w',
+            chunk_size=chunk_size,
+            compression=compression).write(data, groupname=groupname)
 
-    def _load(self):
-        pass
+    def _load(self, groupname='features'):
+        data = h5features.Reader(self.filename, groupname=groupname).read()
+
+        features = self._features_collection()
+        for n in range(len(data.items())):
+            features[data.items()[n]] = self._features(
+                data.features()[n],
+                data.labels()[n],
+                properties=data.properties()[n])
+        return features
 
 
-class KadliHandler(FeaturesHandler):
-    @staticmethod
-    def _extension():
-        return '.ark'
-
+class KaldiHandler(FeaturesHandler):
     def _save(self, features):
         pass
 
