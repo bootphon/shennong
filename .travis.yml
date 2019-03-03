@@ -15,7 +15,7 @@ install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
   - conda env create --name shennong -f environment.yml
-  - conda activate shennong
+  - source activate shennong
   - make install
   - pip install coverage
 
