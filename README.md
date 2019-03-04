@@ -45,7 +45,15 @@ using the provided `Dockerfile`.
 
         [sudo] docker run -it shennong /bin/bash
 
-Look for more advanced usage on the official Docker documentation.
+* Open a jupyter notebook as follow:
+
+        [sudo] docker run -p 9000:9000 shennong \
+            jupyter notebook --no-browser --ip=0.0.0.0 --port=9000 --allow-root
+
+  Then open `http://localhost:9000` in your usual web browser.
+
+Look for more advanced usage on the official [Docker
+documentation](https://docs.docker.com).
 
 
 ## Documentation

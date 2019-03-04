@@ -178,15 +178,15 @@ def test_apply_baddim(features_collection):
     assert 'must have consistent dimensions' in str(err)
 
 
-@pytest.mark.flaky(reruns=10)
+@pytest.mark.flaky(reruns=20)
 def test_apply_cmvn_bycollection(features_collection):
     cmvns = apply_cmvn(features_collection, by_collection=True)
     cmvns = np.concatenate([f.data for f in cmvns.values()], axis=0)
     assert cmvns.shape == (
         sum(f.nframes for f in features_collection.values()),
         features_collection['0'].ndims)
-    assert cmvns.mean(axis=0) == pytest.approx(0, abs=1e-6)
-    assert cmvns.var(axis=0) == pytest.approx(1, abs=1e-6)
+    assert cmvns.mean(axis=0) == pytest.approx(0, abs=1e-5)
+    assert cmvns.var(axis=0) == pytest.approx(1, abs=1e-5)
 
 
 @pytest.mark.parametrize('skip_dims', [[0, 1], [-1], [13]])

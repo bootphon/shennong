@@ -103,7 +103,11 @@ class PlpProcessor(MelFeaturesProcessor):
 
     @num_ceps.setter
     def num_ceps(self, value):
-        self._options.num_ceps = value
+        if int(value) > self.lpc_order + 1:
+            raise ValueError(
+                'We must have num_ceps <= lpc_order+1, but {} > {}+1'.format(
+                    int(value), self.lpc_order))
+        self._options.num_ceps = int(value)
 
     @property
     def use_energy(self):

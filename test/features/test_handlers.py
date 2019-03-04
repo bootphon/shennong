@@ -2,6 +2,8 @@
 
 """Test of the module shennong.features.handlers"""
 
+import getpass
+import json
 import os
 import pytest
 
@@ -71,6 +73,7 @@ def test_load_nofile():
     assert 'file not found' in str(err)
 
 
+@pytest.mark.skipif(getpass.getuser() == 'root', reason='executed as root')
 def test_load_noreadable(tmpdir):
     f = str(tmpdir.join('foo.json'))
     h = handlers.get_handler(FeaturesCollection, f, None)
@@ -86,8 +89,10 @@ def test_load_invalid(tmpdir, mfcc_col):
     h = handlers.get_handler(FeaturesCollection, f, None)
     h.save(mfcc_col)
 
-    lines = open(f, 'r').read().split('\n')
-    open(f, 'w').write('\n'.join(lines[:6] + lines[7:]))
+    # remove 2 lines in the times array to corrupt the file
+    data = json.load(open(f, 'r'))
+    data['mfcc']['times'] = data['mfcc']['times'][2:]
+    open(f, 'w').write(json.dumps(data))
 
     with pytest.raises(ValueError) as err:
         h.load()

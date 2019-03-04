@@ -1,0 +1,8 @@
+build
+dev
+htmlcov
+shennong.egg-info
+shennong_features.egg-info
+.pytest_cache
+.coverage
+**/__pycache__

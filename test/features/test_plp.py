@@ -26,20 +26,26 @@ def test_params():
 
 @pytest.mark.parametrize('num_ceps', [-1, 0, 1, 5, 13, 23, 25])
 def test_num_ceps(audio, num_ceps):
-    proc = PlpProcessor(num_ceps=num_ceps)
-    if 0 < proc.num_ceps:
-        feat = proc.process(audio)
-        assert proc.num_ceps == num_ceps
-        assert feat.shape == (140, num_ceps)
-
-        proc.use_energy = False
-        feat = proc.process(audio)
-        assert feat.shape == (140, num_ceps)
+    if num_ceps >= 23:
+        with pytest.raises(ValueError) as err:
+            PlpProcessor(num_ceps=num_ceps)
+        assert 'We must have num_ceps <= lpc_order+1' in str(err)
     else:
-        with pytest.raises(RuntimeError):
-            proc.process(audio)
+        proc = PlpProcessor(num_ceps=num_ceps)
+        if 0 < proc.num_ceps:
+            feat = proc.process(audio)
+            assert proc.num_ceps == num_ceps
+            assert feat.shape == (140, num_ceps)
+
+            proc.use_energy = False
+            feat = proc.process(audio)
+            assert feat.shape == (140, num_ceps)
+        else:
+            with pytest.raises(RuntimeError):
+                proc.process(audio)
 
 
+@pytest.mark.flaky(reruns=20)
 def test_htk_compat(audio):
     p1 = PlpProcessor(use_energy=True, htk_compat=False).process(audio)
     p2 = PlpProcessor(use_energy=True, htk_compat=True).process(audio)
