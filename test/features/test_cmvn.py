@@ -199,16 +199,16 @@ def test_apply_cmvn_skipdims(features_collection, skip_dims):
         cmvns = apply_cmvn(
             features_collection, skip_dims=skip_dims, by_collection=False)
         for feats in cmvns.values():
-            assert feats.data[:, 2:].mean(axis=0) == pytest.approx(0, abs=1e-6)
-            assert feats.data[:, 2:].var(axis=0) == pytest.approx(1, abs=1e-6)
+            assert feats.data[:, 2:].mean(axis=0) == pytest.approx(0, abs=1e-5)
+            assert feats.data[:, 2:].var(axis=0) == pytest.approx(1, abs=1e-5)
 
-            assert feats.data[:, :2].mean(axis=0) != pytest.approx(0, abs=1e-6)
-            assert feats.data[:, :2].var(axis=0) != pytest.approx(1, abs=1e-6)
+            assert feats.data[:, :2].mean(axis=0) != pytest.approx(0, abs=1e-5)
+            assert feats.data[:, :2].var(axis=0) != pytest.approx(1, abs=1e-5)
 
 
 @pytest.mark.flaky(reruns=10)
 def test_apply_cmvn_byfeatures(features_collection):
     cmvns = apply_cmvn(features_collection, by_collection=False)
     for feat in cmvns.values():
-        assert feat.data.mean(axis=0) == pytest.approx(0, abs=1e-6)
-        assert feat.data.var(axis=0) == pytest.approx(1, abs=1e-6)
+        assert feat.data.mean(axis=0) == pytest.approx(0, abs=1e-5)
+        assert feat.data.var(axis=0) == pytest.approx(1, abs=1e-5)

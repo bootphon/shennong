@@ -1,6 +1,7 @@
 """Provides some utilities functions"""
 
 import logging
+import numpy as np
 import sys
 
 
@@ -49,3 +50,44 @@ def get_logger(name=None, level=logging.INFO):
 
     log.addHandler(handler)
     return log
+
+
+def list2array(x):
+    """Converts lists in `x` into numpy arrays"""
+    if isinstance(x, list):
+        return np.asarray(x)
+    elif isinstance(x, dict):
+        return {k: list2array(v) for k, v in x.items()}
+    return x
+
+
+def array2list(x):
+    """Converts numpy arrays in `x` into lists"""
+    if isinstance(x, dict):
+        return {
+            k: v.tolist() if isinstance(v, np.ndarray) else v
+            for k, v in x.items()}
+    elif isinstance(x, np.ndarray):
+        return x.tolist()
+    return x
+
+
+def dict_equal(x, y):
+    """Returns True if `x` and `y` are equals
+
+    The dictionnaries `x` and `y` can contain numpy arrays.
+
+    Parameters
+    ----------
+    x : dict
+        The first dictionnary to compare
+    y : dict
+        The second dictionnary to compare
+
+    Returns
+    -------
+    equal : bool
+        True if `x` == `y`, False otherwise
+
+    """
+    return array2list(x) == array2list(y)

@@ -563,7 +563,7 @@ class BottleneckProcessor(FeaturesProcessor):
         directory = pkg_resources.resource_filename(
             pkg_resources.Requirement.parse('shennong'),
             'shennong/share/bottleneck')
-        if not os.path.isdir(directory):
+        if not os.path.isdir(directory):  # pragma: nocover
             raise RuntimeError('directory not found: {}'.format(directory))
 
         # retrieve the weights files
@@ -577,10 +577,10 @@ class BottleneckProcessor(FeaturesProcessor):
         # all files are missing, log a warning is only one or two
         # files are missing
         files = {k: v for k, v in expected_files.items() if os.path.isfile(v)}
-        if not files:
+        if not files:  # pragma: nocover
             raise RuntimeError('no weights file found in {}'.format(directory))
         for k in expected_files.keys():
-            if k not in files:
+            if k not in files:  # pragma: nocover
                 cls.log.warning('weights file for "%s" is unavailable', k)
 
         return files

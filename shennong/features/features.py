@@ -5,12 +5,24 @@ import copy
 import numpy as np
 
 from shennong.features.handlers import get_handler
+from shennong.utils import list2array, array2list, dict_equal
 
 
 class Features:
     def __init__(self, data, times, properties={}, validate=True):
+        # make sure the data type is correct
+        if not isinstance(data, np.ndarray):
+            raise ValueError('data must be a numpy array')
         self._data = data
+
+        # make sure the times type is correct
+        if not isinstance(data, np.ndarray):
+            raise ValueError('times must be a numpy array')
         self._times = times
+
+        # make sure the properties type is correct
+        if not isinstance(properties, dict):
+            raise ValueError('properties must be a dictionnary')
         self._properties = properties
 
         # make sure the features are in a valid state
@@ -29,7 +41,7 @@ class Features:
 
     @property
     def dtype(self):
-        """The type of the features data"""
+        """The type of the features data samples"""
         return self.data.dtype
 
     @property
@@ -75,14 +87,7 @@ class Features:
 
         """
         def fun(x):
-            if array_as_list:
-                if isinstance(x, dict):
-                    return {
-                        k: v.tolist() if isinstance(v, np.ndarray) else v
-                        for k, v in x.items()}
-                else:
-                    return x.tolist()
-            return x
+            return array2list(x) if array_as_list else x
 
         # we may have arrays in properties as well (when using CMVN)
         return {
@@ -123,48 +128,97 @@ class Features:
                 'cannot read features from dict, missing keys: {}'
                 .format(missing_keys))
 
-        def fun(x):
-            if isinstance(x, list):
-                return np.asarray(x)
-            elif isinstance(x, dict):
-                return {k: fun(v) for k, v in x.items()}
-            return x
-
         return Features(
-            fun(features['data']), fun(features['times']),
-            properties=fun(features['properties']),
+            list2array(features['data']),
+            list2array(features['times']),
+            properties=list2array(features['properties']),
             validate=validate)
 
     def __eq__(self, other):
-        if self.shape != other.shape:
+        """Returns True if `self` is equal `other`, False otherwise"""
+        # object identity
+        if self is other:
+            return True
+
+        # quick tests on attributes
+        if self.shape != other.shape or self.dtype != other.dtype:
             return False
 
+        # properties equality
+        if not dict_equal(self.properties, other.properties):
+            return False
+
+        # timestamps equality
         if not np.array_equal(self.times, other.times):
             return False
 
-        if not self.properties.keys() == other.properties.keys():
-            return False
-
-        for k, v in self.properties.items():
-            w = other.properties[k]
-            if not type(v) == type(w):
-                return False
-            if isinstance(v, np.ndarray):
-                if not np.array_equal(v, w):
-                    return False
-            else:
-                if not v == w:
-                    return False
+        # features matrices equality
         if not np.array_equal(self.data, other.data):
             return False
+
         return True
 
-    def copy(self):
-        """Returns a copy of the features
+    def is_close(self, other, rtol=1e-5, atol=1e-8):
+        """Returns True if `self` is approximately equal to `other`
 
-        Allocates new arrays for both data and times
+        Parameters
+        ----------
+        other : Features
+            The Features instance to be compared to this one
+        rtol : float, optional
+            Relative tolerance
+        atol : float, optional
+            Absolute tolerance
+
+        Returns
+        -------
+        equal : bool
+            True if these features are almost equal to the `other`
+
+        See Also
+        --------
+        FeaturesCollection.is_close, numpy.allclose
+
 
         """
+        if self.shape != other.shape:
+            return False
+
+        if not dict_equal(self.properties, other.properties):
+            return False
+
+        if not np.allclose(self.times, other.times, atol=atol, rtol=rtol):
+            return False
+
+        if not np.allclose(self.data, other.data, atol=atol, rtol=rtol):
+            return False
+
+        return True
+
+    def copy(self, dtype=None):
+        """Returns a copy of the features
+
+        Allocates new arrays for data, times and properties
+
+        Parameters
+        ----------
+        dtype : type, optional
+            When specified converts the data and times arrays to the
+            requested `dtype`
+
+        Returns
+        -------
+        features : Features
+           A new instance of Features copied from this one.
+
+        """
+        if dtype:
+            return Features(
+                self.data.astype(dtype),
+                self.times.astype(dtype),
+                properties=copy.deepcopy(self.properties),
+                validate=False)
+
         return Features(
             self.data.copy(),
             self.times.copy(),
@@ -279,14 +333,45 @@ class FeaturesCollection(dict):
         """
         return get_handler(cls, filename, handler).load()
 
-    def save(self, filename, handler=None, ):
-        get_handler(self.__class__, filename, handler).save(self)
+    def save(self, filename, handler=None, **kwargs):
+        get_handler(self.__class__, filename, handler).save(self, **kwargs)
 
     def is_valid(self):
         """Returns True if all the features in the collection are valid"""
         for features in self.values():
             if not features.is_valid():
                 return False
+        return True
+
+    def is_close(self, other, rtol=1e-5, atol=1e-8):
+        """Returns True `self` is approximately equal to `other`
+
+        Parameters
+        ----------
+        other : FeaturesCollection
+            The collection of features to compare to the current one
+        rtol : float, optional
+            Relative tolerance
+        atol : float, optional
+            Absolute tolerance
+
+        Returns
+        -------
+        equal : bool
+            True if this collection is almost equal to the `other`
+
+        See Also
+        --------
+        Features.is_close, numpy.allclose
+
+        """
+        if not self.keys() == other.keys():
+            return False
+
+        for k in self.keys():
+            if not self[k].is_close(other[k], rtol=rtol, atol=atol):
+                return False
+
         return True
 
     def by_speaker(self, spk2utt):

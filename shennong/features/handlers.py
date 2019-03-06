@@ -1,12 +1,17 @@
 """Saves and loads features to/from various file formats"""
 
 import abc
-import json
+import copy
 import os
 
 import h5features
+import json_tricks
+import kaldi.matrix
+import kaldi.util.table
 import numpy as np
 import scipy
+
+from shennong.utils import get_logger
 
 
 def supported_extensions():
@@ -112,6 +117,8 @@ class FeaturesHandler(metaclass=abc.ABCMeta):
         The file to save/load features to/from
 
     """
+    _log = get_logger(__name__)
+
     def __init__(self, cls, filename):
         self._features_collection = cls
         self._features = self._features_collection._value_type
@@ -122,29 +129,31 @@ class FeaturesHandler(metaclass=abc.ABCMeta):
         return self._filename
 
     @abc.abstractmethod
-    def _save(self, features):
+    def _save(self, features):  # pragma: nocover
         pass
 
     @abc.abstractmethod
-    def _load(self):
+    def _load(self):  # pragma: nocover
         pass
 
-    def load(self):
+    def load(self, **kwargs):
         """Returns a collection of features from the `filename`
 
         Returns
         -------
         features : :class:`~shennong.features.FeaturesCollection`
-            The features stored in the file
+            The features stored in the file.
+        kwargs : optional
+            Optional supplementary arguments, specific to each handler.
 
         Raises
         ------
         IOError
-            If the input file does not exist or cannot be read
+            If the input file does not exist or cannot be read.
 
         ValueError
             If the features cannot be loaded from the file or are not
-            in a valid state
+            in a valid state.
 
         """
         if not os.path.isfile(self.filename):
@@ -152,7 +161,7 @@ class FeaturesHandler(metaclass=abc.ABCMeta):
         if not os.access(self.filename, os.R_OK):
             raise IOError('file not readable: {}'.format(self.filename))
 
-        features = self._load()
+        features = self._load(**kwargs)
 
         if not features.is_valid():
             raise ValueError(
@@ -160,23 +169,25 @@ class FeaturesHandler(metaclass=abc.ABCMeta):
 
         return features
 
-    def save(self, features):
+    def save(self, features, **kwargs):
         """Saves a collection of `features` to a file
 
         Parameters
         ----------
         features : :class:`~shennong.features.FeaturesCollection`
-            The features to store in the file
+            The features to store in the file.
+        kwargs : optional
+            Optional supplementary arguments, specific to each handler.
 
         Raises
         ------
         IOError
-            If the output file already exists
+            If the output file already exists.
 
         ValueError
             If the features cannot be saved to the file, are not in a
             valid state or are not an instance of
-            :class:`~shennong.features.FeaturesCollection`
+            :class:`~shennong.features.FeaturesCollection`.
 
         """
         if os.path.isfile(self.filename):
@@ -192,12 +203,14 @@ class FeaturesHandler(metaclass=abc.ABCMeta):
         if not features.is_valid():
             raise ValueError('features are not valid')
 
-        self._save(features)
+        self._save(features, **kwargs)
 
 
 class NumpyHandler(FeaturesHandler):
     """Saves and loads features to/from the numpy '.npz' format"""
     def _save(self, features, compress=True):
+        self._log.info('writing %s', self.filename)
+
         # represent the features as dictionaries
         data = {k: v._to_dict() for k, v in features.items()}
 
@@ -206,7 +219,10 @@ class NumpyHandler(FeaturesHandler):
         save(open(self.filename, 'wb'), features=data)
 
     def _load(self):
+        self._log.info('loading %s', self.filename)
+
         data = np.load(open(self.filename, 'rb'))['features'].tolist()
+
         features = self._features_collection()
         for k, v in data.items():
             features[k] = self._features._from_dict(v, validate=False)
@@ -216,6 +232,8 @@ class NumpyHandler(FeaturesHandler):
 class MatlabHandler(FeaturesHandler):
     """Saves and loads features to/from the matlab '.mat' format"""
     def _save(self, features, compress=True):
+        self._log.info('writing %s', self.filename)
+
         # represent the features as dictionaries
         data = {k: v._to_dict() for k, v in features.items()}
 
@@ -226,6 +244,8 @@ class MatlabHandler(FeaturesHandler):
             appendmat=False, do_compression=compress)
 
     def _load(self):
+        self._log.info('loading %s', self.filename)
+
         data = scipy.io.loadmat(
             self.filename, appendmat=False, squeeze_me=True,
             mat_dtype=True, struct_as_record=False)
@@ -249,23 +269,21 @@ class MatlabHandler(FeaturesHandler):
 class JsonHandler(FeaturesHandler):
     """Saves and loads features to/from the JSON format"""
     def _save(self, features):
-        data = json.dumps(
-            {k: v._to_dict(array_as_list=True) for k, v in features.items()},
-            indent=4)
-        open(self.filename, 'wt').write(data)
+        self._log.info('writing %s', self.filename)
+        open(self.filename, 'wt').write(json_tricks.dumps(features, indent=4))
 
     def _load(self):
-        data = json.loads(open(self.filename, 'r').read())
-        features = self._features_collection()
-        for k, v in data.items():
-            features[k] = self._features._from_dict(v, validate=False)
-        return features
+        self._log.info('loading %s', self.filename)
+        return self._features_collection(
+            json_tricks.loads(open(self.filename, 'r').read()))
 
 
 class H5featuresHandler(FeaturesHandler):
     """Saves and loads features to/from the h5features format"""
     def _save(self, features, groupname='features',
               compression='lzf', chunk_size='auto'):
+        self._log.info('writing %s', self.filename)
+
         data = h5features.Data(
             list(features.keys()),
             [f.times for f in features.values()],
@@ -279,6 +297,8 @@ class H5featuresHandler(FeaturesHandler):
             compression=compression).write(data, groupname=groupname)
 
     def _load(self, groupname='features'):
+        self._log.info('loading %s', self.filename)
+
         data = h5features.Reader(self.filename, groupname=groupname).read()
 
         features = self._features_collection()
@@ -286,13 +306,106 @@ class H5featuresHandler(FeaturesHandler):
             features[data.items()[n]] = self._features(
                 data.features()[n],
                 data.labels()[n],
-                properties=data.properties()[n])
+                properties=data.properties()[n],
+                validate=False)
         return features
 
 
 class KaldiHandler(FeaturesHandler):
-    def _save(self, features):
-        pass
+    def __init__(self, cls, filename):
+        super().__init__(cls, filename)
+
+        # make sure the filename extension is '.ark'
+        filename_split = os.path.splitext(self.filename)
+        if filename_split[1] != '.ark':
+            raise ValueError(
+                'when saving to Kaldi ark format, the file extension must be '
+                '".ark", it is "{}"'.format(filename_split[1]))
+
+        self._fileroot = filename_split[0]
+
+    def _save(self, features, scp=False):
+        # writing features
+        ark = self._fileroot + '.ark'
+        if scp:
+            scp = self._fileroot + '.scp'
+            self._log.info('writing %s and %s', ark, scp)
+            wspecifier = 'ark,scp:' + ark + ',' + scp
+        else:
+            self._log.info('writing %s', ark)
+            wspecifier = 'ark:' + ark
+        with kaldi.util.table.DoubleMatrixWriter(wspecifier) as writer:
+            for k, v in features.items():
+                writer[k] = kaldi.matrix.DoubleSubMatrix(v.data)
+
+        # writing times
+        ark = self._fileroot + '.times.ark'
+        if scp:
+            scp = self._fileroot + '.times.scp'
+            self._log.info('writing %s and %s', ark, scp)
+            wspecifier = 'ark,scp:' + ark + ',' + scp
+        else:
+            self._log.info('writing %s', ark)
+            wspecifier = 'ark:' + ark
+        with kaldi.util.table.DoubleVectorWriter(wspecifier) as writer:
+            for k, v in features.items():
+                writer[k] = kaldi.matrix.DoubleSubVector(v.times)
+
+        # writing properties. As we are writing double arrays, we need
+        # to track the original dtype of features in the properties,
+        # to ensure equality on load
+        filename = self._fileroot + '.properties.json'
+        self._log.info('writing %s', filename)
+        data = {k: copy.deepcopy(v.properties) for k, v in features.items()}
+        for k, v in data.items():
+            data[k]['__dtype_data__'] = str(features[k].dtype)
+            data[k]['__dtype_times__'] = str(features[k].times.dtype)
+        open(filename, 'wt').write(json_tricks.dumps(data, indent=4))
 
     def _load(self):
-        pass
+        # loading properties
+        filename = self._fileroot + '.properties.json'
+        self._log.info('loading %s', filename)
+        if not os.path.isfile(filename):
+            raise IOError('file not found: {}'.format(filename))
+
+        properties = json_tricks.loads(open(filename, 'r').read())
+
+        # loading features
+        ark = self._fileroot + '.ark'
+        self._log.info('loading %s', ark)
+
+        # rspecifier = 'ark,scp:' + ark + ',' + scp
+        rspecifier = 'ark:' + ark
+        with kaldi.util.table.SequentialDoubleMatrixReader(
+                rspecifier) as reader:
+            data = {k: v.numpy() for k, v in reader}
+
+        if properties.keys() != data.keys():
+            raise ValueError(
+                'invalid features: items differ in data and properties')
+
+        # loading times
+        ark = self._fileroot + '.times.ark'
+        self._log.info('loading %s', ark)
+        if not os.path.isfile(ark):
+            raise IOError('file not found: {}'.format(ark))
+
+        rspecifier = 'ark:' + ark
+        with kaldi.util.table.SequentialDoubleVectorReader(
+                rspecifier) as reader:
+            times = {k: v.numpy() for k, v in reader}
+
+        if times.keys() != data.keys():
+            raise ValueError(
+                'invalid features: items differ in data and times')
+
+        return self._features_collection(
+            **{k: self._features(
+                data[k].astype(properties[k]['__dtype_data__']),
+                times[k].astype(properties[k]['__dtype_times__']),
+                properties={
+                    k: p for k, p in properties[k].items()
+                    if '__dtype_' not in k},
+                validate=False)
+               for k in data.keys()})
