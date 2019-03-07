@@ -37,8 +37,8 @@ before_install:
        bash miniconda.sh -b -u -p $HOME/miniconda;
        hash -r;
     fi
-   - export PATH="$HOME/miniconda/bin:$PATH"
-   - conda config --set always_yes yes --set changeps1 no
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - conda config --set always_yes yes --set changeps1 no
 
 install:
   - conda env update --name shennong -f environment.yml
