@@ -3,6 +3,9 @@ language: python
 # run on Travis 'new' container-based infrastructure
 sudo: false
 
+notifications:
+  email: false
+
 # no need of git history
 git:
   depth: 1
@@ -12,10 +15,14 @@ branches:
   only:
     - master
 
+# conda installation is cached to avoid redowloading the package each
+# time (pykaldi is huge)
 cache:
   directories:
     - $HOME/miniconda
 
+# exclude some directories from cache (package archives and temp
+# directories)
 before_cache:
   - rm -rf $HOME/miniconda/locks
   - rm -rf $HOME/miniconda/pkgs
@@ -29,15 +36,15 @@ before_install:
        wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
        bash miniconda.sh -b -u -p $HOME/miniconda;
        hash -r;
-    fi;
-    export PATH="$HOME/miniconda/bin:$PATH"
+    fi
+   - export PATH="$HOME/miniconda/bin:$PATH"
+   - conda config --set always_yes yes --set changeps1 no
 
 install:
-  - conda config --set always_yes yes --set changeps1 no
   - conda env update --name shennong -f environment.yml
   - source activate shennong
-  - make install
   - pip install codecov
+  - make install
 
 script:
   - python setup.py test
