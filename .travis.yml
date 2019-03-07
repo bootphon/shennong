@@ -12,14 +12,30 @@ branches:
   only:
     - master
 
+cache:
+  directories:
+    - $HOME/miniconda
+
+before_cache:
+  - rm -rf $HOME/miniconda/locks
+  - rm -rf $HOME/miniconda/pkgs
+  - rm -rf $HOME/miniconda/var
+  - rm -rf $HOME/miniconda/conda-meta/history
+
+before_install:
+  - if test -e $HOME/miniconda/bin; then
+      echo "miniconda already installed.";
+    else
+       wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+       bash miniconda.sh -b -p $HOME/miniconda;
+       export PATH="$HOME/miniconda/bin:$PATH";
+       hash -r;
+    fi
+
 install:
-  - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
-  - bash miniconda.sh -b -p $HOME/miniconda
-  - export PATH="$HOME/miniconda/bin:$PATH"
-  - hash -r
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
-  - conda env create --name shennong -f environment.yml
+  - conda env update --name shennong -f environment.yml
   - source activate shennong
   - make install
   - pip install codecov
