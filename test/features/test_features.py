@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from shennong.features import Features, FeaturesCollection
+from shennong.features.mfcc import MfccProcessor
 
 
 def test_init_bad():
@@ -24,8 +25,8 @@ def test_init_bad():
     assert 'data dimension must be 2' in str(err)
 
     with pytest.raises(ValueError) as err:
-        Features(np.asarray([[0], [0]]), np.asarray([[0], [0]]))
-    assert 'times dimension must be 1' in str(err)
+        Features(np.asarray([[0], [0]]), np.random.random((2, 2, 2)))
+    assert 'times dimension must be 1 or 2' in str(err)
 
 
 def test_tofrom_dict(mfcc):
@@ -116,8 +117,8 @@ def test_collection(mfcc):
 
 
 def test_collection_isclose():
-    f1 = Features(np.random.random((10, 2)), np.random.random((10,)))
-    f2 = Features(np.random.random((10, 2)), np.random.random((10,)))
+    f1 = Features(np.random.random((10, 2)), np.ones((10,)))
+    f2 = Features(np.random.random((10, 2)), np.ones((10,)))
 
     fc1 = FeaturesCollection(f1=f1, f2=f2)
     fc2 = FeaturesCollection(f1=f1, f2=Features(f2.data+1, f2.times))
@@ -130,9 +131,9 @@ def test_collection_isclose():
 
 
 def test_partition():
-    f1 = Features(np.random.random((10, 2)), np.random.random((10,)))
-    f2 = Features(np.random.random((15, 2)), np.random.random((15,)))
-    f3 = Features(np.random.random((5, 2)), np.random.random((5,)))
+    f1 = Features(np.random.random((10, 2)), np.ones((10,)))
+    f2 = Features(np.random.random((5, 2)), np.ones((5,)))
+    f3 = Features(np.random.random((5, 2)), np.ones((5,)))
     fc = FeaturesCollection(f1=f1, f2=f2, f3=f3)
 
     with pytest.raises(ValueError) as err:
@@ -147,3 +148,32 @@ def test_partition():
     assert fc.is_valid()
     for fc in fp.values():
         assert fc.is_valid()
+
+
+def test_2d_times_sorted():
+    # 10 frames, 5 dims
+    data = np.random.random((10, 5))
+
+    p = MfccProcessor()
+    times = p.times(10)
+    assert times.shape == (10,)
+    times2d = np.vstack((times, times)).T
+    assert times2d.shape == (10, 2)
+    times2d += [-p.frame_length / 2.0, p.frame_length / 2.0]
+
+    feats = Features(data, times2d, validate=False)
+    assert feats.is_valid()
+
+
+# in case (very unlikely) the random times array is sorted
+@pytest.mark.flaky(reruns=10)
+def test_2d_times_unsorted():
+    with pytest.raises(ValueError) as err:
+        Features(np.random.random((10, 3)), np.random.random((10, 2)))
+    assert 'times is not sorted in increasing order' in str(err)
+
+
+def test_2d_times_badshape():
+    with pytest.raises(ValueError) as err:
+        Features(np.random.random((10, 3)), np.random.random((10, 3)))
+    assert 'times shape[1] must be 2, it is 3' in str(err)

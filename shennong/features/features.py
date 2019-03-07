@@ -248,9 +248,14 @@ class Features:
         if not self.data.ndim == 2:
             errors.append(
                 'data dimension must be 2 but is {}'.format(self.data.ndim))
-        if not self.times.ndim == 1:
+        if self.times.ndim > 2:
             errors.append(
-                'times dimension must be 1 but is {}'.format(self.times.ndim))
+                'times dimension must be 1 or 2 but is {}'.format(
+                    self.times.ndim))
+        if self.times.ndim == 2 and self.times.shape[1] != 2:
+            errors.append('times shape[1] must be 2, it is {}'.format(
+                self.times.shape[1]))
+
         nframes1 = self.data.shape[0]
         nframes2 = self.times.shape[0]
         if not nframes1 == nframes2:
@@ -261,6 +266,13 @@ class Features:
         if errors:
             raise ValueError(
                 'invalid features dimensions: {}'.format(', '.join(errors)))
+
+        # check if time is increasing. This check comes from
+        # h5features/labels.py
+        index = (np.argsort(self.times) if self.times.ndim == 1
+                 else np.lexsort(self.times.T))
+        if not all(n == index[n] for n in range(self.nframes)):
+            raise ValueError('times is not sorted in increasing order')
 
     def concatenate(self, other):
         """Returns the concatenation of this features with `other`

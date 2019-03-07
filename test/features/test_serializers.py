@@ -10,6 +10,7 @@ import pytest
 import shutil
 
 from shennong.features import Features, FeaturesCollection
+from shennong.features.mfcc import MfccProcessor
 import shennong.features.serializers as serializers
 
 
@@ -131,7 +132,7 @@ def test_save_invalid(tmpdir, mfcc):
     f = str(tmpdir.join('foo.json'))
     h = serializers.get_serializer(FeaturesCollection, f, None)
     feats = FeaturesCollection(mfcc=Features(
-        data=mfcc.data, times=mfcc.data, validate=False))
+        data=mfcc.data, times=0, validate=False))
     with pytest.raises(ValueError) as err:
         h.save(feats)
     assert 'features are not valid' in str(err)
@@ -148,6 +149,28 @@ def test_simple(mfcc_col, serializer, tmpdir):
     assert os.path.exists(tmpfile)
     mfcc_col2 = serializer(mfcc_col.__class__, tmpfile).load()
     assert mfcc_col2 == mfcc_col
+
+
+@pytest.mark.parametrize('serializer', SERIALIZERS)
+def test_times_2d(serializer, tmpdir):
+    filename = ('feats.ark' if serializer is serializers.KaldiSerializer
+                else 'feats')
+    tmpfile = str(tmpdir.join(filename))
+
+    p = MfccProcessor()
+    times = p.times(10)
+    assert times.shape == (10,)
+    times2d = np.vstack((times, times)).T
+    assert times2d.shape == (10, 2)
+    times2d += [-p.frame_length / 2.0, p.frame_length / 2.0]
+
+    col = FeaturesCollection(mfcc=Features(
+        np.random.random((10, 5)), times2d))
+
+    assert col['mfcc'].times.shape[1] == 2
+    serializer(col.__class__, tmpfile).save(col)
+    col2 = serializer(col.__class__, tmpfile).load()
+    assert col == col2
 
 
 @pytest.mark.parametrize('serializer', SERIALIZERS)

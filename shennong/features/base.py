@@ -241,7 +241,7 @@ class MelFeaturesProcessor(FeaturesProcessor):
         self._mel_options.vtln_high = value
 
     def times(self, nframes):
-        """Returns the time label for the rows given by the `process` method"""
+        """Returns the times label for the rows given by :func:`process`"""
         return np.arange(nframes) * self.frame_shift + self.frame_length / 2.0
 
     @abc.abstractmethod

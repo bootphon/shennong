@@ -362,9 +362,13 @@ class KaldiSerializer(FeaturesSerializer):
         else:
             self._log.info('writing %s', ark)
             wspecifier = 'ark:' + ark
-        with kaldi.util.table.DoubleVectorWriter(wspecifier) as writer:
+        with kaldi.util.table.DoubleMatrixWriter(wspecifier) as writer:
             for k, v in features.items():
-                writer[k] = kaldi.matrix.DoubleSubVector(v.times)
+                # in case times are 1d, we force them to 2d so they
+                # can be wrote as kaldi matrices (we do the reverse
+                # 2d->1d on loading)
+                writer[k] = kaldi.matrix.DoubleSubMatrix(
+                    np.atleast_2d(v.times))
 
         # writing properties. As we are writing double arrays, we need
         # to track the original dtype of features in the properties,
@@ -407,9 +411,14 @@ class KaldiSerializer(FeaturesSerializer):
             raise IOError('file not found: {}'.format(ark))
 
         rspecifier = 'ark:' + ark
-        with kaldi.util.table.SequentialDoubleVectorReader(
+        with kaldi.util.table.SequentialDoubleMatrixReader(
                 rspecifier) as reader:
             times = {k: v.numpy() for k, v in reader}
+
+        # postprocess times: do 2d->1d if they are 1d vectors
+        for k, v in times.items():
+            if v.shape[0] == 1:
+                times[k] = v.reshape((v.shape[1]))
 
         if times.keys() != data.keys():
             raise ValueError(
