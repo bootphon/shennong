@@ -5,7 +5,7 @@ import collections
 import copy
 import numpy as np
 
-from shennong.features.handlers import get_handler
+from shennong.features.serializers import get_serializer
 from shennong.utils import dict_equal
 
 
@@ -303,16 +303,16 @@ class FeaturesCollection(dict):
     _value_type = Features
 
     @classmethod
-    def load(cls, filename, handler=None):
+    def load(cls, filename, serializer=None):
         """Loads a FeaturesCollection from a `filename`
 
         Parameters
         ----------
         filename : str
             The file to load
-        handler : str, optional
-            The file handler to use for loading, if not specified
-            guess the handler from the `filename` extension
+        serializer : str, optional
+            The file serializer to use for loading, if not specified
+            guess the serializer from the `filename` extension
 
         Returns
         -------
@@ -324,14 +324,15 @@ class FeaturesCollection(dict):
         IOError
             If the `filename` cannot be read
         ValueError
-            If the `handler` or the file extension is not supported,
+            If the `serializer` or the file extension is not supported,
             if the features loading fails.
 
         """
-        return get_handler(cls, filename, handler).load()
+        return get_serializer(cls, filename, serializer).load()
 
-    def save(self, filename, handler=None, **kwargs):
-        get_handler(self.__class__, filename, handler).save(self, **kwargs)
+    def save(self, filename, serializer=None, **kwargs):
+        get_serializer(
+            self.__class__, filename, serializer).save(self, **kwargs)
 
     def is_valid(self):
         """Returns True if all the features in the collection are valid"""

@@ -1,4 +1,4 @@
-"""Saves and loads features to/from various file formats"""
+"""Saves and loads features collections to/from various file formats"""
 
 import abc
 import copy
@@ -19,37 +19,37 @@ def supported_extensions():
 
     Returns
     -------
-    handlers : dict
-        File extensions mapped to their related handler class
+    serializers : dict
+        File extensions mapped to their related serializer class
 
     """
     return {
-        '.npz': NumpyHandler,
-        '.mat': MatlabHandler,
-        '.json': JsonHandler,
-        '.h5f': H5featuresHandler,
-        '.ark': KaldiHandler}
+        '.npz': NumpySerializer,
+        '.mat': MatlabSerializer,
+        '.json': JsonSerializer,
+        '.h5f': H5featuresSerializer,
+        '.ark': KaldiSerializer}
 
 
-def supported_handlers():
-    """Returns the list of file format handlers to save/load features
+def supported_serializers():
+    """Returns the list of file format serializers to save/load features
 
     Returns
     -------
-    handlers : dict
-        Handlers names mapped to their related class
+    serializers : dict
+        Serializers names mapped to their related class
 
     """
     return {
-        'numpy': NumpyHandler,
-        'matlab': MatlabHandler,
-        'json': JsonHandler,
-        'h5features': H5featuresHandler,
-        'kaldi': KaldiHandler}
+        'numpy': NumpySerializer,
+        'matlab': MatlabSerializer,
+        'json': JsonSerializer,
+        'h5features': H5featuresSerializer,
+        'kaldi': KaldiSerializer}
 
 
-def get_handler(cls, filename, handler=None):
-    """Returns the file handler from filename extension or handler name
+def get_serializer(cls, filename, serializer=None):
+    """Returns the file serializer from filename extension or serializer name
 
     Parameters
     ----------
@@ -58,21 +58,21 @@ def get_handler(cls, filename, handler=None):
         a tweak to avoid circular imports
     filename : str
         The file to be handled (load or save)
-    handler : str, optional
-        If not None must be one of the :func:`supported_handlers`, if
-        not specified, guess the handler from the `filename`
+    serializer : str, optional
+        If not None must be one of the :func:`supported_serializers`, if
+        not specified, guess the serializer from the `filename`
         extension using :func:`supported_extensions`.
 
     Returns
     -------
-    handler : instance of :class:`FeaturesHandler`
-        The guessed handler class, a child class of
-        :class:`FeaturesHandler`.
+    serializer : instance of :class:`FeaturesSerializer`
+        The guessed serializer class, a child class of
+        :class:`FeaturesSerializer`.
 
     Raises
     ------
     ValueError
-        If the handler class cannot be guessed, or if `cls` is not
+        If the serializer class cannot be guessed, or if `cls` is not
         :class:`~shennong.features.FeaturesCollection`
 
     """
@@ -80,31 +80,31 @@ def get_handler(cls, filename, handler=None):
         raise ValueError(
             'The `cls` parameter must be shennong.features.FeaturesCollection')
 
-    if handler is None:
-        # guess handler from file extension
+    if serializer is None:
+        # guess serializer from file extension
         ext = os.path.splitext(filename)[1]
         if not ext:
-            raise ValueError('no extension nor handler name specified')
+            raise ValueError('no extension nor serializer name specified')
 
         try:
-            handler = supported_extensions()[ext]
+            serializer = supported_extensions()[ext]
         except KeyError:
             raise ValueError(
                 'invalid extension {}, must be in {}'.format(
                     ext, list(supported_extensions().keys())))
     else:
         try:
-            handler = supported_handlers()[handler]
+            serializer = supported_serializers()[serializer]
         except KeyError:
             raise ValueError(
-                'invalid handler {}, must be in {}'.format(
-                    handler, list(supported_handlers().keys())))
+                'invalid serializer {}, must be in {}'.format(
+                    serializer, list(supported_serializers().keys())))
 
-    return handler(cls, filename)
+    return serializer(cls, filename)
 
 
-class FeaturesHandler(metaclass=abc.ABCMeta):
-    """Base class of a features file handler
+class FeaturesSerializer(metaclass=abc.ABCMeta):
+    """Base class of a features file serializer
 
     This class must be specialized to handle a given file type.
 
@@ -144,7 +144,7 @@ class FeaturesHandler(metaclass=abc.ABCMeta):
         features : :class:`~shennong.features.FeaturesCollection`
             The features stored in the file.
         kwargs : optional
-            Optional supplementary arguments, specific to each handler.
+            Optional supplementary arguments, specific to each serializer.
 
         Raises
         ------
@@ -177,7 +177,7 @@ class FeaturesHandler(metaclass=abc.ABCMeta):
         features : :class:`~shennong.features.FeaturesCollection`
             The features to store in the file.
         kwargs : optional
-            Optional supplementary arguments, specific to each handler.
+            Optional supplementary arguments, specific to each serializer.
 
         Raises
         ------
@@ -206,7 +206,7 @@ class FeaturesHandler(metaclass=abc.ABCMeta):
         self._save(features, **kwargs)
 
 
-class NumpyHandler(FeaturesHandler):
+class NumpySerializer(FeaturesSerializer):
     """Saves and loads features to/from the numpy '.npz' format"""
     def _save(self, features, compress=True):
         self._log.info('writing %s', self.filename)
@@ -229,7 +229,7 @@ class NumpyHandler(FeaturesHandler):
         return features
 
 
-class MatlabHandler(FeaturesHandler):
+class MatlabSerializer(FeaturesSerializer):
     """Saves and loads features to/from the matlab '.mat' format"""
     def _save(self, features, compress=True):
         self._log.info('writing %s', self.filename)
@@ -266,7 +266,7 @@ class MatlabHandler(FeaturesHandler):
             if k is not '_fieldnames'}
 
 
-class JsonHandler(FeaturesHandler):
+class JsonSerializer(FeaturesSerializer):
     """Saves and loads features to/from the JSON format"""
     def _save(self, features):
         self._log.info('writing %s', self.filename)
@@ -278,7 +278,7 @@ class JsonHandler(FeaturesHandler):
             json_tricks.loads(open(self.filename, 'r').read()))
 
 
-class H5featuresHandler(FeaturesHandler):
+class H5featuresSerializer(FeaturesSerializer):
     """Saves and loads features to/from the h5features format"""
     def _save(self, features, groupname='features',
               compression='lzf', chunk_size='auto'):
@@ -311,7 +311,7 @@ class H5featuresHandler(FeaturesHandler):
         return features
 
 
-class KaldiHandler(FeaturesHandler):
+class KaldiSerializer(FeaturesSerializer):
     def __init__(self, cls, filename):
         super().__init__(cls, filename)
 

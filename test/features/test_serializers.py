@@ -1,8 +1,7 @@
 # coding: utf-8
 
-"""Test of the module shennong.features.handlers"""
+"""Test of the module shennong.features.serializers"""
 
-import copy
 import getpass
 import json
 import numpy as np
@@ -11,7 +10,7 @@ import pytest
 import shutil
 
 from shennong.features import Features, FeaturesCollection
-import shennong.features.handlers as handlers
+import shennong.features.serializers as serializers
 
 
 @pytest.fixture(scope='session')
@@ -29,55 +28,55 @@ def mfcc_utf8(mfcc):
     return feats
 
 
-HANDLERS = [
-    handlers.NumpyHandler,
-    handlers.MatlabHandler,
-    handlers.JsonHandler,
-    handlers.H5featuresHandler,
-    handlers.KaldiHandler]
+SERIALIZERS = [
+    serializers.NumpySerializer,
+    serializers.MatlabSerializer,
+    serializers.JsonSerializer,
+    serializers.H5featuresSerializer,
+    serializers.KaldiSerializer]
 
 
-@pytest.mark.parametrize('name', handlers.supported_handlers().keys())
-def test_get_handler_byname(name):
+@pytest.mark.parametrize('name', serializers.supported_serializers().keys())
+def test_get_serializer_byname(name):
     filename = 'foo.file'
     if name == 'kaldi':
         with pytest.raises(ValueError) as err:
-            handlers.get_handler(FeaturesCollection, 'foo.file', name)
+            serializers.get_serializer(FeaturesCollection, 'foo.file', name)
         assert 'the file extension must be ".ark", it is ".file"' in str(err)
         filename = 'foo.ark'
 
-    h = handlers.get_handler(FeaturesCollection, filename, name)
+    h = serializers.get_serializer(FeaturesCollection, filename, name)
     assert not os.path.isfile(filename)
-    assert isinstance(h, handlers.supported_handlers()[name])
+    assert isinstance(h, serializers.supported_serializers()[name])
 
 
-@pytest.mark.parametrize('ext', handlers.supported_extensions().keys())
-def test_get_handler_byext(ext):
-    h = handlers.get_handler(FeaturesCollection, 'foo' + ext, None)
+@pytest.mark.parametrize('ext', serializers.supported_extensions().keys())
+def test_get_serializer_byext(ext):
+    h = serializers.get_serializer(FeaturesCollection, 'foo' + ext, None)
     assert not os.path.isfile('foo' + ext)
-    assert isinstance(h, handlers.supported_extensions()[ext])
+    assert isinstance(h, serializers.supported_extensions()[ext])
 
 
-def test_get_handler_bad():
+def test_get_serializer_bad():
     with pytest.raises(ValueError) as err:
-        handlers.get_handler(int, 'foo', None)
+        serializers.get_serializer(int, 'foo', None)
     assert 'must be shennong.features.FeaturesCollection' in str(err)
 
     with pytest.raises(ValueError) as err:
-        handlers.get_handler(FeaturesCollection, 'foo.spam', None)
+        serializers.get_serializer(FeaturesCollection, 'foo.spam', None)
     assert 'invalid extension .spam' in str(err)
 
     with pytest.raises(ValueError) as err:
-        handlers.get_handler(FeaturesCollection, 'foo', None)
-    assert 'no extension nor handler name specified' in str(err)
+        serializers.get_serializer(FeaturesCollection, 'foo', None)
+    assert 'no extension nor serializer name specified' in str(err)
 
     with pytest.raises(ValueError) as err:
-        handlers.get_handler(FeaturesCollection, 'foo.spam', 'spam')
-    assert 'invalid handler spam' in str(err)
+        serializers.get_serializer(FeaturesCollection, 'foo.spam', 'spam')
+    assert 'invalid serializer spam' in str(err)
 
 
 def test_load_nofile():
-    h = handlers.get_handler(FeaturesCollection, 'foo.json', None)
+    h = serializers.get_serializer(FeaturesCollection, 'foo.json', None)
     with pytest.raises(IOError) as err:
         h.load()
     assert 'file not found' in str(err)
@@ -86,7 +85,7 @@ def test_load_nofile():
 @pytest.mark.skipif(getpass.getuser() == 'root', reason='executed as root')
 def test_load_noreadable(tmpdir):
     f = str(tmpdir.join('foo.json'))
-    h = handlers.get_handler(FeaturesCollection, f, None)
+    h = serializers.get_serializer(FeaturesCollection, f, None)
     open(f, 'w').write('spam a lot')
     os.chmod(f, 0o222)  # write-only
     with pytest.raises(IOError) as err:
@@ -96,7 +95,7 @@ def test_load_noreadable(tmpdir):
 
 def test_load_invalid(tmpdir, mfcc_col):
     f = str(tmpdir.join('foo.json'))
-    h = handlers.get_handler(FeaturesCollection, f, None)
+    h = serializers.get_serializer(FeaturesCollection, f, None)
     h.save(mfcc_col)
 
     # remove 2 lines in the times array to corrupt the file
@@ -113,7 +112,7 @@ def test_load_invalid(tmpdir, mfcc_col):
 def test_save_exists(tmpdir, mfcc_col):
     f = str(tmpdir.join('foo.json'))
     open(f, 'w').write('something')
-    h = handlers.get_handler(FeaturesCollection, f, None)
+    h = serializers.get_serializer(FeaturesCollection, f, None)
     with pytest.raises(IOError) as err:
         h.save(mfcc_col)
     assert 'file already exists' in str(err)
@@ -121,7 +120,7 @@ def test_save_exists(tmpdir, mfcc_col):
 
 def test_save_not_collection(tmpdir, mfcc):
     f = str(tmpdir.join('foo.json'))
-    h = handlers.get_handler(FeaturesCollection, f, None)
+    h = serializers.get_serializer(FeaturesCollection, f, None)
     with pytest.raises(ValueError) as err:
         h.save(mfcc)
     assert 'features must be FeaturesCollection but are Features' in str(err)
@@ -129,7 +128,7 @@ def test_save_not_collection(tmpdir, mfcc):
 
 def test_save_invalid(tmpdir, mfcc):
     f = str(tmpdir.join('foo.json'))
-    h = handlers.get_handler(FeaturesCollection, f, None)
+    h = serializers.get_serializer(FeaturesCollection, f, None)
     feats = FeaturesCollection(mfcc=Features(
         data=mfcc.data, times=mfcc.data, validate=False))
     with pytest.raises(ValueError) as err:
@@ -137,37 +136,40 @@ def test_save_invalid(tmpdir, mfcc):
     assert 'features are not valid' in str(err)
 
 
-@pytest.mark.parametrize('handler', HANDLERS)
-def test_simple(mfcc_col, handler, tmpdir):
-    filename = 'feats.ark' if handler is handlers.KaldiHandler else 'feats'
+@pytest.mark.parametrize('serializer', SERIALIZERS)
+def test_simple(mfcc_col, serializer, tmpdir):
+    filename = ('feats.ark' if serializer is serializers.KaldiSerializer
+                else 'feats')
     tmpfile = str(tmpdir.join(filename))
-    h = handler(mfcc_col.__class__, tmpfile)
+    h = serializer(mfcc_col.__class__, tmpfile)
     h.save(mfcc_col)
 
     assert os.path.exists(tmpfile)
-    mfcc_col2 = handler(mfcc_col.__class__, tmpfile).load()
+    mfcc_col2 = serializer(mfcc_col.__class__, tmpfile).load()
     assert mfcc_col2 == mfcc_col
 
 
-@pytest.mark.parametrize('handler', HANDLERS)
-def test_utf8(mfcc_utf8, handler, tmpdir):
-    filename = 'feats.ark' if handler is handlers.KaldiHandler else 'feats'
-    h = handler(mfcc_utf8.__class__, str(tmpdir.join(filename)))
+@pytest.mark.parametrize('serializer', SERIALIZERS)
+def test_utf8(mfcc_utf8, serializer, tmpdir):
+    filename = ('feats.ark' if serializer is serializers.KaldiSerializer
+                else 'feats')
+    h = serializer(mfcc_utf8.__class__, str(tmpdir.join(filename)))
     h.save(mfcc_utf8)
     mfcc2 = h.load()
     assert mfcc2 == mfcc_utf8
 
 
-@pytest.mark.parametrize('handler', HANDLERS)
-def test_heterogeneous(mfcc, handler, tmpdir):
+@pytest.mark.parametrize('serializer', SERIALIZERS)
+def test_heterogeneous(mfcc, serializer, tmpdir):
     mfcc_col = FeaturesCollection(
         mfcc32=mfcc, mfcc64=mfcc.copy(dtype=np.float64))
 
-    filename = 'feats.ark' if handler is handlers.KaldiHandler else 'feats'
-    h = handler(mfcc_col.__class__, str(tmpdir.join(filename)))
+    filename = ('feats.ark' if serializer is serializers.KaldiSerializer
+                else 'feats')
+    h = serializer(mfcc_col.__class__, str(tmpdir.join(filename)))
 
     # h5features doesn't support heteregoneous data
-    if handler is handlers.H5featuresHandler:
+    if serializer is serializers.H5featuresSerializer:
         with pytest.raises(IOError) as err:
             h.save(mfcc_col)
         assert 'features must be homogeneous' in str(err)
@@ -178,7 +180,7 @@ def test_heterogeneous(mfcc, handler, tmpdir):
 
 
 @pytest.mark.parametrize('scp', [True, False])
-def test_kaldihandler(mfcc_col, tmpdir, scp):
+def test_kaldiserializer(mfcc_col, tmpdir, scp):
     mfcc_col.save(str(tmpdir.join('foo.ark')), scp=scp)
     assert os.path.isfile(str(tmpdir.join('foo.ark')))
     assert os.path.isfile(str(tmpdir.join('foo.times.ark')))
@@ -191,7 +193,7 @@ def test_kaldihandler(mfcc_col, tmpdir, scp):
     assert mfcc_col2 == mfcc_col
 
 
-def test_kaldihandler_baditems(tmpdir, mfcc_col):
+def test_kaldiserializer_baditems(tmpdir, mfcc_col):
     mfcc_col2 = FeaturesCollection(
         one=mfcc_col['mfcc'], two=mfcc_col['mfcc'])
     mfcc_col.save(str(tmpdir.join('one.ark')))
@@ -216,7 +218,7 @@ def test_kaldihandler_baditems(tmpdir, mfcc_col):
 
 @pytest.mark.parametrize(
     'missing', ['foo.ark', 'foo.times.ark', 'foo.properties.json'])
-def test_kaldihandler_badfile(tmpdir, mfcc_col, missing):
+def test_kaldiserializer_badfile(tmpdir, mfcc_col, missing):
     filename = str(tmpdir.join('foo.ark'))
     mfcc_col.save(filename)
     os.remove(str(tmpdir.join(missing)))
