@@ -150,18 +150,15 @@ def test_partition():
         assert fc.is_valid()
 
 
-def test_2d_times_sorted():
+def test_1d_times_sorted():
     # 10 frames, 5 dims
     data = np.random.random((10, 5))
 
     p = MfccProcessor()
     times = p.times(10)
-    assert times.shape == (10,)
-    times2d = np.vstack((times, times)).T
-    assert times2d.shape == (10, 2)
-    times2d += [-p.frame_length / 2.0, p.frame_length / 2.0]
+    assert times.shape == (10, 2)
 
-    feats = Features(data, times2d, validate=False)
+    feats = Features(data, times[:, 1], validate=False)
     assert feats.is_valid()
 
 

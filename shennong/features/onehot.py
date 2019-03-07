@@ -72,26 +72,10 @@ class OneHotProcessor(_OneHotBase):
         want to have consistant one-hot vectors accross different
         :class:`Features`. By default the phones are extracted from
         the alignment in :meth:`process`.
-    times : {'mean', 'onset', 'offset'}, optional
-        The features timestamps are either the alignments `onsets`,
-        `offsets` or :math:`\\frac{onset + offset}{2}` if `mean` is
-        choosen. Default is `mean`.
-
-    Raises
-    ------
-    ValueError
-        If `times` is not `mean`, `onset` or `offset`
 
     """
-    def __init__(self, phones=None, times='mean'):
+    def __init__(self, phones=None):
         super().__init__(phones=phones)
-
-        # check `times` is correct
-        if times not in ('mean', 'onset', 'offset'):
-            raise ValueError(
-                'times must be "mean", "onset" or "offset" but is'
-                .format(times))
-        self.times = times
 
     def process(self, alignment):
         # build a bijection phone <-> onehot index
@@ -106,21 +90,12 @@ class OneHotProcessor(_OneHotBase):
         for i, p in enumerate(alignment.phones):
             data[i, phone2index[p]] = 1
 
-        # times are simply (onset + offset) / 2 if 'mean' as
-        # parameters, else 'onset' or 'offset
-        if self.times is 'mean':
-            times = alignment._times.mean(axis=1)
-        elif self.times is 'onset':
-            times = alignment.onsets
-        else:
-            times = alignment.offsets
-
         # add the phones index to the features proerties allows to
         # reconstruct the phones sequence from the onehot vectors
         prop = self.get_params()
         prop.update({'phone2index': phone2index})
 
-        return Features(data, times, properties=prop)
+        return Features(data, alignment.times, properties=prop)
 
 
 class FramedOneHotProcessor(_OneHotBase):
@@ -241,5 +216,5 @@ class FramedOneHotProcessor(_OneHotBase):
 
         return Features(
             data,
-            frame_boundaries.mean(axis=1) / self.frame.sample_rate,
+            frame_boundaries / self.frame.sample_rate,
             properties=prop)

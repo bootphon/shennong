@@ -245,6 +245,11 @@ class Alignment:
             self.validate()
 
     @property
+    def times(self):
+        """The (start, stop) timestamps of the aligned phones in seconds"""
+        return self._times
+
+    @property
     def onsets(self):
         """The start timestamps of the aligned phones in seconds"""
         return self._times[:, 0]

@@ -152,22 +152,17 @@ def test_simple(mfcc_col, serializer, tmpdir):
 
 
 @pytest.mark.parametrize('serializer', SERIALIZERS)
-def test_times_2d(serializer, tmpdir):
+def test_times_1d(serializer, tmpdir):
     filename = ('feats.ark' if serializer is serializers.KaldiSerializer
                 else 'feats')
     tmpfile = str(tmpdir.join(filename))
 
     p = MfccProcessor()
-    times = p.times(10)
+    times = p.times(10)[:, 1]
     assert times.shape == (10,)
-    times2d = np.vstack((times, times)).T
-    assert times2d.shape == (10, 2)
-    times2d += [-p.frame_length / 2.0, p.frame_length / 2.0]
 
-    col = FeaturesCollection(mfcc=Features(
-        np.random.random((10, 5)), times2d))
+    col = FeaturesCollection(mfcc=Features(np.random.random((10, 5)), times))
 
-    assert col['mfcc'].times.shape[1] == 2
     serializer(col.__class__, tmpfile).save(col)
     col2 = serializer(col.__class__, tmpfile).load()
     assert col == col2

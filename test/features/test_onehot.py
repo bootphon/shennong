@@ -9,8 +9,8 @@ from shennong.features import window
 
 
 @pytest.mark.parametrize('params', [
-    {'phones': ['a', 'b', 'c'], 'times': 'onset'},
-    {'phones': None, 'times': 'offset'}])
+    {'phones': ['a', 'b', 'c']},
+    {'phones': None}])
 def test_params(params):
     proc = onehot.OneHotProcessor(**params)
     assert params == proc.get_params()
@@ -68,41 +68,22 @@ def test_bad_phones(alignments):
         proc.process(alignments['S01F1522_0001'])
 
 
-@pytest.mark.parametrize('times', ['spam', 'means', 'offsets'])
-def test_bad_times(alignments, times):
-    with pytest.raises(ValueError) as err:
-        onehot.OneHotProcessor(times=times)
-    assert 'times must be' in str(err)
-
-
-@pytest.mark.parametrize('times', ['mean', 'onset', 'offset'])
-def test_simple(alignments, times):
+def test_simple(alignments):
     # various tests on the class OneHotProcessor
     ali1 = alignments['S01F1522_0001']
     phn1 = ali1.get_phones_inventory()
-    if times is 'mean':
-        tim1 = ali1._times.mean(axis=1)
-    elif times is 'onset':
-        tim1 = ali1.onsets
-    else:
-        tim1 = ali1.offsets
-
     all_phones = alignments.get_phones_inventory()
 
     # no phones_set specification, used the ones from ali1
-    proc = onehot.OneHotProcessor(times=times, phones=phn1)
+    proc = onehot.OneHotProcessor(phones=phn1)
     feat1 = proc.process(ali1)
     assert feat1.shape == (ali1.phones.shape[0], len(phn1))
     assert all(feat1.data.sum(axis=1) == 1)
-    assert np.array_equal(feat1.times, tim1)
-    assert set(feat1.properties.keys()) == set(
-        ['phone2index', 'phones', 'times'])
-    assert proc.get_params()['times'] == times
-    assert feat1.properties['times'] == times
+    assert np.array_equal(feat1.times, ali1.times)
+    assert set(feat1.properties.keys()) == set(['phone2index', 'phones'])
 
     # phones_set used is the one from the whole alignment collection
-    feat2 = onehot.OneHotProcessor(
-        phones=all_phones, times=times).process(ali1)
+    feat2 = onehot.OneHotProcessor(phones=all_phones).process(ali1)
     assert feat2.shape == (
         ali1.phones.shape[0], len(all_phones))
     assert all(feat2.data.sum(axis=1) != 0)
@@ -110,8 +91,7 @@ def test_simple(alignments, times):
 
     # another alignment with the whole phones_set
     ali2 = alignments['S01F1522_0002']
-    feat3 = onehot.OneHotProcessor(
-        phones=all_phones, times=times).process(ali2)
+    feat3 = onehot.OneHotProcessor(phones=all_phones).process(ali2)
     assert feat3.shape == (ali2.phones.shape[0], len(all_phones))
     assert all(feat3.data.sum(axis=1) == 1)
     assert feat2.shape[1] == feat3.shape[1]
@@ -127,8 +107,8 @@ def test_framed(alignments):
     assert feat.shape[1] == len(ali.get_phones_inventory())
 
     length = onehot.FramedOneHotProcessor().frame.frame_length
-    assert ali.duration() - length <= feat.times[-1]
-    assert feat.times[-1] <= ali.duration() + length/2
+    assert ali.duration() - length <= feat.times[-1, -1]
+    assert feat.times[-1, -1] <= ali.duration() + length
 
 
 def test_compare_mfcc(audio):

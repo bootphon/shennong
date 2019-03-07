@@ -242,7 +242,9 @@ class MelFeaturesProcessor(FeaturesProcessor):
 
     def times(self, nframes):
         """Returns the times label for the rows given by :func:`process`"""
-        return np.arange(nframes) * self.frame_shift + self.frame_length / 2.0
+        return np.vstack((
+            np.arange(nframes) * self.frame_shift,
+            np.arange(nframes) * self.frame_shift + self.frame_length)).T
 
     @abc.abstractmethod
     def process(self, signal):

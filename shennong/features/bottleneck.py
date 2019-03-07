@@ -663,8 +663,9 @@ class BottleneckProcessor(FeaturesProcessor):
             nn_input, self._weights_data, 2)[0])
 
         # compute the timestamps for each output frame
-        times = (np.arange(nn_output.shape[0]) * frame_shift
-                 + frame_length / 2.0) / 8000
+        times = (1.0 / 8000) * np.vstack((
+            np.arange(nn_output.shape[0]) * frame_shift,
+            np.arange(nn_output.shape[0]) * frame_shift + frame_length)).T
 
         # return the final bottleneck features
         return Features(nn_output, times, self.get_params())
