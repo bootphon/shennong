@@ -3,6 +3,7 @@
 import abc
 import copy
 import os
+import pickle
 
 import h5features
 import json_tricks
@@ -27,6 +28,7 @@ def supported_extensions():
         '.npz': NumpySerializer,
         '.mat': MatlabSerializer,
         '.json': JsonSerializer,
+        '.pkl': PickleSerializer,
         '.h5f': H5featuresSerializer,
         '.ark': KaldiSerializer}
 
@@ -44,6 +46,7 @@ def supported_serializers():
         'numpy': NumpySerializer,
         'matlab': MatlabSerializer,
         'json': JsonSerializer,
+        'pickle': PickleSerializer,
         'h5features': H5featuresSerializer,
         'kaldi': KaldiSerializer}
 
@@ -276,6 +279,18 @@ class JsonSerializer(FeaturesSerializer):
         self._log.info('loading %s', self.filename)
         return self._features_collection(
             json_tricks.loads(open(self.filename, 'r').read()))
+
+
+class PickleSerializer(FeaturesSerializer):
+    """Saves and loads features to/from the Python pickle format"""
+    def _save(self, features):
+        self._log.info('writing %s', self.filename)
+        with open(self.filename, 'wb') as fh:
+            pickle.dump(features, fh)
+
+    def _load(self):
+        with open(self.filename, 'rb') as fh:
+            return pickle.load(fh)
 
 
 class H5featuresSerializer(FeaturesSerializer):

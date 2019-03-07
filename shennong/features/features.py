@@ -1,4 +1,4 @@
-"""Builds, saves, loads and manipulate features data"""
+"""Builds, saves, loads and manipulate speech features"""
 
 
 import collections
@@ -21,7 +21,7 @@ class Features:
 
     @property
     def data(self):
-        """The underlying features data as a numpy array"""
+        """The underlying features data as a numpy matrix"""
         return self._data
 
     @property

@@ -32,6 +32,7 @@ SERIALIZERS = [
     serializers.NumpySerializer,
     serializers.MatlabSerializer,
     serializers.JsonSerializer,
+    serializers.PickleSerializer,
     serializers.H5featuresSerializer,
     serializers.KaldiSerializer]
 
