@@ -1,28 +1,18 @@
 """Builds, saves, loads and manipulate features data"""
 
 
+import collections
 import copy
 import numpy as np
 
 from shennong.features.handlers import get_handler
-from shennong.utils import list2array, array2list, dict_equal
+from shennong.utils import dict_equal
 
 
 class Features:
     def __init__(self, data, times, properties={}, validate=True):
-        # make sure the data type is correct
-        if not isinstance(data, np.ndarray):
-            raise ValueError('data must be a numpy array')
         self._data = data
-
-        # make sure the times type is correct
-        if not isinstance(data, np.ndarray):
-            raise ValueError('times must be a numpy array')
         self._times = times
-
-        # make sure the properties type is correct
-        if not isinstance(properties, dict):
-            raise ValueError('properties must be a dictionnary')
         self._properties = properties
 
         # make sure the features are in a valid state
@@ -70,14 +60,8 @@ class Features:
         """
         return self._properties
 
-    def _to_dict(self, array_as_list=False):
+    def _to_dict(self):
         """Returns the features as a dictionary
-
-        Parameters
-        ----------
-        array_as_list : bool, optional
-            When True, converts numpy arrays to lists, default to
-            False
 
         Returns
         -------
@@ -86,14 +70,10 @@ class Features:
             'properties'.
 
         """
-        def fun(x):
-            return array2list(x) if array_as_list else x
-
-        # we may have arrays in properties as well (when using CMVN)
         return {
-            'data': fun(self.data),
-            'times': fun(self.times),
-            'properties': fun(self.properties)}
+            'data': self.data,
+            'times': self.times,
+            'properties': self.properties}
 
     @staticmethod
     def _from_dict(features, validate=True):
@@ -126,12 +106,12 @@ class Features:
         if missing_keys:
             raise ValueError(
                 'cannot read features from dict, missing keys: {}'
-                .format(missing_keys))
+                .format(', '.join(missing_keys)))
 
         return Features(
-            list2array(features['data']),
-            list2array(features['times']),
-            properties=list2array(features['properties']),
+            features['data'],
+            features['times'],
+            properties=features['properties'],
             validate=validate)
 
     def __eq__(self, other):
@@ -141,7 +121,9 @@ class Features:
             return True
 
         # quick tests on attributes
-        if self.shape != other.shape or self.dtype != other.dtype:
+        if self.shape != other.shape:
+            return False
+        if self.dtype != other.dtype:
             return False
 
         # properties equality
@@ -181,6 +163,9 @@ class Features:
 
 
         """
+        if self is other:
+            return True
+
         if self.shape != other.shape:
             return False
 
@@ -229,7 +214,7 @@ class Features:
         """Returns True if the features are in a valid state
 
         Returns False otherwise. Consistency is checked for features's
-        data, times and labels.
+        data, times and properties.
 
         See Also
         --------
@@ -244,28 +229,38 @@ class Features:
 
     def validate(self):
         """Raises a ValueError if the features are not in a valid state"""
+        # accumulate detected errors and display them at the end
         errors = []
 
-        # check data dimensions
-        ndim = self.data.ndim
-        if not ndim == 2:
-            errors.append('data dimension must be 2 but is {}'.format(ndim))
+        # basic checks on types
+        if not isinstance(self.data, np.ndarray):
+            errors.append('data must be a numpy array')
+        if not isinstance(self.times, np.ndarray):
+            errors.append('times must be a numpy array')
+        if not isinstance(self.properties, dict):
+            errors.append('properties must be a dictionnary')
 
-        # check times dimensions
-        ndim = self.times.ndim
-        if not ndim == 1:
-            errors.append('times dimension must be 1 but is {}'.format(ndim))
+        if errors:
+            raise ValueError(
+                'invalid features data types: {}'.format(', '.join(errors)))
 
+        # check arrays dimensions
+        if not self.data.ndim == 2:
+            errors.append(
+                'data dimension must be 2 but is {}'.format(self.data.ndim))
+        if not self.times.ndim == 1:
+            errors.append(
+                'times dimension must be 1 but is {}'.format(self.times.ndim))
         nframes1 = self.data.shape[0]
         nframes2 = self.times.shape[0]
         if not nframes1 == nframes2:
-            errors.append('mismath in number of frames: {} for data but {} '
-                          'for times'.format(nframes1, nframes2))
+            errors.append(
+                'mismatch in number of frames: {} for data but {} '
+                'for times'.format(nframes1, nframes2))
 
-        # TODO check properties
-
-        if len(errors):
-            raise ValueError('invalid features: {}'.format(', '.join(errors)))
+        if errors:
+            raise ValueError(
+                'invalid features dimensions: {}'.format(', '.join(errors)))
 
     def concatenate(self, other):
         """Returns the concatenation of this features with `other`
@@ -276,12 +271,12 @@ class Features:
 
         Parameters
         ----------
-        other : Features, shape = [nframes, nlabels2]
+        other : Features, shape = [nframes, ndim2]
             The other features to concatenate at the end of this one
 
         Returns
         -------
-        features : Features, shape = [nframes, nlabels1 + nlabels2]
+        features : Features, shape = [nframes, ndim1 + ndim2]
 
         Raises
         ------
@@ -293,13 +288,15 @@ class Features:
         if not np.array_equal(self.times, other.times):
             raise ValueError('times are not equal')
 
+        # TODO need a FeaturesParameter class: assign properties per
+        # column
+        properties = copy.deepcopy(self.properties)
+        properties.update(other.properties)
+
         return Features(
             np.hstack((self.data, other.data)),
-            np.hstack((self.labels, other.labels)),
             self.times,
-            # TODO need a FeaturesParameter class: assign properties
-            # per column
-            self.properties.update(other.properties))
+            properties=properties)
 
 
 class FeaturesCollection(dict):
@@ -374,34 +371,42 @@ class FeaturesCollection(dict):
 
         return True
 
-    def by_speaker(self, spk2utt):
-        """Returns a dict of :class:`FeaturesCollection` indexed by speakers
+    def partition(self, index):
+        """Returns a partition of the collection as a dict of FeaturesCollection
+
+        This method is usefull to create sub-collections from an
+        existing one, for instance to make one sub-collection per
+        speaker, or per gender, etc...
 
         Parameters
         ----------
-        spk2utt : dict
-            A mapping of speakers to their associated utterances
-            (items in the ``FeaturesCollection``). We must have
-            ``spk2utt.values() == self.keys()``.
+        index : dict
+            A mapping with, for each item in this collection, the
+            sub-collection they belong to in the partitino. We must
+            have ``index.keys() == self.keys()``.
 
         Returns
         -------
         features : dict of FeaturesCollection
-            A list of FeaturesCollection instances, one per speaker
-            defined in `utt2spk`
+            A dictionnary of FeaturesCollection instances, one per
+            speaker defined in `index`.
 
         Raises
         ------
         ValueError
             If one utterance in the collection is not mapped in
-            `spk2utt`.
+            `index`.
 
         """
-        undefined_utts = set(self.keys()).difference(set(spk2utt.values()))
+        undefined_utts = set(self.keys()).difference(index.keys())
         if undefined_utts:
             raise ValueError(
-                'following utterances are not defined in spk2utt: {}'
-                .format(sorted(undefined_utts)))
+                'following items are not defined in the index: {}'
+                .format(', '.join(sorted(undefined_utts))))
 
-        return {spk: FeaturesCollection({utt: self[utt] for utt in utts})
-                for spk, utts in spk2utt}
+        reverse_index = collections.defaultdict(list)
+        for k, v in index.items():
+            reverse_index[v].append(k)
+
+        return {k: FeaturesCollection({item: self[item] for item in items})
+                for k, items in reverse_index.items()}
