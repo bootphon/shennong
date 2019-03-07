@@ -7,6 +7,7 @@ dependencies:
   - flake8
   - h5py
   - ipython
+  - joblib
   - numpy
   - pykaldi
   - pyparsing

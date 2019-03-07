@@ -6,7 +6,7 @@ import argparse
 from shennong.audio import AudioData
 from shennong.features import FeaturesCollection
 from shennong.features.mfcc import MfccProcessor
-from shennong.features.io import NumpyHandler
+from shennong.features.handlers import NumpyHandler
 
 
 def main():
@@ -26,13 +26,7 @@ def main():
              use_energy=False, window_type='hanning',
              sample_rate=audio.sample_rate).process(audio)})
 
-    with NumpyHandler(args.out) as handler:
-        handler.save_collection(features)
-        features2 = handler.load_collection()
-
-    assert features2 == features
-    print(features2['test'].properties['window_type'])
-    print(features2['test2'].properties['window_type'])
+    features.save(args.out)
 
 
 if __name__ == '__main__':

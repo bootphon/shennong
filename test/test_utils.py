@@ -2,6 +2,7 @@
 
 import logging
 import numpy as np
+import os
 import pytest
 import shennong.utils as utils
 
@@ -91,3 +92,21 @@ def test_dict_equal():
     assert not f({'a': 1}, {'a': 0})
 
     assert f({'a': np.asarray([1, 2])}, {'a': np.asarray([1, 2])})
+
+
+def test_listfiles_nodir(data_path):
+    f = utils.list_files_with_extension
+    assert f('/foo/bar', '.wav') == []
+
+
+@pytest.mark.parametrize(
+    'abspath, realpath, recursive',
+    [(a, r, s)
+     for a in (True, False)
+     for r in (True, False)
+     for s in (True, False)])
+def test_listfiles(data_path, abspath, realpath, recursive):
+    f = utils.list_files_with_extension
+    wavs = f(data_path, '.wav',
+             abspath=abspath, realpath=realpath, recursive=recursive)
+    assert [os.path.basename(w) for w in wavs] == ['test.8k.wav', 'test.wav']

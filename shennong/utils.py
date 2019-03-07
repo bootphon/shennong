@@ -2,6 +2,8 @@
 
 import logging
 import numpy as np
+import os
+import re
 import sys
 
 
@@ -91,3 +93,51 @@ def dict_equal(x, y):
 
     """
     return array2list(x) == array2list(y)
+
+
+def list_files_with_extension(
+        directory, extension,
+        abspath=False, realpath=True, recursive=True):
+    """Return all files of given extension in directory hierarchy
+
+    Parameters
+    ----------
+    directory : str
+        The directory where to search for files
+    extension : str
+        The extension of the targeted files (e.g. '.wav')
+    abspath : bool, optional
+        If True, return the absolute path to the file/link, default to
+        False.
+    realpath : bool, optional
+        If True, return resolved links, default to True.
+    recursive : bool, optional
+        If True, list files in the whole subdirectories tree, if False
+        just list the top-level directory, default to True.
+
+    Returns
+    -------
+    files : list
+        The files are returned in a sorted list with a path relative
+        to 'directory', except if `abspath` or `realpath` is True
+
+    """
+    # the regular expression to match in filenames
+    expr = r'(.*)' + extension + '$'
+
+    # build the list of matching files
+    if recursive:
+        matched = []
+        for path, _, files in os.walk(directory):
+            matched += [
+                os.path.join(path, f) for f in files if re.match(expr, f)]
+    else:
+        matched = (
+            os.path.join(directory, f)
+            for f in os.listdir(directory) if re.match(expr, f))
+
+    if abspath:
+        matched = (os.path.abspath(m) for m in matched)
+    if realpath:
+        matched = (os.path.realpath(m) for m in matched)
+    return sorted(matched)

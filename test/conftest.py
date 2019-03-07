@@ -12,8 +12,13 @@ from shennong.features.mfcc import MfccProcessor
 
 
 @pytest.fixture(scope='session')
-def alignment_file():
-    return os.path.join(os.path.dirname(__file__), 'data', 'alignment.txt')
+def data_path():
+    return os.path.join(os.path.dirname(__file__), 'data')
+
+
+@pytest.fixture(scope='session')
+def alignment_file(data_path):
+    return os.path.join(data_path, 'alignment.txt')
 
 
 @pytest.fixture(scope='session')
@@ -22,8 +27,8 @@ def alignments(alignment_file):
 
 
 @pytest.fixture(scope='session')
-def wav_file():
-    return os.path.join(os.path.dirname(__file__), 'data', 'test.wav')
+def wav_file(data_path):
+    return os.path.join(data_path, 'test.wav')
 
 
 @pytest.fixture(scope='session')
@@ -37,8 +42,8 @@ def mfcc(audio):
 
 
 @pytest.fixture(scope='session')
-def wav_file_8k():
-    return os.path.join(os.path.dirname(__file__), 'data', 'test.8k.wav')
+def wav_file_8k(data_path):
+    return os.path.join(data_path, 'test.8k.wav')
 
 
 @pytest.fixture(scope='session')
@@ -52,9 +57,8 @@ def audio_tiny(audio):
 
 
 @pytest.fixture(scope='session')
-def bottleneck_original():
-    fea_file = os.path.join(
-        os.path.dirname(__file__), 'data', 'test.bottleneck.fea')
+def bottleneck_original(data_path):
+    fea_file = os.path.join(data_path, 'test.bottleneck.fea')
 
     # this is BottleneckFeaturesExtraction.utils.read_htk(file)
     try:
