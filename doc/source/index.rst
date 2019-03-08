@@ -6,32 +6,41 @@
 Shennong's documentation
 ========================
 
+.. image:: https://travis-ci.org/bootphon/shennong.svg?branch=master
+    :target: https://travis-ci.org/bootphon/shennong
+.. image:: https://codecov.io/gh/bootphon/shennong/branch/master/graph/badge.svg
+  :target: https://codecov.io/gh/bootphon/shennong
+
+
 * Shennong is a **toolbox for unsupervised speech recognition**.
 
-* Provides a **Python API** and a **command line interface**.
+* It provides both a **Python API** and a **command line interface**.
 
-* It aims to provide three blocks of processing, inspired by the
-  results of the `zero resource speech challenge
+* It aims to provide three blocks of processing, inspired by the tasks
+  and results of the `Zero Resource Speech challenges
   <http://www.zerospeech.com/>`_:
 
-  * features extraction
-
-  * subword modeling
-
-  * term discovery
+  * Features extraction,
+  * Subword modeling,
+  * Spoken term discovery.
 
 .. note::
 
-   The package is still in development phase. Release *0.1* will
-   include the *features* block, release 0.2 the *subword modeling*
-   block, and release *0.3* the *term discovery* block. Further
-   versions will include complete recipes, replication of published
-   results and additional models.
+   The package is still in development phase (current version is
+   |version|):
+
+    * Release *0.1* will include the *features* block,
+    * Release 0.2 will include the *subword modeling* block,
+    * Release *0.3* will include the *term discovery* block,
+    * Further versions will include complete recipes, replication of
+      published results and additional models.
+
 
 .. toctree::
    :maxdepth: 4
    :caption: Contents
 
+   installation
    python_reference
 
 
@@ -44,7 +53,7 @@ Licence and copyright
    :alt: Inria
    :target: https://inria.fr/en
 
-**Copyright 2018, 2019 Mathieu Bernard, Inria**
+Copyright |copyright|
 
 This work is founded by the grant *ADT-193* from `Inria
 <https://inria.fr/en>`_ and developed within the `Cognitive Machine

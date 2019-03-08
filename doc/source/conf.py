@@ -12,23 +12,22 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import os
-import sys
-sys.path.insert(0, os.path.abspath('../..'))
+
+import datetime
+import shennong
 
 
 # -- Project information -----------------------------------------------------
 
 project = 'shennong'
-copyright = '2018, Mahieu Bernard'
-author = 'Mathieu Bernard'
 
+author = 'Mathieu Bernard, Inria'
+copyright = '2018 - {}, '.format(datetime.datetime.now().year) + author
 
-import shennong
 VERSION = shennong.__version__
 
-# The short X.Y version
-version = '.'.join(VERSION.split('.')[:2])
+# The short X.Y.Z version
+version = '.'.join(VERSION.split('.')[:3])
 
 # The full version, including alpha/beta/rc tags
 release = VERSION
@@ -65,6 +64,8 @@ templates_path = ['templates']
 #
 # source_suffix = ['.rst', '.md']
 source_suffix = '.rst'
+
+rst_epilog = '.. |copyright| replace:: %s' % copyright
 
 # The master toctree document.
 master_doc = 'index'
@@ -111,7 +112,7 @@ html_theme = "sphinx_rtd_theme"
 #
 html_theme_options = {
     'logo_only': True,
-    'display_version': False,
+    'display_version': True,
     'navigation_depth': 4,
     'collapse_navigation': False
 }

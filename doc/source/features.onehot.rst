@@ -3,7 +3,7 @@
 One hot encoding
 ~~~~~~~~~~~~~~~~
 
-.. automodule:: shennong.features.onehot
+.. automodule:: shennong.features.processor.onehot
     :members:
     :inherited-members:
     :undoc-members:

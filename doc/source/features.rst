@@ -7,7 +7,7 @@ Features extraction
    :maxdepth: 2
 
    features.features
-   features.window
+   features/window
    features.mfcc
    features.plp
    features.filterbank

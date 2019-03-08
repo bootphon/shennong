@@ -3,7 +3,7 @@
 Filterbank
 ~~~~~~~~~~
 
-.. automodule:: shennong.features.filterbank
+.. automodule:: shennong.features.processor.filterbank
     :members:
     :inherited-members:
     :undoc-members:

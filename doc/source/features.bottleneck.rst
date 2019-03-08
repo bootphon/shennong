@@ -3,7 +3,7 @@
 Bottleneck features
 ~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: shennong.features.bottleneck
+.. automodule:: shennong.features.processor.bottleneck
     :members:
     :inherited-members:
     :undoc-members:

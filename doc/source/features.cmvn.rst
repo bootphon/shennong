@@ -3,7 +3,7 @@
 CMVN
 ~~~~
 
-.. automodule:: shennong.features.cmvn
+.. automodule:: shennong.features.postprocessor.cmvn
     :members:
     :inherited-members:
     :undoc-members:
