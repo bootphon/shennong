@@ -4,9 +4,10 @@ import os
 import numpy as np
 import pytest
 
-from shennong.features.bottleneck import BottleneckProcessor, _compute_vad
 from shennong.audio import AudioData
 from shennong.utils import null_logger
+from shennong.features.processor.bottleneck import (
+    BottleneckProcessor, _compute_vad)
 
 
 @pytest.mark.parametrize('weights', ['BabelMulti', 'FisherMono', 'FisherTri'])

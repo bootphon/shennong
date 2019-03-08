@@ -2,22 +2,22 @@
 
 Uses the Kaldi implementation (see [kaldi-delta]_):
 
-    :class:`Features` --> DeltaProcessor --> :class:`Features`
+    :class:`Features` --> DeltaPostProcessor --> :class:`Features`
 
 Examples
 --------
 
 >>> import numpy as np
 >>> from shennong.audio import AudioData
->>> from shennong.features.mfcc import MfccProcessor
->>> from shennong.features.delta import DeltaProcessor
+>>> from shennong.features.processor.mfcc import MfccProcessor
+>>> from shennong.features.postprocessor.delta import DeltaPostProcessor
 >>> audio = AudioData.load('./test/data/test.wav')
 >>> mfcc = MfccProcessor().process(audio)
 
 Initialize the delta processor and compute first and second order time
 derivatives of MFCC features:
 
->>> processor = DeltaProcessor(order=2)
+>>> processor = DeltaPostProcessor(order=2)
 >>> delta = processor.process(mfcc)
 
 The resulting matrice is the concatenation of the original features,
@@ -44,11 +44,11 @@ References
 import kaldi.feat.functions
 import kaldi.matrix
 
-from shennong.features.base import FeaturesProcessor
 from shennong.features import Features
+from shennong.features.postprocessor.base import FeaturesPostProcessor
 
 
-class DeltaProcessor(FeaturesProcessor):
+class DeltaPostProcessor(FeaturesPostProcessor):
     def __init__(self, order=2, window=2):
         self._options = kaldi.feat.functions.DeltaFeaturesOptions()
         self.order = order

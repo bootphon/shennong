@@ -6,7 +6,7 @@ import pytest
 
 from kaldi.util.table import SequentialWaveReader
 from shennong.audio import AudioData
-from shennong.features.mfcc import MfccProcessor
+from shennong.features.processor.mfcc import MfccProcessor
 
 
 def test_params():

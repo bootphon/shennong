@@ -3,11 +3,11 @@
 import numpy as np
 import pytest
 
-from shennong.features.delta import DeltaProcessor
+from shennong.features.postprocessor.delta import DeltaPostProcessor
 
 
 def test_params():
-    d = DeltaProcessor()
+    d = DeltaPostProcessor()
     d.order = 0
     with pytest.raises(ValueError):
         d.window = 0
@@ -18,7 +18,7 @@ def test_params():
     assert d.get_params() == {'order': 0, 'window': 1}
 
     p = {'order': 0, 'window': 1}
-    d = DeltaProcessor()
+    d = DeltaPostProcessor()
     assert d.get_params()['order'] == 2
     d.set_params(**p)
     assert d.get_params() == p
@@ -28,7 +28,7 @@ def test_params():
     'order, window',
     [(o, w) for o in [0, 1, 2, 5] for w in [1, 2, 5]])
 def test_output(mfcc, order, window):
-    delta = DeltaProcessor(order=order, window=window).process(mfcc)
+    delta = DeltaPostProcessor(order=order, window=window).process(mfcc)
     assert delta.shape[0] == mfcc.shape[0]
     assert delta.shape[1] == mfcc.shape[1] * (order+1)
     assert np.array_equal(delta.times, mfcc.times)

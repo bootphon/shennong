@@ -10,7 +10,7 @@ Examples
 --------
 
 >>> from shennong.audio import AudioData
->>> from shennong.features.filterbank import FilterbankProcessor
+>>> from shennong.features.processor.filterbank import FilterbankProcessor
 >>> audio = AudioData.load('./test/data/test.wav')
 
 Initialize the filterbank processor with some options and compute the
@@ -40,8 +40,8 @@ import numpy as np
 import kaldi.feat.fbank
 import kaldi.matrix
 
-from shennong.features.base import MelFeaturesProcessor
 from shennong.features import Features
+from shennong.features.processor.base import MelFeaturesProcessor
 
 
 class FilterbankProcessor(MelFeaturesProcessor):

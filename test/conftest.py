@@ -8,7 +8,7 @@ import pytest
 from shennong.audio import AudioData
 from shennong.alignment import AlignmentCollection
 from shennong.features import Features, FeaturesCollection
-from shennong.features.mfcc import MfccProcessor
+from shennong.features.processor.mfcc import MfccProcessor
 
 
 @pytest.fixture(scope='session')

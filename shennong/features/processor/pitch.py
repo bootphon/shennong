@@ -16,7 +16,8 @@ Examples
 --------
 
 >>> from shennong.audio import AudioData
->>> from shennong.features.pitch import PitchProcessor, PitchPostProcessor
+>>> from shennong.features.processor.pitch import (
+...     PitchProcessor, PitchPostProcessor)
 >>> audio = AudioData.load('./test/data/test.wav')
 
 Initialize a pitch processor with some options. Options can be
@@ -68,8 +69,8 @@ import kaldi.feat.pitch
 import kaldi.matrix
 import numpy as np
 
-from shennong.features.base import FeaturesProcessor
 from shennong.features import Features
+from shennong.features.processor.base import FeaturesProcessor
 
 
 class PitchProcessor(FeaturesProcessor):

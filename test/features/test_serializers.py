@@ -10,7 +10,7 @@ import pytest
 import shutil
 
 from shennong.features import Features, FeaturesCollection
-from shennong.features.mfcc import MfccProcessor
+from shennong.features.processor.mfcc import MfccProcessor
 import shennong.features.serializers as serializers
 
 

@@ -21,9 +21,9 @@ import operator
 import numpy as np
 
 import shennong.features.window
-from shennong.features.base import FeaturesProcessor
-from shennong.features.frames import Frames
 from shennong.features import Features
+from shennong.features.frames import Frames
+from shennong.features.processor.base import FeaturesProcessor
 
 
 class _OneHotBase(FeaturesProcessor):

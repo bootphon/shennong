@@ -67,7 +67,7 @@ Compute bottleneck features on some speech using the multilingual
 network (*BabelMulti*):
 
 >>> from shennong.audio import AudioData
->>> from shennong.features.bottleneck import BottleneckProcessor
+>>> from shennong.features.processor.bottleneck import BottleneckProcessor
 >>> audio = AudioData.load('./test/data/test.wav')
 >>> processor = BottleneckProcessor(weights='BabelMulti')
 >>> features = processor.process(audio)
@@ -107,8 +107,8 @@ import scipy.linalg as spl
 import scipy.fftpack
 
 from shennong.utils import get_logger
-from shennong.features.base import FeaturesProcessor
 from shennong.features import Features
+from shennong.features.processor.base import FeaturesProcessor
 
 
 def _add_dither(signal, level):

@@ -18,11 +18,11 @@ import numpy as np
 import kaldi.matrix
 import kaldi.transform.cmvn
 
-from shennong.features.base import FeaturesProcessor
+from shennong.features.postprocessor.base import FeaturesPostProcessor
 from shennong.features import Features, FeaturesCollection
 
 
-class CmvnProcessor(FeaturesProcessor):
+class CmvnPostProcessor(FeaturesPostProcessor):
     """Computes CMVN statistics on features/
 
     Parameters
@@ -31,7 +31,7 @@ class CmvnProcessor(FeaturesProcessor):
         The features dimension, must be strictly positive
 
     stats : array, shape = [2, dim+1]
-        Preaccumulated CMVN statistics (see :func:`CmvnProcessor:stats`)
+        Preaccumulated CMVN statistics (see :func:`CmvnPostProcessor:stats`)
 
     Raises
     ------
@@ -201,7 +201,7 @@ def apply_cmvn(feats_collection, by_collection=True, norm_vars=True,
     """CMVN normalization of a collection of features
 
     This function is a simple wrapper on the class
-    :class:`~shennong.features.CmvnProcessor` that allows to
+    :class:`~shennong.features.CmvnPostProcessor` that allows to
     accumulate and apply CMVN statistics over a whole collections of
     features.
 
@@ -231,12 +231,12 @@ def apply_cmvn(feats_collection, by_collection=True, norm_vars=True,
         For each features in the collection, an array of weights to
         apply on the features frames, if specified we must have
         ``weights.keys() == feats_collections.keys()`` (see
-        :func:`CmvnProcessor.accumulate`). Unweighted by default.
+        :func:`CmvnPostProcessor.accumulate`). Unweighted by default.
 
     skip_dims : list of integers
         The dimensions for which to skip the normalization (see
-        :func:`CmvnProcessor.process`). Default is to normalize all
-        dimensions.
+        :func:`CmvnPostProcessor.process`). Default is to normalize
+        all dimensions.
 
     Returns
     -------
@@ -270,7 +270,7 @@ def apply_cmvn(feats_collection, by_collection=True, norm_vars=True,
 
     if by_collection:
         # accumulate CMVN stats over the whole collection
-        cmvn = CmvnProcessor(dim)
+        cmvn = CmvnPostProcessor(dim)
         for k, f in feats_collection.items():
             w = weights[k] if weights is not None else None
             cmvn.accumulate(f, weights=w)
@@ -284,7 +284,7 @@ def apply_cmvn(feats_collection, by_collection=True, norm_vars=True,
         # accumulate and apply CMNV stats
         cmvn_collection = FeaturesCollection()
         for k, f in feats_collection.items():
-            cmvn = CmvnProcessor(f.ndims)
+            cmvn = CmvnPostProcessor(f.ndims)
             cmvn.accumulate(
                 f, weights=weights[k] if weights is not None else None)
             cmvn_collection[k] = cmvn.process(

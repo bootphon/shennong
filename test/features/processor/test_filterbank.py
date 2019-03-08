@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from shennong.audio import AudioData
-from shennong.features.filterbank import FilterbankProcessor
+from shennong.features.processor.filterbank import FilterbankProcessor
 
 
 def test_params():

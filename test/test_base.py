@@ -3,7 +3,7 @@
 import pytest
 
 from shennong.base import BaseProcessor
-from shennong.features.mfcc import MfccProcessor
+from shennong.features.processor.mfcc import MfccProcessor
 
 
 class ProcessorTest(BaseProcessor):

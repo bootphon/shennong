@@ -4,8 +4,9 @@ import numpy as np
 import pytest
 
 from shennong.audio import AudioData
-from shennong.features.pitch import PitchProcessor, PitchPostProcessor
 from shennong.features import Features
+from shennong.features.processor.pitch import (
+    PitchProcessor, PitchPostProcessor)
 
 
 @pytest.fixture

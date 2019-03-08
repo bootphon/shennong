@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from shennong.features import Features, FeaturesCollection
-from shennong.features.mfcc import MfccProcessor
+from shennong.features.processor.mfcc import MfccProcessor
 
 
 def test_init_bad():

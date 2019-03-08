@@ -4,12 +4,12 @@ import pytest
 import numpy as np
 
 from shennong.features import Features, FeaturesCollection
-from shennong.features.cmvn import CmvnProcessor, apply_cmvn
+from shennong.features.postprocessor.cmvn import CmvnPostProcessor, apply_cmvn
 
 
 def test_params():
     p = {'dim': 1, 'stats': None}
-    c = CmvnProcessor(**p)
+    c = CmvnPostProcessor(**p)
     assert c.get_params()['dim'] == 1
     assert c.get_params()['stats'].shape == (2, 2)
     assert c.get_params()['stats'].dtype == np.float64
@@ -17,21 +17,21 @@ def test_params():
 
     with pytest.raises(ValueError) as err:
         c.set_params(**{'dim': None})
-    assert 'cannot set attribute dim for CmvnProcessor' in str(err)
+    assert 'cannot set attribute dim for CmvnPostProcessor' in str(err)
 
     with pytest.raises(ValueError) as err:
         c.set_params(**{'stats': None})
-    assert 'cannot set attribute stats for CmvnProcessor' in str(err)
+    assert 'cannot set attribute stats for CmvnPostProcessor' in str(err)
 
 
 @pytest.mark.parametrize('dim', [-2, 0, 1, 3, 2.54, 'a'])
 def test_dim(dim):
     if dim in (1, 3):
-        p = CmvnProcessor(dim)
+        p = CmvnPostProcessor(dim)
         assert p.dim == dim
     else:
         with pytest.raises(ValueError) as err:
-            CmvnProcessor(dim)
+            CmvnPostProcessor(dim)
         assert 'dimension must be a strictly positive integer' in str(err)
 
 
@@ -39,7 +39,7 @@ def test_dim(dim):
 def test_cmvn(mfcc, norm_vars):
     backup = mfcc.data.copy()
 
-    proc = CmvnProcessor(mfcc.ndims)
+    proc = CmvnPostProcessor(mfcc.ndims)
     assert proc.dim == mfcc.ndims
 
     # cannot process without accumulation
@@ -83,43 +83,43 @@ def test_cmvn(mfcc, norm_vars):
 
 def test_pre_stats(mfcc):
     with pytest.raises(ValueError) as err:
-        CmvnProcessor(mfcc.ndims, stats=1)
+        CmvnPostProcessor(mfcc.ndims, stats=1)
     assert 'shape (2, 14), but is shaped as ()' in str(err)
 
     with pytest.raises(ValueError) as err:
-        CmvnProcessor(mfcc.ndims, stats=np.random.random((2, mfcc.ndims)))
+        CmvnPostProcessor(mfcc.ndims, stats=np.random.random((2, mfcc.ndims)))
     assert 'shape (2, 14), but is shaped as (2, 13)' in str(err)
 
     stats = np.random.random((2, mfcc.ndims+1))
-    proc = CmvnProcessor(mfcc.ndims, stats=stats.copy())
+    proc = CmvnPostProcessor(mfcc.ndims, stats=stats.copy())
     assert stats == pytest.approx(proc.stats)
 
 
 def test_weights(mfcc):
     weights = np.zeros(mfcc.nframes)
-    proc = CmvnProcessor(dim=mfcc.ndims)
+    proc = CmvnPostProcessor(dim=mfcc.ndims)
     proc.accumulate(mfcc, weights=weights)
     assert proc.count == 0
 
     weights = np.ones(mfcc.nframes)
-    proc = CmvnProcessor(dim=mfcc.ndims)
+    proc = CmvnPostProcessor(dim=mfcc.ndims)
     proc.accumulate(mfcc, weights=weights)
     assert proc.count == mfcc.nframes
 
     weights = np.ones(mfcc.nframes) * 0.5
-    proc = CmvnProcessor(dim=mfcc.ndims)
+    proc = CmvnPostProcessor(dim=mfcc.ndims)
     proc.accumulate(mfcc, weights=weights)
     assert proc.count == mfcc.nframes * 0.5
 
     weights = np.zeros(mfcc.nframes)
     weights[:2] = 0.1
-    proc = CmvnProcessor(dim=mfcc.ndims)
+    proc = CmvnPostProcessor(dim=mfcc.ndims)
     proc.accumulate(mfcc, weights=weights)
     assert proc.count == pytest.approx(0.2)
 
 
 def test_bad_weights(mfcc):
-    proc = CmvnProcessor(dim=mfcc.ndims)
+    proc = CmvnPostProcessor(dim=mfcc.ndims)
 
     with pytest.raises(ValueError) as err:
         proc.accumulate(mfcc, weights=np.asarray([[1, 2], [3, 4]]))
@@ -132,7 +132,7 @@ def test_bad_weights(mfcc):
 
 
 def test_skip_dims(mfcc):
-    proc = CmvnProcessor(mfcc.ndims)
+    proc = CmvnPostProcessor(mfcc.ndims)
     proc.accumulate(mfcc)
 
     cmvn1 = proc.process(mfcc, skip_dims=None)

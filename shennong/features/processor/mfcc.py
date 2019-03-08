@@ -1,117 +1,94 @@
-# coding: utf-8
+"""Extraction of MFCC features from audio signals
 
-"""Provides the PlpProcessor class to extract PLP features
+Extract MFCC (Mel Frequency Cepstral Coeficients) from an audio
+signal. Uses the Kaldi implementation (see [kaldi-mfcc]_):
 
-Extract PLP (Perceptual Linear Predictive analysis of speech) from an
-audio signal. Uses the Kaldi implementation (see [Hermansky1990]_ and
-[kaldi-plp]_).
-
-    :class:`AudioData` ---> PlpProcessor ---> :class:`Features`
+    :class:`AudioData` ---> MfccProcessor ---> :class:`Features`
 
 Examples
 --------
 
 >>> from shennong.audio import AudioData
->>> from shennong.features.plp import PlpProcessor
+>>> from shennong.features.processor.mfcc import MfccProcessor
 >>> audio = AudioData.load('./test/data/test.wav')
 
-Initialize the PLP processor with some options. Options can be
+Initialize the MFCC processor with some options. Options can be
 specified at construction, or after:
 
->>> processor = PlpProcessor()
->>> processor.sample_rate = audio.sample_rate
+>>> processor = MfccProcessor(sample_rate=audio.sample_rate)
+>>> processor.window_type = 'hanning'
 >>> processor.low_freq = 20
 >>> processor.high_freq = -100  # nyquist - 100
->>> processor.compress_factor = 1/3
+>>> processor.use_energy = False  # use C0 instead
 
-Compute the PLP features with the specified options, the output is an
+Compute the MFCC features with the specified options, the output is an
 instance of `Features`:
 
->>> plp = processor.process(audio)
->>> type(plp)
+>>> mfcc = processor.process(audio)
+>>> type(mfcc)
 <class 'shennong.features.features.Features'>
->>> plp.shape[1] == processor.num_ceps
+>>> mfcc.shape[1] == processor.num_ceps
 True
 
 References
 ----------
 
-.. [Hermansky1990] `Perceptual linear predictive (PLP) analysis of
-     speech, H. Hermansky, Journal of the Acoustical Society of
-     America, vol. 87, no. 4, pages 1738–1752 (1990)`
-
-.. [kaldi-plp] http://kaldi-asr.org/doc/feat.html#feat_plp
+.. [kaldi-mfcc] http://kaldi-asr.org/doc/feat.html#feat_mfcc
 
 """
 
-import kaldi.feat.plp
-import kaldi.matrix
 import numpy as np
+import kaldi.feat.mfcc
+import kaldi.matrix
 
-from shennong.features.base import MelFeaturesProcessor
 from shennong.features import Features
+from shennong.features.processor.base import MelFeaturesProcessor
 
 
-class PlpProcessor(MelFeaturesProcessor):
+class MfccProcessor(MelFeaturesProcessor):
+    """Extract MFCC features from an audio (speech) signal"""
     def __init__(self, sample_rate=16000, frame_shift=0.01,
                  frame_length=0.025, dither=1.0, preemph_coeff=0.97,
                  remove_dc_offset=True, window_type='povey',
                  round_to_power_of_two=True, blackman_coeff=0.42,
                  snip_edges=True, num_bins=23, low_freq=20,
                  high_freq=0, vtln_low=100, vtln_high=-500,
-                 lpc_order=12, num_ceps=13, use_energy=True,
-                 energy_floor=0.0, raw_energy=True,
-                 compress_factor=0.33333, cepstral_lifter=22,
-                 cepstral_scale=1.0, htk_compat=False):
+                 num_ceps=13, use_energy=True, energy_floor=0.0,
+                 raw_energy=True, cepstral_lifter=22.0,
+                 htk_compat=False):
         # Forward options to MelFeaturesProcessor
         super().__init__(sample_rate, frame_shift, frame_length,
                          dither, preemph_coeff, remove_dc_offset, window_type,
                          round_to_power_of_two, blackman_coeff, snip_edges,
                          num_bins, low_freq, high_freq, vtln_low, vtln_high)
 
-        self._options = kaldi.feat.plp.PlpOptions()
+        self._options = kaldi.feat.mfcc.MfccOptions()
         self._options.frame_opts = self._frame_options
         self._options.mel_opts = self._mel_options
 
-        self.lpc_order = lpc_order
         self.num_ceps = num_ceps
         self.use_energy = use_energy
         self.energy_floor = energy_floor
         self.raw_energy = raw_energy
-        self.compress_factor = compress_factor
         self.cepstral_lifter = cepstral_lifter
-        self.cepstral_scale = cepstral_scale
         self.htk_compat = htk_compat
 
     @property
-    def lpc_order(self):
-        """Order of LPC analysis in PLP computation"""
-        return self._options.lpc_order
-
-    @lpc_order.setter
-    def lpc_order(self, value):
-        self._options.lpc_order = value
-
-    @property
     def num_ceps(self):
-        """Number of cepstra in PLP computation (including C0)
+        """Number of cepstra in MFCC computation (including C0)
 
-        Should be smaller or equal to `lpc_order` + 1.
+        Must be smaller of equal to `num_bins`
 
         """
         return self._options.num_ceps
 
     @num_ceps.setter
     def num_ceps(self, value):
-        if int(value) > self.lpc_order + 1:
-            raise ValueError(
-                'We must have num_ceps <= lpc_order+1, but {} > {}+1'.format(
-                    int(value), self.lpc_order))
-        self._options.num_ceps = int(value)
+        self._options.num_ceps = value
 
     @property
     def use_energy(self):
-        """Use energy (instead of C0) for zeroth PLP feature"""
+        """Use energy (instead of C0) in MFCC computation"""
         return self._options.use_energy
 
     @use_energy.setter
@@ -120,7 +97,7 @@ class PlpProcessor(MelFeaturesProcessor):
 
     @property
     def energy_floor(self):
-        """Floor on energy (absolute, not relative) in PLP computation"""
+        """Floor on energy (absolute, not relative) in MFCC computation"""
         return self._options.energy_floor
 
     @energy_floor.setter
@@ -137,17 +114,8 @@ class PlpProcessor(MelFeaturesProcessor):
         self._options.raw_energy = value
 
     @property
-    def compress_factor(self):
-        """Compression factor in PLP computation"""
-        return self._options.compress_factor
-
-    @compress_factor.setter
-    def compress_factor(self, value):
-        self._options.compress_factor = value
-
-    @property
     def cepstral_lifter(self):
-        """Constant that controls scaling of PLPs"""
+        """Constant that controls scaling of MFCCs"""
         return self._options.cepstral_lifter
 
     @cepstral_lifter.setter
@@ -155,19 +123,10 @@ class PlpProcessor(MelFeaturesProcessor):
         self._options.cepstral_lifter = value
 
     @property
-    def cepstral_scale(self):
-        """Scaling constant in PLP computation"""
-        return self._options.cepstral_scale
-
-    @cepstral_scale.setter
-    def cepstral_scale(self, value):
-        self._options.cepstral_scale = value
-
-    @property
     def htk_compat(self):
-        """If True, get closer to HTK PLP features
+        """If True, get closer to HTK MFCC features
 
-        Put energy or C0 last.
+        Put energy or C0 last and use a factor of sqrt(2) on C0.
 
         Warnings
         --------
@@ -182,7 +141,7 @@ class PlpProcessor(MelFeaturesProcessor):
         self._options.htk_compat = value
 
     def process(self, signal, vtln_warp=1.0):
-        """Compute PLP features with the specified options
+        """Compute MFCC features with the specified options
 
         Do an optional feature-level vocal tract length normalization
         (VTLN) when `vtln_warp` != 1.0.
@@ -199,8 +158,8 @@ class PlpProcessor(MelFeaturesProcessor):
 
         Returns
         -------
-        plp : Features, shape = [nframes, `num_ceps`]
-            The computed PLPs, output will have as many rows as there
+        mfcc : `Features`, shape = [nframes, `num_ceps`]
+            The computed MFCCs, output will have as many rows as there
             are frames (depends on the specified options `frame_shift`
             and `frame_length`), and as many columns as there are
             cepstral coeficients (the `num_ceps` option).
@@ -225,7 +184,7 @@ class PlpProcessor(MelFeaturesProcessor):
         # force 16 bits integers
         signal = signal.astype(np.int16).data
         data = kaldi.matrix.SubMatrix(
-            kaldi.feat.plp.Plp(self._options).compute(
+            kaldi.feat.mfcc.Mfcc(self._options).compute(
                 kaldi.matrix.SubVector(signal), vtln_warp)).numpy()
 
         return Features(
