@@ -41,7 +41,7 @@ Shennong's documentation
    :caption: Contents
 
    installation
-   python_reference
+   python/index
 
 
 Licence and copyright
