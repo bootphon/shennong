@@ -615,7 +615,17 @@ class BottleneckProcessor(FeaturesProcessor):
 
         """
         # force resampling to 8 kHz and 16 bits integers
-        signal = signal.resample(8000).astype(np.int16).data
+        need_resample = (
+            signal.sample_rate != 8000 or
+            signal.dtype is not np.dtype(np.int16))
+
+        if need_resample:
+            self._log.info(
+                'resampling audio from %dHz@%db to %dHz@%db',
+                signal.sample_rate, signal.dtype.itemsize * 8, 8000, 16)
+            signal = signal.resample(8000).astype(np.int16)
+
+        signal = signal.data
 
         # define parameters to extract mel filterbanks. Those
         # parameters cannot be tuned because the networks are trained

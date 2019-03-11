@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from shennong.audio import AudioData
-from shennong.utils import null_logger
+from shennong.utils import null_logger, get_logger
 from shennong.features.processor.bottleneck import (
     BottleneckProcessor, _compute_vad)
 
@@ -55,16 +55,23 @@ def test_weights(weights):
 
 
 @pytest.mark.parametrize('weights', ['BabelMulti', 'FisherMono', 'FisherTri'])
-def test_process(audio, mfcc, weights):
+def test_process(capsys, audio, mfcc, weights):
+    get_logger().setLevel(10)
+
     proc = BottleneckProcessor(weights=weights)
     feat = proc.process(audio)
     assert feat.shape == (140, 80)
     assert np.allclose(feat.times, mfcc.times)
 
+    # check the log messages
+    captured = capsys.readouterr().err
+    assert 'resampling audio from 16000Hz@16b to 8000Hz@16b' in captured
+    assert '121 frames of speech detected (on 140 total frames)' in captured
+
 
 # may fail to have approx arrays (because of random signal
-# dithering), so we authorize 10 successive runs
-@pytest.mark.flaky(reruns=10)
+# dithering), so we authorize 20 successive runs
+@pytest.mark.flaky(reruns=20)
 def test_compare_original(audio_8k, bottleneck_original):
     feat = BottleneckProcessor(weights='BabelMulti').process(audio_8k)
     assert bottleneck_original.shape == feat.shape
