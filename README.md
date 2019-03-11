@@ -1,6 +1,6 @@
 # Shennong
 
-[![Build Status](https://travis-ci.org/bootphon/shennong.svg?branch=master)](https://travis-ci.org/bootphon/shennong)
+[![Build Status](https://api.travis-ci.org/bootphon/shennong.svg?branch=master)](https://travis-ci.org/bootphon/shennong)
 [![codecov](https://codecov.io/gh/bootphon/shennong/branch/master/graph/badge.svg)](https://codecov.io/gh/bootphon/shennong)
 
 ### A Python toolbox for unsupervised speech recognition

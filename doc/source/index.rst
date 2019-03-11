@@ -6,7 +6,7 @@
 Shennong's documentation
 ========================
 
-.. image:: https://travis-ci.org/bootphon/shennong.svg?branch=master
+.. image:: https://api.travis-ci.org/bootphon/shennong.svg?branch=master
     :target: https://travis-ci.org/bootphon/shennong
 .. image:: https://codecov.io/gh/bootphon/shennong/branch/master/graph/badge.svg
   :target: https://codecov.io/gh/bootphon/shennong
