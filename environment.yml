@@ -17,7 +17,8 @@ dependencies:
   - scipy
   - sphinx
   - sphinx_rtd_theme
+  - tabulate
   - pip:
-      - ninja
       - json-tricks
+      - ninja
       - git+https://github.com/bootphon/h5features.git
