@@ -1,9 +1,9 @@
-"""One hot encoding of time-aligned phones
+"""One hot encoding of time-aligned tokens
 
 One hot features are built from a time alignement of the spoken
-phonemes. They come in two flavours:
+tokenmes. They come in two flavours:
 
-* :class:`OneHotProcessor` simply encode phones in an alignment into
+* :class:`OneHotProcessor` simply encode tokens in an alignment into
   on hot vectors
 
 * :class:`FramedOneHotProcessor` includes the alignment into windowed
@@ -27,35 +27,35 @@ from shennong.features.processor.base import FeaturesProcessor
 
 
 class _OneHotBase(FeaturesProcessor):
-    def __init__(self, phones=None):
-        self.phones = phones
+    def __init__(self, tokens=None):
+        self.tokens = tokens
 
     @property
-    def phones(self):
-        return self._phones
+    def tokens(self):
+        return self._tokens
 
-    @phones.setter
-    def phones(self, value):
+    @tokens.setter
+    def tokens(self, value):
         if value is None:
-            self._phones = None
+            self._tokens = None
         else:
-            self._phones = sorted(set(value))
+            self._tokens = sorted(set(value))
 
-    def _phones_set(self, alignment):
-        # if no phones list specified, take them from the alignment
-        if self.phones is None:
-            return alignment.get_phones_inventory()
+    def _tokens_set(self, alignment):
+        # if no tokens list specified, take them from the alignment
+        if self.tokens is None:
+            return alignment.get_tokens_inventory()
         else:
-            errors = [p for p in set(alignment.phones) if p not in self.phones]
+            errors = [p for p in set(alignment.tokens) if p not in self.tokens]
             if errors != []:
                 raise ValueError(
-                    'following phones are in alignment but not defined in the '
+                    'following tokens are in alignment but not defined in the '
                     'onehot features processor: {}'.format(errors))
-        return self.phones
+        return self.tokens
 
-    def _phone2index(self, alignment):
-        phones = self._phones_set(alignment)
-        return {p: i for i, p in enumerate(sorted(phones))}
+    def _token2index(self, alignment):
+        tokens = self._tokens_set(alignment)
+        return {p: i for i, p in enumerate(sorted(tokens))}
 
 
 class OneHotProcessor(_OneHotBase):
@@ -67,33 +67,33 @@ class OneHotProcessor(_OneHotBase):
 
     Parameters
     ----------
-    phones : sequence, optional
-        The phones composing the alignment. Specify the phones if you
+    tokens : sequence, optional
+        The tokens composing the alignment. Specify the tokens if you
         want to have consistant one-hot vectors accross different
-        :class:`Features`. By default the phones are extracted from
+        :class:`Features`. By default the tokens are extracted from
         the alignment in :meth:`process`.
 
     """
-    def __init__(self, phones=None):
-        super().__init__(phones=phones)
+    def __init__(self, tokens=None):
+        super().__init__(tokens=tokens)
 
     def process(self, alignment):
-        # build a bijection phone <-> onehot index
-        phone2index = self._phone2index(alignment)
+        # build a bijection token <-> onehot index
+        token2index = self._token2index(alignment)
 
         # initialize the data matrix with zeros, TODO should data be a
         # scipy.sparse matrix?
         data = np.zeros(
-            (alignment.phones.shape[0], len(phone2index)), dtype=np.bool)
+            (alignment.tokens.shape[0], len(token2index)), dtype=np.bool)
 
-        # fill the data with onehot encoding of phones
-        for i, p in enumerate(alignment.phones):
-            data[i, phone2index[p]] = 1
+        # fill the data with onehot encoding of tokens
+        for i, p in enumerate(alignment.tokens):
+            data[i, token2index[p]] = 1
 
-        # add the phones index to the features proerties allows to
-        # reconstruct the phones sequence from the onehot vectors
+        # add the tokens index to the features proerties allows to
+        # reconstruct the tokens sequence from the onehot vectors
         prop = self.get_params()
-        prop.update({'phone2index': phone2index})
+        prop.update({'token2index': token2index})
 
         return Features(data, alignment.times, properties=prop)
 
@@ -106,10 +106,10 @@ class FramedOneHotProcessor(_OneHotBase):
 
     Parameters
     ----------
-    phones : sequence, optional
-        The phones composing the alignment. Specify the phones if you
+    tokens : sequence, optional
+        The tokens composing the alignment. Specify the tokens if you
         want to have consistant one-hot vectors accross different
-        :class:`Features`. By default the phones are extracted from
+        :class:`Features`. By default the tokens are extracted from
         the alignment in :func:`process`.
     sample_rate : int, optional
         Sample frequency used for frames, in Hz, default to 16kHz
@@ -125,10 +125,10 @@ class FramedOneHotProcessor(_OneHotBase):
         only when `window_type` is 'blackman', default is 0.42.
 
     """
-    def __init__(self, phones=None, sample_rate=16000,
+    def __init__(self, tokens=None, sample_rate=16000,
                  frame_shift=0.01, frame_length=0.025,
                  window_type='povey', blackman_coeff=0.42):
-        super().__init__(phones=phones)
+        super().__init__(tokens=tokens)
 
         self.frame = Frames(
             sample_rate=sample_rate,
@@ -171,8 +171,8 @@ class FramedOneHotProcessor(_OneHotBase):
         self.frame.frame_length = value
 
     def process(self, alignment):
-        # build a bijection phone <-> onehot index
-        phone2index = self._phone2index(alignment)
+        # build a bijection token <-> onehot index
+        token2index = self._token2index(alignment)
 
         # sample the alignment at the requested sample rate
         sampled = alignment.at_sample_rate(self.frame.sample_rate)
@@ -183,7 +183,7 @@ class FramedOneHotProcessor(_OneHotBase):
 
         # allocate the features data
         data = np.zeros(
-            (frame_boundaries.shape[0], len(phone2index)), dtype=np.bool)
+            (frame_boundaries.shape[0], len(token2index)), dtype=np.bool)
 
         # allocate the window function
         window = shennong.features.window.window(
@@ -192,27 +192,27 @@ class FramedOneHotProcessor(_OneHotBase):
 
         for i, (onset, offset) in enumerate(frame_boundaries):
             framed = sampled[onset:offset]
-            # the frame is made of a single phone, no needs to compute
+            # the frame is made of a single token, no needs to compute
             # a window function
             if np.all(framed[0] == framed[1:]):
                 winner = framed[0]
             else:
-                # several phones in the frame, compute the weights
+                # several tokens in the frame, compute the weights
 
                 weights = collections.defaultdict(int)
                 for j, w in enumerate(window):
                     weights[framed[j]] += w
 
-                # the winner phone has the biggest weight
+                # the winner token has the biggest weight
                 winner = sorted(
                     weights.items(),
                     key=operator.itemgetter(1),
                     reverse=True)[0][0]
 
-            data[i, phone2index[winner]] = 1
+            data[i, token2index[winner]] = 1
 
         prop = self.get_params()
-        prop.update({'phone2index': phone2index})
+        prop.update({'token2index': token2index})
 
         return Features(
             data,

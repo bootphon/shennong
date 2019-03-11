@@ -28,12 +28,12 @@ def test_bad_data():
 
 
 def test_simple(ali):
-    assert ali.phones.shape == (3,)
+    assert ali.tokens.shape == (3,)
     assert ali._times.shape == (3, 2)
     assert ali._times.dtype == np.float
     assert ali.duration() == pytest.approx(3.001)
 
-    assert np.array_equal(np.array(['a', 'b', 'c']), ali.phones)
+    assert np.array_equal(np.array(['a', 'b', 'c']), ali.tokens)
     assert np.array([[0, 1], [1, 2], [2, 3.001]]) == pytest.approx(ali._times)
 
     with pytest.raises(ValueError):
@@ -81,7 +81,7 @@ def test_valid(ali):
 
     with pytest.raises(ValueError) as err:
         Alignment(np.asarray([[0, 1], [1, 2]]), np.asarray(['a', 'b', 'c']))
-    assert 'timestamps and phones must have the same length' in str(err)
+    assert 'timestamps and tokens must have the same length' in str(err)
 
 
 def test_attributes(ali):
@@ -93,7 +93,7 @@ def test_attributes(ali):
         ali.offsets = []
 
     with pytest.raises(AttributeError):
-        ali.phones = []
+        ali.tokens = []
 
 
 def test_list(ali):
@@ -113,51 +113,51 @@ def test_repr(ali):
 def test_partial_read(ali):
     a = ali[0:1]
     assert np.array_equal(np.array([[0, 1]]), a._times)
-    assert np.array_equal(np.array(['a']), a.phones)
+    assert np.array_equal(np.array(['a']), a.tokens)
 
     a = ali[0:2]
     assert np.array_equal(np.array([[0, 1], [1, 2]]), a._times)
-    assert np.array_equal(np.array(['a', 'b']), a.phones)
+    assert np.array_equal(np.array(['a', 'b']), a.tokens)
 
     a = ali[:2]
     assert np.array_equal(np.array([[0, 1], [1, 2]]), a._times)
-    assert np.array_equal(np.array(['a', 'b']), a.phones)
+    assert np.array_equal(np.array(['a', 'b']), a.tokens)
 
 
 def test_complete_read(ali):
     a = ali[0:]
     assert np.array_equal(ali._times, a._times)
-    assert np.array_equal(ali.phones, a.phones)
+    assert np.array_equal(ali.tokens, a.tokens)
 
     a = ali[-1:]
     assert np.array_equal(ali._times, a._times)
-    assert np.array_equal(ali.phones, a.phones)
+    assert np.array_equal(ali.tokens, a.tokens)
 
     a = ali[:5]
     assert np.array_equal(ali._times, a._times)
-    assert np.array_equal(ali.phones, a.phones)
+    assert np.array_equal(ali.tokens, a.tokens)
 
     a = ali[-5:5]
     assert np.array_equal(ali._times, a._times)
-    assert np.array_equal(ali.phones, a.phones)
+    assert np.array_equal(ali.tokens, a.tokens)
 
     a = ali[:]
     assert np.array_equal(ali._times, a._times)
-    assert np.array_equal(ali.phones, a.phones)
+    assert np.array_equal(ali.tokens, a.tokens)
 
 
 def test_empty_read(ali):
     a = ali[:-1]
     assert len(a._times) == 0
-    assert len(a.phones) == 0
+    assert len(a.tokens) == 0
 
     a = ali[0:-1]
     assert len(a._times) == 0
-    assert len(a.phones) == 0
+    assert len(a.tokens) == 0
 
     a = ali[10:]
     assert len(a._times) == 0
-    assert len(a.phones) == 0
+    assert len(a.tokens) == 0
 
 
 @pytest.mark.parametrize('t', [0, 0.5, 1, 3.001])
@@ -165,51 +165,51 @@ def test_read_oneinstant(ali, t):
     # read [t, t[ is like reading nothing
     a = ali[t:t]
     assert a.duration() == 0
-    assert len(a.phones) == 0
+    assert len(a.tokens) == 0
 
 
-def test_read_interphones(ali):
+def test_read_intertokens(ali):
     a = ali[0:0.8]
     assert np.array([0, 0.8]).reshape(1, 2) == pytest.approx(a._times)
-    assert np.array_equal(a.phones, np.array(['a']))
+    assert np.array_equal(a.tokens, np.array(['a']))
 
     a = ali[0:1]
     assert np.array([0, 1]).reshape(1, 2) == pytest.approx(a._times)
-    assert np.array_equal(a.phones, np.array(['a']))
+    assert np.array_equal(a.tokens, np.array(['a']))
 
     a = ali[0.2:0.8]
     assert np.array([0.2, 0.8]).reshape(1, 2) == pytest.approx(a._times)
-    assert np.array_equal(a.phones, np.array(['a']))
+    assert np.array_equal(a.tokens, np.array(['a']))
 
     a = ali[0.2:1]
     assert np.array([0.2, 1]).reshape(1, 2) == pytest.approx(a._times)
-    assert np.array_equal(a.phones, np.array(['a']))
+    assert np.array_equal(a.tokens, np.array(['a']))
 
     a = ali[1.2:1.8]
     assert np.array([1.2, 1.8]).reshape(1, 2) == pytest.approx(a._times)
-    assert np.array_equal(a.phones, np.array(['b']))
+    assert np.array_equal(a.tokens, np.array(['b']))
 
     a = ali[0.2:1.8]
     assert np.array([[0.2, 1], [1, 1.8]]) == pytest.approx(a._times)
-    assert np.array_equal(a.phones, np.array(['a', 'b']))
+    assert np.array_equal(a.tokens, np.array(['a', 'b']))
 
     a = ali[0.2:2.8]
     assert np.array([[0.2, 1], [1, 2], [2, 2.8]]) == pytest.approx(a._times)
-    assert np.array_equal(a.phones, np.array(['a', 'b', 'c']))
+    assert np.array_equal(a.tokens, np.array(['a', 'b', 'c']))
 
     a = ali[0.2:4]
     assert np.array([[0.2, 1], [1, 2], [2, 3.001]]) == pytest.approx(a._times)
-    assert np.array_equal(a.phones, np.array(['a', 'b', 'c']))
+    assert np.array_equal(a.tokens, np.array(['a', 'b', 'c']))
 
 
 def test_realdata(alignments):
     ali = alignments['S01F1522_0003']
-    assert ali.phones.shape == (38,)
-    assert np.array_equal(ali.phones[:3], np.array(['k', 'y', 'o']))
-    assert np.array_equal(ali[:0.1425].phones, np.array(['k', 'y', 'o']))
+    assert ali.tokens.shape == (38,)
+    assert np.array_equal(ali.tokens[:3], np.array(['k', 'y', 'o']))
+    assert np.array_equal(ali[:0.1425].tokens, np.array(['k', 'y', 'o']))
 
     assert ali.duration() == pytest.approx(3.1)
-    assert ali[3.2:].phones.shape == (0,)
+    assert ali[3.2:].tokens.shape == (0,)
 
 
 def test_sample_rate():
@@ -245,9 +245,9 @@ def test_load(alignments):
 
 
 def test_inventory(alignments):
-    phones = alignments.get_phones_inventory()
-    assert 'e:' in phones
-    assert len(phones) == 32
+    tokens = alignments.get_tokens_inventory()
+    assert 'e:' in tokens
+    assert len(tokens) == 32
 
 
 @pytest.mark.parametrize(
