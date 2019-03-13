@@ -2,7 +2,9 @@
 
 Uses the Kaldi implementation (see [kaldi-delta]_):
 
-    :class:`Features` --> DeltaPostProcessor --> :class:`Features`
+    :class:`~shennong.features.features.Features` -->
+    DeltaPostProcessor -->
+    :class:`~shennong.features.features.Features`
 
 Examples
 --------

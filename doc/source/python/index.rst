@@ -17,4 +17,4 @@ Python API reference
    features/index
    features/processor/index
    features/postprocessor/index
-   features/window
+   miscellaneous/index

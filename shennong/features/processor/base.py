@@ -1,4 +1,11 @@
-"""Provides abstract base classes for the features extraction models"""
+"""This module implements the speech features extraction models (processors)
+
+A speech features processor takes an audio signal as input and output features:
+
+    :class:`~shennong.audio.AudioData` --> FeaturesProcessor -->
+    :class:`~shennong.features.features.Features`
+
+"""
 
 import abc
 

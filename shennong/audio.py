@@ -1,10 +1,10 @@
-"""Provides the `AudioData` class that handles audio signals
+"""Provides the :class:`AudioData` class that handles audio signals
 
 .. note::
 
    For now, only WAV files are supported for input/output.
 
-The `AudioData` class allows to load, save and manipulate
+The :class:`AudioData` class allows to load, save and manipulate
 multichannels audio data. The underlying audio samples can be of one
 of the following types (with the corresponding min and max):
 

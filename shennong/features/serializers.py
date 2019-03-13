@@ -1,4 +1,23 @@
-"""Saves and loads features collections to/from various file formats"""
+"""Saves and loads features collections to/from various file formats
+
+The following table shows the obtained file size, writing and reading
+times on MFCC features computed on the `Zero Resource Speech
+Challenge 2019 <https://zerospeech.com/2019>`_ train database
+(English, about 26 hours of speech and 10k files):
+
+===========  =========  =========  ============  ============
+File format  Extension  File size  Writing time  Reading time
+===========  =========  =========  ============  ============
+h5features   .h5f       562.9 MB   0:00:20       0:00:08
+pickle       .pkl       609.8 MB   0:00:08       0:00:06
+numpy        .npz       582.8 MB   0:02:07       0:00:19
+matlab       .mat       481.8 MB   0:00:58       0:00:13
+kaldi        .ark       927.8 MB   0:00:10       0:00:15
+JSON         .json      6.3 GB     0:11:34       1:04:25
+===========  =========  =========  ============  ============
+
+
+"""
 
 import abc
 import copy

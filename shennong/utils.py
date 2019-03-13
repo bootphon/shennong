@@ -1,4 +1,4 @@
-"""Provides some utilities functions"""
+"""Provides some utilities functions used by the *shennong* library"""
 
 import logging
 import numpy as np

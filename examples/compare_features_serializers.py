@@ -107,8 +107,6 @@ def main():
     print('found {} wav files, total duration of {}'
           .format(len(audio_data), str(total_duration)))
 
-    return
-
     # compute the features (default MFCC)
     print('computing MFCC features...')
     t1 = datetime.datetime.now()

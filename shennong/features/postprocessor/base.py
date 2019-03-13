@@ -1,4 +1,10 @@
-"""Abstract base class for all the features postprocessors"""
+"""A post-processor takes features as input and output new features:
+
+    :class:`~shennong.features.features.Features` -->
+    FeaturesPostProcessor -->
+    :class:`~shennong.features.features.Features`
+
+"""
 
 import abc
 

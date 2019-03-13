@@ -1,4 +1,4 @@
-.. _core.window:
+.. _window:
 
 Window functions
 ~~~~~~~~~~~~~~~~

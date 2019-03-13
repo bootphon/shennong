@@ -9,6 +9,10 @@ This module provides two classes to operate on time alignments:
   alignment files. It exposes a dictionnary of items mapped to
   :class:`Alignment` instances.
 
+The time alignements are used as input to the
+:class:`~shennong.features.processor.onehot.OneHotProcessor` and
+:class:`~shennong.features.processor.onehot.FramedOneHotProcessor`
+features processors.
 
 ----------------------------------
 

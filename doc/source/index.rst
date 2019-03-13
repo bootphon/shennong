@@ -1,8 +1,3 @@
-.. shennong documentation master file, created by
-   sphinx-quickstart on Thu Sep  6 15:23:03 2018.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 Shennong's documentation
 ========================
 
@@ -20,7 +15,7 @@ Shennong's documentation
   and results of the `Zero Resource Speech challenges
   <http://www.zerospeech.com/>`_:
 
-  * Features extraction,
+  * Speech features extraction,
   * Subword modeling,
   * Spoken term discovery.
 
@@ -37,7 +32,7 @@ Shennong's documentation
 
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 3
    :caption: Contents
 
    installation
