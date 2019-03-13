@@ -18,8 +18,11 @@ def list_wav(data_dir):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('data_dir', help='directory with wavs')
-    parser.add_argument('out_file', help='file to save the computed features')
+    parser.add_argument(
+        'data_dir', help='directory with wavs')
+    parser.add_argument(
+        'out_file', nargs='?', default='./features.h5f',
+        help='file to save the computed features, default to %(default)s')
     parser.add_argument(
         '-j', '--njobs', type=int, default=1,
         help='number of parallel jobs to use, default to %(default)s')
@@ -41,18 +44,9 @@ def main():
         log.error('output file already exist: %s', args.out_file)
         return
 
-    # the features processor to use (MFCC with default arguments)
+    # computes MFCC with default arguments and save them to disk
     processor = MfccProcessor(sample_rate=args.sample_rate)
-
-    def _compute_one(wav_name, wav_path):
-        audio = AudioData.load(wav_path)
-        return (wav_name, processor.process(audio))
-
-    features = FeaturesCollection(**{k: v for k, v in joblib.Parallel(
-        n_jobs=args.njobs, verbose=10, backend='threading')(
-            joblib.delayed(_compute_one)(wav_name, wav_path)
-            for wav_name, wav_path in wavs.items())})
-
+    features = processor.process_all(wavs, njobs=args.njobs)
     features.save(args.out_file)
 
 

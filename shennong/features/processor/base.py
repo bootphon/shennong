@@ -8,20 +8,88 @@ A speech features processor takes an audio signal as input and output features:
 """
 
 import abc
+import multiprocessing
 
 import kaldi.feat.window
 import kaldi.feat.mel
+import joblib
 import numpy as np
 
 from shennong.base import BaseProcessor
+from shennong.features import FeaturesCollection
+from shennong.utils import get_logger
 
 
 class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
     """Base class of all the features extraction models"""
+    @staticmethod
+    def max_njobs():
+        """Returns the number of CPU cores on the machine"""
+        return multiprocessing.cpu_count()
+
     @abc.abstractmethod
     def process(self, signal):
-        """Returns some features processed from an input `signal`"""
+        """Returns features processed from an input `signal`
+
+        Parameters
+        ----------
+        signal: :class`~shennong.audio.AudioData`
+            The input audio signal to process features on
+
+        Returns
+        -------
+        features: :class:`~shennong.features.features.Features`
+            The computed features
+
+        """
         pass  # pragma: no cover
+
+    def process_all(self, signals, njobs=None):
+        """Returns features processed from several input `signals`
+
+        This function processes the features in parallel jobs.
+
+        Parameters
+        ----------
+        signals: dict of :class`~shennong.audio.AudioData`
+            A dictionnary of input audio signals to process features
+            on, where the keys are item names and values are audio
+            signals.
+        njobs: int, optional
+            The number of parallel jobs to run in background. Default
+            to the number of CPU cores available on the machine.
+
+        Returns
+        -------
+        features: :class:`~shennong.features.features.FeaturesCollection`
+            The computed features on each input signal. The keys of
+            output `features` are the keys of the input `signals`.
+
+        Raises
+        ------
+        ValueError
+            If the `njobs` parameter is <= 0
+
+        """
+        # checks the number of background jobs
+        if njobs is None:
+            njobs = self.max_njobs()
+        elif njobs <= 0:
+            raise ValueError(
+                'njobs must be strictly positive, it is {}'.format(njobs))
+        elif njobs > self.max_njobs():
+            get_logger(self.__class__.__module__).warning(
+                'asking %d CPU cores but reducing to %d (max available)',
+                njobs, self.max_njobs())
+            njobs = self.max_njobs()
+
+        def _process_one(name, signal):
+            return name, self.process(signal)
+
+        return FeaturesCollection(**{k: v for k, v in joblib.Parallel(
+            n_jobs=njobs, verbose=0, backend='threading')(
+                joblib.delayed(_process_one)(name, signal)
+                for name, signal in signals.items())})
 
 
 class MelFeaturesProcessor(FeaturesProcessor):
