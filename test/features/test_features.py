@@ -74,7 +74,7 @@ def test_equal(mfcc):
     # not same times but close
     mfcc2 = Features(mfcc.data, mfcc.times + 1, properties=mfcc.properties)
     assert not mfcc == mfcc2
-    assert mfcc.is_close(mfcc2, atol=1)
+    assert not mfcc.is_close(mfcc2, atol=1)
 
 
 def test_copy(mfcc):

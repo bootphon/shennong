@@ -172,7 +172,7 @@ class Features:
         if not dict_equal(self.properties, other.properties):
             return False
 
-        if not np.allclose(self.times, other.times, atol=atol, rtol=rtol):
+        if not np.array_equal(self.times, other.times):
             return False
 
         if not np.allclose(self.data, other.data, atol=atol, rtol=rtol):
