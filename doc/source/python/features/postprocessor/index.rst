@@ -10,3 +10,4 @@ The available speech features post-processors are:
 
    cmvn
    delta
+   vad
