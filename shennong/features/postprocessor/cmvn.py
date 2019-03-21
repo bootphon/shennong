@@ -1,6 +1,6 @@
 """Computes cepstral mean variance normalization (CMVN)
 
-Th :class:`CmvnProcessor` class is used for accumulating CMVN
+The :class:`CmvnProcessor` class is used for accumulating CMVN
 statistics and applying CMVN on features using accumulated
 statistics. Uses the Kaldi implementation (see [kaldi-cmvn]_):
 
@@ -23,7 +23,7 @@ from shennong.features import Features, FeaturesCollection
 
 
 class CmvnPostProcessor(FeaturesPostProcessor):
-    """Computes CMVN statistics on features/
+    """Computes CMVN statistics on speech features
 
     Parameters
     ----------

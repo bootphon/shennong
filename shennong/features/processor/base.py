@@ -16,17 +16,12 @@ import joblib
 import numpy as np
 
 from shennong.base import BaseProcessor
-from shennong.features import FeaturesCollection
+from shennong.features import Features, FeaturesCollection
 from shennong.utils import get_logger
 
 
 class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
     """Base class of all the features extraction models"""
-    @staticmethod
-    def max_njobs():
-        """Returns the number of CPU cores on the machine"""
-        return multiprocessing.cpu_count()
-
     @abc.abstractmethod
     def process(self, signal):
         """Returns features processed from an input `signal`
@@ -71,17 +66,19 @@ class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
             If the `njobs` parameter is <= 0
 
         """
+        max_njobs = multiprocessing.cpu_count()
+
         # checks the number of background jobs
         if njobs is None:
-            njobs = self.max_njobs()
+            njobs = max_njobs
         elif njobs <= 0:
             raise ValueError(
                 'njobs must be strictly positive, it is {}'.format(njobs))
-        elif njobs > self.max_njobs():
+        elif njobs > max_njobs:
             get_logger(self.__class__.__module__).warning(
                 'asking %d CPU cores but reducing to %d (max available)',
-                njobs, self.max_njobs())
-            njobs = self.max_njobs()
+                njobs, max_njobs)
+            njobs = max_njobs
 
         def _process_one(name, signal):
             return name, self.process(signal)
@@ -321,6 +318,63 @@ class MelFeaturesProcessor(FeaturesProcessor):
             np.arange(nframes) * self.frame_shift,
             np.arange(nframes) * self.frame_shift + self.frame_length)).T
 
-    @abc.abstractmethod
-    def process(self, signal):
-        pass  # pragma: no cover
+    def process(self, signal, vtln_warp=1.0):
+        """Compute features with the specified options
+
+        Do an optional feature-level vocal tract length normalization
+        (VTLN) when `vtln_warp` != 1.0.
+
+        Parameters
+        ----------
+        signal : AudioData, shape = [nsamples, 1]
+            The input audio signal to compute the features on, must be
+            mono
+        vtln_warp : float, optional
+            The VTLN warping factor to be applied when computing
+            features. Be 1.0 by default, meaning no warping is to be
+            done.
+
+        Returns
+        -------
+        features : `Features`, shape = [nframes, `num_ceps`]
+            The computed features, output will have as many rows as there
+            are frames (depends on the specified options `frame_shift`
+            and `frame_length`), and as many columns as there are
+            cepstral coeficients (the `num_ceps` option).
+
+        Raises
+        ------
+        ValueError
+            If the input `signal` has more than one channel (i.e. is
+            not mono). If `sample_rate` != `signal.sample_rate`.
+
+        """
+        return self._process(self._kaldi_processor, signal, vtln_warp)
+
+    def _process(self, cls, signal, vtln_warp):
+        """Inner process method common to all Kaldi Mel processors"""
+        # ensure the signal is correct
+        if signal.nchannels != 1:
+            raise ValueError(
+                'signal must have one dimension, but it has {}'
+                .format(signal.nchannels))
+
+        if self.sample_rate != signal.sample_rate:
+            raise ValueError(
+                'processor and signal mismatch in sample rates: '
+                '{} != {}'.format(self.sample_rate, signal.sample_rate))
+
+        # we need to forward options (because the assignation here is
+        # done by copy, not by reference. If the user do 'p =
+        # Processor; p.dither = 0', this is forwarded to Kaldi here)
+        self._options.frame_opts = self._frame_options
+        self._options.mel_opts = self._mel_options
+
+        # force 16 bits integers
+        signal = signal.astype(np.int16).data
+        data = kaldi.matrix.SubMatrix(
+            cls(self._options).compute(
+                kaldi.matrix.SubVector(signal), vtln_warp)).numpy()
+
+        return Features(
+            data, self.times(data.shape[0]), self.get_params())

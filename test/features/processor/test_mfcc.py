@@ -44,6 +44,21 @@ def test_set_params():
         m.set_params(window_type='foo')
 
 
+def test_dither(audio):
+    p1 = MfccProcessor()
+    p1.dither = 0
+    f1 = p1.process(audio)
+
+    p2 = MfccProcessor(dither=0)
+    f2 = p2.process(audio)
+
+    p3 = MfccProcessor()
+    p3.set_params(**{'dither': 0})
+    f3 = p3.process(audio)
+
+    assert f1 == f2 == f3
+
+
 @pytest.mark.parametrize('num_ceps', [0, 1, 5, 13, 23, 25])
 def test_num_ceps(audio, num_ceps):
     proc = MfccProcessor(num_ceps=num_ceps)

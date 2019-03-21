@@ -285,7 +285,7 @@ class PitchProcessor(FeaturesProcessor):
                 self._options, kaldi.matrix.SubVector(signal))).numpy()
 
         return Features(
-            data, self.times(data.shape[0]), self.get_params())
+            data, self.times(data.shape[0]), properties=self.get_params())
 
 
 class PitchPostProcessor(FeaturesProcessor):
@@ -505,4 +505,4 @@ class PitchPostProcessor(FeaturesProcessor):
                 self._options, kaldi.matrix.SubMatrix(raw_pitch.data))).numpy()
 
         return Features(
-            data, raw_pitch.times, self.get_params())
+            data, raw_pitch.times, properties=self.get_params())

@@ -12,37 +12,41 @@ from shennong.features.processor.plp import PlpProcessor
 
 
 PROCESSORS = [
-    BottleneckProcessor,
     FilterbankProcessor,
     MfccProcessor,
+    PlpProcessor,
+    BottleneckProcessor,
     OneHotProcessor,
     FramedOneHotProcessor,
-    PitchProcessor,
-    PlpProcessor]
+    PitchProcessor]
 
 
-@pytest.mark.parametrize('processor', PROCESSORS)
-def test_stable_new_instance(processor, audio, alignments):
+# ere we computes the same features two times and ensure we obtain the
+# same results, allowing reruns because bottleneck has a dither we
+# cannot disable.
+@pytest.mark.flaky(reruns=20)
+@pytest.mark.parametrize(
+    'processor, same', [(p, s) for p in PROCESSORS for s in (True, False)])
+def test_stable(processor, same, audio, alignments):
     if processor in (OneHotProcessor, FramedOneHotProcessor):
-        alignment = alignments['S01F1522_0003']
-        f1 = processor().process(alignment)
-        f2 = processor().process(alignment)
+        audio = alignments['S01F1522_0003']
+
+    p1 = processor()
+    p2 = p1 if same else processor()
+
+    # disable dithering in mel-based processors to have exactly the
+    # same output
+    try:
+        p1.dither = 0
+        p2.dither = 0
+    except AttributeError:
+        pass
+
+    f1 = p1.process(audio)
+    f2 = p2.process(audio)
+
+    if processor is BottleneckProcessor:
+        # bottleneck processor adds a little dither wa cannot disable
+        assert f1.is_close(f2, rtol=1e-2, atol=1e-2)
     else:
-        f1 = processor().process(audio)
-        f2 = processor().process(audio)
-
-    assert f1.is_close(f2)
-
-
-@pytest.mark.parametrize('processor', PROCESSORS)
-def test_stable_same_instance(processor, audio, alignments):
-    p = processor()
-    if processor in (OneHotProcessor, FramedOneHotProcessor):
-        alignment = alignments['S01F1522_0003']
-        f1 = p.process(alignment)
-        f2 = p.process(alignment)
-    else:
-        f1 = p.process(audio)
-        f2 = p.process(audio)
-
-    assert f1.is_close(f2)
+        assert f1 == f2

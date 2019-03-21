@@ -58,7 +58,6 @@ class FilterbankProcessor(MelFeaturesProcessor):
                          dither, preemph_coeff, remove_dc_offset, window_type,
                          round_to_power_of_two, blackman_coeff, snip_edges,
                          num_bins, low_freq, high_freq, vtln_low, vtln_high)
-
         self._options = kaldi.feat.fbank.FbankOptions()
         self._options.frame_opts = self._frame_options
         self._options.mel_opts = self._mel_options
@@ -69,6 +68,8 @@ class FilterbankProcessor(MelFeaturesProcessor):
         self.htk_compat = htk_compat
         self.use_log_fbank = use_log_fbank
         self.use_power = use_power
+
+        self._kaldi_processor = kaldi.feat.fbank.Fbank
 
     @property
     def use_energy(self):
@@ -132,54 +133,3 @@ class FilterbankProcessor(MelFeaturesProcessor):
     @use_power.setter
     def use_power(self, value):
         self._options.use_power = value
-
-    def process(self, signal, vtln_warp=1.0):
-        """Computes filterbank features with the specified options
-
-        Do an optional feature-level vocal tract length normalization
-        (VTLN) when `vtln_warp` != 1.0.
-
-        Parameters
-        ----------
-        signal : AudioData, shape = [nsamples, 1]
-            The input audio signal to compute the features on, must be
-            mono
-        vtln_warp : float, optional
-            The VTLN warping factor to be applied when computing
-            features. Be 1.0 by default, meaning no warping is to be
-            done.
-
-        Returns
-        -------
-        fbank : Features, shape = [nframes, `num_bins` + energy]
-            The computed MFCCs, output will have as many rows as there
-            are frames (depends on the specified options `frame_shift`
-            and `frame_length`), and as many columns as there are
-            mel-frequency bins (the `num_ceps` option), plus one
-            additional column if `use_energy` is True.
-
-        Raises
-        ------
-        ValueError
-            If the input `signal` has more than one channel (i.e. is
-            not mono). If `sample_rate` != `signal.sample_rate`.
-
-        """
-        if signal.nchannels != 1:
-            raise ValueError(
-                'signal must have one dimension, but it has {}'
-                .format(signal.nchannels))
-
-        if self.sample_rate != signal.sample_rate:
-            raise ValueError(
-                'processor and signal mismatch in sample rates: '
-                '{} != {}'.format(self.sample_rate, signal.sample_rate))
-
-        # force 16 bits integers
-        signal = signal.astype(np.int16).data
-        data = kaldi.matrix.SubMatrix(
-            kaldi.feat.fbank.Fbank(self._options).compute(
-                kaldi.matrix.SubVector(signal), vtln_warp)).numpy()
-
-        return Features(
-            data, self.times(data.shape[0]), self.get_params())

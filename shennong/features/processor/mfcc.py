@@ -73,6 +73,8 @@ class MfccProcessor(MelFeaturesProcessor):
         self.cepstral_lifter = cepstral_lifter
         self.htk_compat = htk_compat
 
+        self._kaldi_processor = kaldi.feat.mfcc.Mfcc
+
     @property
     def num_ceps(self):
         """Number of cepstra in MFCC computation (including C0)
@@ -139,53 +141,3 @@ class MfccProcessor(MelFeaturesProcessor):
     @htk_compat.setter
     def htk_compat(self, value):
         self._options.htk_compat = value
-
-    def process(self, signal, vtln_warp=1.0):
-        """Compute MFCC features with the specified options
-
-        Do an optional feature-level vocal tract length normalization
-        (VTLN) when `vtln_warp` != 1.0.
-
-        Parameters
-        ----------
-        signal : AudioData, shape = [nsamples, 1]
-            The input audio signal to compute the features on, must be
-            mono
-        vtln_warp : float, optional
-            The VTLN warping factor to be applied when computing
-            features. Be 1.0 by default, meaning no warping is to be
-            done.
-
-        Returns
-        -------
-        mfcc : `Features`, shape = [nframes, `num_ceps`]
-            The computed MFCCs, output will have as many rows as there
-            are frames (depends on the specified options `frame_shift`
-            and `frame_length`), and as many columns as there are
-            cepstral coeficients (the `num_ceps` option).
-
-        Raises
-        ------
-        ValueError
-            If the input `signal` has more than one channel (i.e. is
-            not mono). If `sample_rate` != `signal.sample_rate`.
-
-        """
-        if signal.nchannels != 1:
-            raise ValueError(
-                'signal must have one dimension, but it has {}'
-                .format(signal.nchannels))
-
-        if self.sample_rate != signal.sample_rate:
-            raise ValueError(
-                'processor and signal mismatch in sample rates: '
-                '{} != {}'.format(self.sample_rate, signal.sample_rate))
-
-        # force 16 bits integers
-        signal = signal.astype(np.int16).data
-        data = kaldi.matrix.SubMatrix(
-            kaldi.feat.mfcc.Mfcc(self._options).compute(
-                kaldi.matrix.SubVector(signal), vtln_warp)).numpy()
-
-        return Features(
-            data, self.times(data.shape[0]), self.get_params())
