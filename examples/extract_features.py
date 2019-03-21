@@ -2,16 +2,14 @@
 """Computes MFCC features from wavs in a directory"""
 
 import argparse
-import joblib
 import os
 
 from shennong.audio import AudioData
-from shennong.features.features import FeaturesCollection
-from shennong.features.mfcc import MfccProcessor
+from shennong.features.processor.mfcc import MfccProcessor
 from shennong.utils import list_files_with_extension, get_logger
 
 
-def list_wav(data_dir):
+def list_wavs(data_dir):
     wavs = list_files_with_extension(data_dir, '.wav', abspath=True)
     return {os.path.splitext(os.path.basename(wav))[0]: wav for wav in wavs}
 
@@ -35,7 +33,7 @@ def main():
     log = get_logger(os.path.basename(__file__))
 
     # compute the list of wav files on which to estimate speech features
-    wavs = list_wav(args.data_dir)
+    wavs = list_wavs(args.data_dir)
     log.info('found %s wav files', len(wavs))
     if not wavs:
         return
@@ -44,9 +42,11 @@ def main():
         log.error('output file already exist: %s', args.out_file)
         return
 
+    audios = {n: AudioData.load(w) for n, w in wavs.items()}
+
     # computes MFCC with default arguments and save them to disk
     processor = MfccProcessor(sample_rate=args.sample_rate)
-    features = processor.process_all(wavs, njobs=args.njobs)
+    features = processor.process_all(audios, njobs=args.njobs)
     features.save(args.out_file)
 
 
