@@ -1,15 +1,12 @@
 .. _features:
 
+Speech features
+---------------
 
-Features manipulation
-~~~~~~~~~~~~~~~~~~~~~
+.. toctree::
+   :maxdepth: 3
 
-.. automodule:: shennong.features.features
-    :members:
-    :inherited-members:
-    :undoc-members:
-
-.. automodule:: shennong.features.serializers
-    :members:
-    :inherited-members:
-    :undoc-members:
+   features
+   serialization
+   processor/index
+   postprocessor/index

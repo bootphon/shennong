@@ -15,6 +15,4 @@ Python API reference
    audio
    alignment
    features/index
-   features/processor/index
-   features/postprocessor/index
    miscellaneous/index
