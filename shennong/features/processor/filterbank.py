@@ -36,11 +36,9 @@ References
 
 """
 
-import numpy as np
 import kaldi.feat.fbank
 import kaldi.matrix
 
-from shennong.features import Features
 from shennong.features.processor.base import MelFeaturesProcessor
 
 
