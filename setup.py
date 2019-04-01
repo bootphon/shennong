@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 """Setup script for the shennong toolbox package"""
 
 import codecs
@@ -11,7 +10,7 @@ setuptools.setup(
     # general description
     name='shennong',
     description='A toolbox for unsupervised speech recognition',
-    version=shennong.__version__,
+    version=shennong.version(),
 
     # python package dependancies
     setup_requires=['pytest-runner', 'numpy', 'scipy'],

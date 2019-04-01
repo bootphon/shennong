@@ -2,8 +2,29 @@
 
 import pytest
 
+from shennong import version
 from shennong.base import BaseProcessor
 from shennong.features.processor.mfcc import MfccProcessor
+
+
+def test_version():
+    assert isinstance(version(), str)
+    assert isinstance(version(type=str), str)
+    assert isinstance(version(type=tuple), tuple)
+    assert isinstance(version(type='str'), str)
+    assert isinstance(version(type='tuple'), tuple)
+    assert '.'.join(version(type=tuple)) == version()
+    assert (
+        len(version(type=tuple, full=False))
+        <= len(version(type=tuple, full=True)))
+
+    with pytest.raises(ValueError) as err:
+        version(type=int)
+    assert 'version type must be str or tuple' in str(err)
+
+    with pytest.raises(ValueError) as err:
+        version(type='abc')
+    assert 'version type must be str or tuple' in str(err)
 
 
 class ProcessorTest(BaseProcessor):
