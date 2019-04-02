@@ -108,7 +108,7 @@ class Frames(BaseProcessor):
         return int(self.frame_shift * self.sample_rate)
 
     def nframes(self, nsamples):
-        """Returns the number of frames extracted from `nframes`
+        """Returns the number of frames extracted from `nsamples`
 
         This function returns the number of frames that we can extract
         from a wave file with the given number of samples in it
@@ -163,11 +163,11 @@ class Frames(BaseProcessor):
         array : array, shape = [x, ...]
             The array to be divided in frames
         writeable : bool, optional
-            Default to False, When True, the returned array is
+            Default to False. When True, the returned array is
             writable but the frames are made of copies of the original
             `array`. When False, the result is read-only but this
             optimizes the process: no explicit copy is made of the
-            orognal `array`, only views are used. (see
+            orignal `array`, only views are used. (see
             https://docs.scipy.org/doc/numpy-1.15.0/reference/generated/
             numpy.lib.stride_tricks.as_strided.html)
 
