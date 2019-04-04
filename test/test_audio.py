@@ -8,6 +8,24 @@ from kaldi.util.table import SequentialWaveReader
 from shennong.audio import AudioData
 
 
+def test_scan(wav_file, audio):
+    meta = AudioData.scan(wav_file)
+    assert meta.sample_rate == audio.sample_rate == 16000
+    assert meta.nchannels == audio.nchannels == 1
+    assert meta.nsamples == audio.nsamples == 22713
+    assert meta.duration == audio.duration == pytest.approx(1.419, rel=1e-3)
+
+
+def test_scan_bad():
+    with pytest.raises(ValueError) as err:
+        AudioData.scan(__file__)
+    assert 'is it a wav?' in str(err)
+
+    with pytest.raises(ValueError) as err:
+        AudioData.scan('/path/to/some/lost/place')
+    assert 'file not found' in str(err)
+
+
 def test_load(audio):
     assert audio.sample_rate == 16000
     assert audio.nchannels == 1
@@ -18,8 +36,9 @@ def test_load(audio):
 
 
 def test_load_notwav():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as err:
         AudioData.load(__file__)
+    assert 'is it a wav?' in str(err)
 
 
 def test_load_badfile():

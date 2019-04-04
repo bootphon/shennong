@@ -75,11 +75,13 @@ True
 
 """
 
+import collections
 import os
 import numpy as np
 import scipy.signal
 import scipy.io.wavfile
 import warnings
+import wave
 
 from shennong.utils import get_logger
 
@@ -151,6 +153,55 @@ class AudioData:
     def dtype(self):
         """The numeric type of samples"""
         return self.data.dtype
+
+    @classmethod
+    def scan(cls, wav_file):
+        """Returns the audio metadata without loading the file
+
+        Returns a Python namespace (a named tuple) `metadata` with the
+        following fields:
+
+          - metadata.nchannels : int, number of channels
+          - metadata.sample_rate : int, sample frequency in Hz
+          - metadata.nsamples : int, number of audio samples in the file
+          - metadata.duration : float, audio duration in seconds
+
+        This method is usefull to access metadata of a wav file
+        without loading it into memory, far more faster than
+        :func:`load`.
+
+        Parameters
+        ----------
+        wav_file : str
+            Filename of the WAV ton wich to retrieve metadata, must be
+            an existing file
+
+        Returns
+        -------
+        metadata : namespace
+            A namespace with fields as described above
+
+        Raises
+        ------
+        ValueError
+            If the `wav_file` is not a valid WAV file.
+
+        """
+        if not os.path.isfile(wav_file):
+            raise ValueError('{}: file not found'.format(wav_file))
+
+        cls._log.debug('scanning %s', wav_file)
+        try:
+            with wave.open(wav_file, 'r') as fwav:
+                return collections.namedtuple(
+                    '_metawav', 'nchannels sample_rate nsamples duration')(
+                        fwav.getnchannels(),
+                        fwav.getframerate(),
+                        fwav.getnframes(),
+                        fwav.getnframes() / fwav.getframerate())
+        except wave.Error:
+            raise ValueError(
+                '{}: cannot read file, is it a wav?'.format(wav_file))
 
     @classmethod
     def load(cls, wav_file):
