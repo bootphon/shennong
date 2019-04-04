@@ -44,7 +44,7 @@ from shennong.features.processor.base import MelFeaturesProcessor
 
 
 class MfccProcessor(MelFeaturesProcessor):
-    """Extract MFCC features from an audio (speech) signal"""
+    """Mel Frequency Cepstral Coeficients"""
     def __init__(self, sample_rate=16000, frame_shift=0.01,
                  frame_length=0.025, dither=1.0, preemph_coeff=0.97,
                  remove_dc_offset=True, window_type='povey',
@@ -128,10 +128,8 @@ class MfccProcessor(MelFeaturesProcessor):
 
         Put energy or C0 last and use a factor of sqrt(2) on C0.
 
-        Warnings
-        --------
-        Not sufficient to get HTK compatible features (need to change
-        other parameters)
+        Warning: Not sufficient to get HTK compatible features (need
+        to change other parameters)
 
         """
         return self._options.htk_compat

@@ -51,6 +51,7 @@ from shennong.features.processor.base import MelFeaturesProcessor
 
 
 class PlpProcessor(MelFeaturesProcessor):
+    """Perceptive linear predictive features"""
     def __init__(self, sample_rate=16000, frame_shift=0.01,
                  frame_length=0.025, dither=1.0, preemph_coeff=0.97,
                  remove_dc_offset=True, window_type='povey',
@@ -59,7 +60,7 @@ class PlpProcessor(MelFeaturesProcessor):
                  high_freq=0, vtln_low=100, vtln_high=-500,
                  lpc_order=12, num_ceps=13, use_energy=True,
                  energy_floor=0.0, raw_energy=True,
-                 compress_factor=0.33333, cepstral_lifter=22,
+                 compress_factor=1.0/3.0, cepstral_lifter=22,
                  cepstral_scale=1.0, htk_compat=False):
         # Forward options to MelFeaturesProcessor
         super().__init__(sample_rate, frame_shift, frame_length,

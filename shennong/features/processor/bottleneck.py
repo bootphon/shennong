@@ -499,7 +499,7 @@ def _create_nn_extract_st_BN(X, param_dict, bn_position):
 
 
 class BottleneckProcessor(FeaturesProcessor):
-    """Extracts bottleneck features on a pre-trained NN from a speech signal
+    """Bottleneck features from a pre-trained neural network
 
     Parameters
     ----------

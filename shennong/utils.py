@@ -1,4 +1,8 @@
-"""Provides some utilities functions used by the *shennong* library"""
+"""Provides some utilities functions used by the *shennong* library
+
+Those fonctions are not designed to be used by the end-user.
+
+"""
 
 import logging
 import numpy as np

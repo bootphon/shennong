@@ -43,6 +43,7 @@ from shennong.features.processor.base import MelFeaturesProcessor
 
 
 class FilterbankProcessor(MelFeaturesProcessor):
+    """Mel-filterbank features"""
     def __init__(self, sample_rate=16000, frame_shift=0.01,
                  frame_length=0.025, dither=1.0, preemph_coeff=0.97,
                  remove_dc_offset=True, window_type='povey',
@@ -98,7 +99,7 @@ class FilterbankProcessor(MelFeaturesProcessor):
 
     @property
     def htk_compat(self):
-        """If True, get closer to HTK filterbank features
+        """If True, get closer to HTK filterbank features.
 
         Put energy last.
 
