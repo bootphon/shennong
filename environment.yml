@@ -14,6 +14,7 @@ dependencies:
   - pytest
   - pytest-cov
   - pytest-runner
+  - pyyaml
   - scipy
   - sphinx
   - sphinx_rtd_theme
@@ -21,4 +22,4 @@ dependencies:
   - pip:
       - json-tricks
       - ninja
-      - git+https://github.com/bootphon/h5features.git
+      - h5features

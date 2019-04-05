@@ -20,11 +20,15 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     package_data={'shennong': ['share/bottleneck/*']},
 
+    # binaries
+    entry_points={'console_scripts': [
+        'speech-features = bin.speech_features:main']},
+
     # metadata for upload to PyPI
     author='Mathieu Bernard, INRIA',
     author_email='mathieu.a.bernard@inria.fr',
     license='GPL3',
-    url='https://coml/lscp.ens.fr/shennong',
+    url=shennong.url(),
     long_description=codecs.open('README.md', encoding='utf-8').read(),
     zip_safe=True,
 )
