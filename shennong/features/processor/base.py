@@ -8,8 +8,6 @@ A speech features processor takes an audio signal as input and output features:
 """
 
 import abc
-import multiprocessing
-
 import kaldi.feat.window
 import kaldi.feat.mel
 import joblib
@@ -17,7 +15,7 @@ import numpy as np
 
 from shennong.base import BaseProcessor
 from shennong.features import Features, FeaturesCollection
-from shennong.utils import get_logger
+from shennong.utils import get_logger, get_njobs
 
 
 class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
@@ -66,19 +64,8 @@ class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
             If the `njobs` parameter is <= 0
 
         """
-        max_njobs = multiprocessing.cpu_count()
-
         # checks the number of background jobs
-        if njobs is None:
-            njobs = max_njobs
-        elif njobs <= 0:
-            raise ValueError(
-                'njobs must be strictly positive, it is {}'.format(njobs))
-        elif njobs > max_njobs:
-            get_logger(self.__class__.__module__).warning(
-                'asking %d CPU cores but reducing to %d (max available)',
-                njobs, max_njobs)
-            njobs = max_njobs
+        njobs = get_njobs(njobs, log=get_logger(self.__class__.__module__))
 
         def _process_one(name, signal):
             return name, self.process(signal)

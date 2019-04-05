@@ -5,6 +5,7 @@ Those fonctions are not designed to be used by the end-user.
 """
 
 import logging
+import multiprocessing
 import numpy as np
 import os
 import re
@@ -27,7 +28,7 @@ def null_logger():
     return log
 
 
-def get_logger(name=None, level=logging.INFO):
+def get_logger(name=None, level='info', formatter='%(levelname) - %(message)'):
     """Configures and returns a logger sending messages to standard error
 
     Parameters
@@ -35,27 +36,89 @@ def get_logger(name=None, level=logging.INFO):
     name : str
         Name of the created logger, to be displayed in the header of
         log messages.
-    level : logging.level
+    level : str, optional
         The minimum log level handled by the logger (any message above
-        this level will be ignored).
+        this level will be ignored). Must be 'debug', 'info',
+        'warning' or 'error'. Default to 'info'.
+    formatter : str, optional
+        A string to format the log messages, see
+        https://docs.python.org/3/library/logging.html#formatter-objects. By
+        default display level and message. Use '%(asctime)s -
+        %(levelname)s - %(name)s - %(message)s' to display time,
+        level, name and message.
 
     Returns
     -------
     logging.Logger
-        Logging instance displaying messages to the standard error
-        stream.
+        A configured logging instance displaying messages to the
+        standard error stream.
+
+    Raises
+    ------
+    ValueError
+        If the logging `level` is not 'debug', 'info', 'warning' or
+        'error'.
 
     """
-    log = logging.getLogger(name)
-    log.setLevel(level)
+    levels = {
+        'debug': logging.DEBUG,
+        'info': logging.INFO,
+        'warning': logging.WARNING,
+        'error': logging.ERROR}
 
-    formatter = logging.Formatter(
-        '%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+    log = logging.getLogger(name)
+    try:
+        log.setLevel(levels[level])
+    except KeyError:
+        raise ValueError(
+            'invalid logging level "{}", must be in {}'.format(
+                level, ', '.join(levels.keys())))
+
+    formatter = logging.Formatter(formatter)
     handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(formatter)
 
     log.addHandler(handler)
     return log
+
+
+def get_njobs(njobs, log=null_logger()):
+    """Returns the number of parallel jobs to run
+
+    The returned number of jobs is adapted from the input `njobs`
+    value, considering the number of CPU cores available on the
+    machine.
+
+    Parameters
+    ----------
+    njobs : int
+        The desired number of jobs to use.
+    log : logging.Logger, optional
+        A logger where to send messages, no logging by default.
+
+    Returns
+    -------
+    njobs : int
+        The returned value is min(njobs, ncpus).
+
+    Raises
+    ------
+    ValueError
+        If `njobs` is not a strictly positive integer.
+
+    """
+    max_njobs = multiprocessing.cpu_count()
+    if njobs is None:
+        return max_njobs
+    elif njobs <= 0:
+        raise ValueError(
+            'njobs must be strictly positive, it is {}'.format(njobs))
+    elif njobs > max_njobs:
+        log.warning(
+            'asking %d CPU cores but reducing to %d (max available)',
+            njobs, max_njobs)
+        return max_njobs
+    return njobs
 
 
 def list2array(x):
