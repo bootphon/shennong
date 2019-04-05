@@ -167,7 +167,7 @@ class PitchProcessor(FeaturesProcessor):
     @property
     def penalty_factor(self):
         """Cost factor for F0 change"""
-        return self._options.penalty_factor
+        return np.float32(self._options.penalty_factor)
 
     @penalty_factor.setter
     def penalty_factor(self, value):
@@ -198,7 +198,7 @@ class PitchProcessor(FeaturesProcessor):
     @property
     def delta_pitch(self):
         """Smallest relative change in pitch that the algorithm measures"""
-        return self._options.delta_pitch
+        return np.float32(self._options.delta_pitch)
 
     @delta_pitch.setter
     def delta_pitch(self, value):
@@ -378,7 +378,7 @@ class PitchPostProcessor(FeaturesProcessor):
         pitch values.
 
         """
-        return self._options.delta_pitch_noise_stddev
+        return np.float32(self._options.delta_pitch_noise_stddev)
 
     @delta_pitch_noise_stddev.setter
     def delta_pitch_noise_stddev(self, value):

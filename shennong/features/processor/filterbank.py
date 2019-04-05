@@ -103,10 +103,8 @@ class FilterbankProcessor(MelFeaturesProcessor):
 
         Put energy last.
 
-        Warnings
-        --------
-        Not sufficient to get HTK compatible features (need to change
-        other parameters)
+        Warning: Not sufficient to get HTK compatible features (need
+        to change other parameters)
 
         """
         return self._options.htk_compat

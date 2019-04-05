@@ -523,7 +523,11 @@ class BottleneckProcessor(FeaturesProcessor):
 
     @property
     def weights(self):
-        """The name of the pretrained weights used to extract the features"""
+        """The name of the pretrained weights used to extract the features
+
+        Must be 'BabelMulti', 'FisherMono' or 'FisherTri'.
+
+        """
         return self._weights
 
     @weights.setter

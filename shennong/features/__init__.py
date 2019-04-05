@@ -1,3 +1,3 @@
 """Speech features extraction and manipulation"""
 
-from .features import *
+from shennong.features.features import Features, FeaturesCollection

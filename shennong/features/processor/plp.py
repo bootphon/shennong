@@ -46,6 +46,7 @@ References
 
 import kaldi.feat.plp
 import kaldi.matrix
+import numpy as np
 
 from shennong.features.processor.base import MelFeaturesProcessor
 
@@ -140,7 +141,7 @@ class PlpProcessor(MelFeaturesProcessor):
     @property
     def compress_factor(self):
         """Compression factor in PLP computation"""
-        return self._options.compress_factor
+        return np.float32(self._options.compress_factor)
 
     @compress_factor.setter
     def compress_factor(self, value):

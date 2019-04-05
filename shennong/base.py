@@ -55,7 +55,7 @@ class BaseProcessor(object):
         ----------
         deep : boolean, optional
             If True, will return the parameters for this processor and
-            contained subobjects that are processors.
+            contained subobjects that are processors. Default to True.
 
         Returns
         -------

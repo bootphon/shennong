@@ -8,8 +8,16 @@ See https://coml.lscp.ens.fr/shennong for a complete documentation.
 
 """
 
+import datetime
+import textwrap
+
 
 __version__ = '0.0.1.dev0'
+
+
+def url():
+    """Return the URL to the shennong website"""
+    return 'https://coml.lscp.ens.fr/shennong'
 
 
 def version(type=str, full=False):
@@ -36,3 +44,13 @@ def version(type=str, full=False):
         v = v[:3]
 
     return v if type in (tuple, 'tuple') else '.'.join(v)
+
+
+def version_long():
+    """Returns a long description with version, copyrigth and licence info"""
+    return textwrap.dedent('''\
+    shennong-{}
+    copyright 2018-{} INRIA
+    see documentation at {}
+    licence GPL3: this is free software, see the source for copying conditions
+    '''.format(version(), datetime.date.today().year, url()))

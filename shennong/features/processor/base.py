@@ -141,7 +141,7 @@ class MelFeaturesProcessor(FeaturesProcessor):
         `process`
 
         """
-        return self._frame_options.samp_freq
+        return np.float32(self._frame_options.samp_freq)
 
     @sample_rate.setter
     def sample_rate(self, value):
@@ -150,7 +150,7 @@ class MelFeaturesProcessor(FeaturesProcessor):
     @property
     def frame_shift(self):
         """Frame shift in seconds"""
-        return self._frame_options.frame_shift_ms / 1000.0
+        return np.float32(self._frame_options.frame_shift_ms / 1000.0)
 
     @frame_shift.setter
     def frame_shift(self, value):
@@ -159,7 +159,7 @@ class MelFeaturesProcessor(FeaturesProcessor):
     @property
     def frame_length(self):
         """Frame length in seconds"""
-        return self._frame_options.frame_length_ms / 1000.0
+        return np.float32(self._frame_options.frame_length_ms / 1000.0)
 
     @frame_length.setter
     def frame_length(self, value):
@@ -172,7 +172,7 @@ class MelFeaturesProcessor(FeaturesProcessor):
         0.0 means no dither
 
         """
-        return self._frame_options.dither
+        return np.float32(self._frame_options.dither)
 
     @dither.setter
     def dither(self, value):
@@ -181,7 +181,7 @@ class MelFeaturesProcessor(FeaturesProcessor):
     @property
     def preemph_coeff(self):
         """Coefficient for use in signal preemphasis"""
-        return self._frame_options.preemph_coeff
+        return np.float32(self._frame_options.preemph_coeff)
 
     @preemph_coeff.setter
     def preemph_coeff(self, value):
@@ -229,8 +229,12 @@ class MelFeaturesProcessor(FeaturesProcessor):
 
     @property
     def blackman_coeff(self):
-        """Constant coefficient for generalized Blackman window"""
-        return self._frame_options.blackman_coeff
+        """Constant coefficient for generalized Blackman window
+
+        Used only if `window_type` is 'blackman'
+
+        """
+        return np.float32(self._frame_options.blackman_coeff)
 
     @blackman_coeff.setter
     def blackman_coeff(self, value):
@@ -267,7 +271,7 @@ class MelFeaturesProcessor(FeaturesProcessor):
     @property
     def low_freq(self):
         """Low cutoff frequency for mel bins in Hertz"""
-        return self._mel_options.low_freq
+        return np.float32(self._mel_options.low_freq)
 
     @low_freq.setter
     def low_freq(self, value):
@@ -280,7 +284,7 @@ class MelFeaturesProcessor(FeaturesProcessor):
         If `high_freq` < 0, offset from the Nyquist frequency
 
         """
-        return self._mel_options.high_freq
+        return np.float32(self._mel_options.high_freq)
 
     @high_freq.setter
     def high_freq(self, value):
@@ -293,7 +297,7 @@ class MelFeaturesProcessor(FeaturesProcessor):
         In Hertz
 
         """
-        return self._mel_options.vtln_low
+        return np.float32(self._mel_options.vtln_low)
 
     @vtln_low.setter
     def vtln_low(self, value):
@@ -306,7 +310,7 @@ class MelFeaturesProcessor(FeaturesProcessor):
         In Hertz. If `vtln_high` < 0, offset from `high_freq`
 
         """
-        return self._mel_options.vtln_high
+        return np.float32(self._mel_options.vtln_high)
 
     @vtln_high.setter
     def vtln_high(self, value):
