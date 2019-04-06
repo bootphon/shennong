@@ -413,3 +413,46 @@ class AudioData:
                 data = self.data
 
         return AudioData(data.astype(dtype), self.sample_rate, validate=False)
+
+    def segment(self, segments):
+        """Returns audio chunks segmented from the original signal
+
+        Parameters
+        ----------
+        segments : list of pairs of floats
+             A list of pairs (tstart, tstop) of the start and stop
+             indices (in seconds) of the signal chunks we are going to
+             extract. The times `tstart` and `tstop` must be float,
+             with `tstart` < `tstop`.
+
+        Returns
+        -------
+        chunks : list of AudioData
+            The signal chunks created from the given `segments`
+
+        Raises
+        ------
+        ValueError
+            If one element in `segments` is not a pair of float or if
+            `tstart` >= `tstop`. If `segments` is not a list.
+
+        """
+        # ensure segments is well formatted
+        if not isinstance(segments, list):
+            raise ValueError('segments must be a list')
+        for segment in segments:
+            try:
+                if not len(segment) == 2:
+                    raise ValueError('segments elements must be pairs')
+            except TypeError:
+                raise ValueError('segments elements must be pairs')
+            if segment[0] >= segment[1]:
+                raise ValueError('time indices in segments must be sorted')
+
+        chunks = []
+        for segment in segments:
+            istart = int(segment[0] * self.sample_rate)
+            istop = int(segment[1] * self.sample_rate)
+            chunks.append(AudioData(
+                self.data[istart:istop], self.sample_rate, validate=False))
+        return chunks
