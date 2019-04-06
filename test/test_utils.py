@@ -25,7 +25,7 @@ def test_null_logger(capsys):
 
 
 @pytest.mark.parametrize(
-    'level', [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR])
+    'level', ['debug', 'info', 'warning', 'error'])
 def test_logger(capsys, level):
     log = utils.get_logger(level=level)
     log.debug('DEBUG')

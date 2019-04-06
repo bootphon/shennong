@@ -28,7 +28,8 @@ def null_logger():
     return log
 
 
-def get_logger(name=None, level='info', formatter='%(levelname) - %(message)'):
+def get_logger(name=None, level='info',
+               formatter='%(levelname)s - %(message)s'):
     """Configures and returns a logger sending messages to standard error
 
     Parameters

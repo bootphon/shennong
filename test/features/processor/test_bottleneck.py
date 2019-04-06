@@ -56,7 +56,7 @@ def test_weights(weights):
 
 @pytest.mark.parametrize('weights', ['BabelMulti', 'FisherMono', 'FisherTri'])
 def test_process(capsys, audio, mfcc, weights):
-    get_logger().setLevel(10)
+    get_logger(level='debug')
 
     proc = BottleneckProcessor(weights=weights)
     feat = proc.process(audio)
