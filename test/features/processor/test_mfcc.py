@@ -28,6 +28,7 @@ def test_params():
     for k, v in p.items():
         assert params_out[k] == v
     assert f.get_params() == params_out
+    assert f.ndims == f.num_ceps
 
 
 def test_set_params():

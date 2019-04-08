@@ -44,6 +44,7 @@ def test_num_bins(audio, use_energy, num_bins):
     ncols = num_bins + use_energy
     p = FilterbankProcessor(use_energy=use_energy, num_bins=num_bins)
 
+    assert p.ndims == ncols
     if num_bins >= 3:
         assert p.process(audio).shape == (140, ncols)
     else:

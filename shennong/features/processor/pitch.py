@@ -239,6 +239,10 @@ class PitchProcessor(FeaturesProcessor):
     def upsample_filter_width(self, value):
         self._options.upsample_filter_width = value
 
+    @property
+    def ndims(self):
+        return 2
+
     def times(self, nframes):
         """Returns the time label for the rows given by the `process` method"""
         return np.arange(nframes) * self.frame_shift + self.frame_length / 2.0
@@ -460,6 +464,14 @@ class PitchPostProcessor(FeaturesProcessor):
     @add_raw_log_pitch.setter
     def add_raw_log_pitch(self, value):
         self._options.add_raw_log_pitch = value
+
+    @property
+    def ndims(self):
+        return (
+            self.add_pov_feature
+            + self.add_normalized_log_pitch
+            + self.add_delta_pitch
+            + self.add_raw_log_pitch)
 
     def process(self, raw_pitch):
         """Post process a raw pitch data as specified by the options

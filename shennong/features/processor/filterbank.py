@@ -127,6 +127,12 @@ class FilterbankProcessor(MelFeaturesProcessor):
         """If true, use power, else use magnitude"""
         return self._options.use_power
 
+    @property
+    def ndims(self):
+        if self.use_energy:
+            return self.num_bins + 1
+        return self.num_bins
+
     @use_power.setter
     def use_power(self, value):
         self._options.use_power = value

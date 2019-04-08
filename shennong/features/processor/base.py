@@ -20,6 +20,11 @@ from shennong.utils import get_logger, get_njobs
 
 class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
     """Base class of all the features extraction models"""
+    @abc.abstractproperty
+    def ndims(self):  # pragma: no cover
+        """Returns the dimension of the output features frames"""
+        pass
+
     @abc.abstractmethod
     def process(self, signal):
         """Returns features processed from an input `signal`
@@ -327,11 +332,10 @@ class MelFeaturesProcessor(FeaturesProcessor):
 
         Returns
         -------
-        features : `Features`, shape = [nframes, `num_ceps`]
+        features : `Features`, shape = [nframes, `ndims`]
             The computed features, output will have as many rows as there
             are frames (depends on the specified options `frame_shift`
-            and `frame_length`), and as many columns as there are
-            cepstral coeficients (the `num_ceps` option).
+            and `frame_length`).
 
         Raises
         ------

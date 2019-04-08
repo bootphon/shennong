@@ -543,6 +543,10 @@ class BottleneckProcessor(FeaturesProcessor):
                 'invalid weights "{}", choose in "{}"'.format(
                     value, ', '.join(sorted(_available_weights.keys()))))
 
+    @property
+    def ndims(self):
+        return 80
+
     @classmethod
     def available_weights(cls):
         """Return the pretrained weights files as a dict (name -> file)

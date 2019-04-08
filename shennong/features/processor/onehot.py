@@ -41,6 +41,14 @@ class _OneHotBase(FeaturesProcessor):
         else:
             self._tokens = sorted(set(value))
 
+    @property
+    def ndims(self):
+        if self.tokens:
+            return len(self.tokens)
+        else:
+            raise ValueError(
+                'onehot tokens are not defined, cannot know their dimension')
+
     def _tokens_set(self, alignment):
         # if no tokens list specified, take them from the alignment
         if self.tokens is None:

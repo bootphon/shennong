@@ -38,8 +38,12 @@ def test_pitch_params():
 
 
 def test_output(audio):
-    assert PitchProcessor(frame_shift=0.01).process(audio).shape == (140, 2)
-    assert PitchProcessor(frame_shift=0.02).process(audio).shape == (70, 2)
+    ndims = PitchProcessor().ndims
+    assert ndims == 2
+    assert PitchProcessor(
+        frame_shift=0.01).process(audio).shape == (140, ndims)
+    assert PitchProcessor(
+        frame_shift=0.02).process(audio).shape == (70, ndims)
     assert PitchProcessor(
         frame_shift=0.02, frame_length=0.05).process(audio).shape == (69, 2)
 
@@ -113,6 +117,7 @@ def test_post_pitch_output(raw_pitch, options):
 
     if sum(options):
         d = p.process(raw_pitch)
+        assert p.ndims == sum(options)
         assert d.shape == (raw_pitch.shape[0], sum(options))
         assert d.shape[1] == sum(options)
         assert np.array_equal(raw_pitch.times, d.times)

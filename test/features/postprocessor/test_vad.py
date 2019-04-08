@@ -35,6 +35,8 @@ def test_params():
         'frames_context': 0,
         'proportion_threshold': 0.1})
 
+    assert p.ndims == 1
+
 
 def test_mfcc(mfcc):
     p = VadPostProcessor()
@@ -56,3 +58,7 @@ def test_mfcc(mfcc):
     p.energy_threshold = 1e10
     vad = p.process(mfcc)
     assert not np.any(vad.data)
+
+    # always 1
+    assert p.ndims == 1
+    assert vad.shape[1] == p.ndims

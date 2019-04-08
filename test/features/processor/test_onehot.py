@@ -50,6 +50,9 @@ def test_base(alignments):
 
     base = Base()
     assert base._tokens_set(ali) == ali.get_tokens_inventory()
+    with pytest.raises(ValueError) as err:
+        base.ndims
+    assert 'cannot know their dimension' in str(err)
 
     extra = ali.get_tokens_inventory()
     extra.add('!!')
@@ -77,6 +80,7 @@ def test_simple(alignments):
     # no tokens_set specification, used the ones from ali1
     proc = onehot.OneHotProcessor(tokens=phn1)
     feat1 = proc.process(ali1)
+    assert proc.ndims == feat1.ndims == len(phn1)
     assert feat1.shape == (ali1.tokens.shape[0], len(phn1))
     assert all(feat1.data.sum(axis=1) == 1)
     assert np.array_equal(feat1.times, ali1.times)

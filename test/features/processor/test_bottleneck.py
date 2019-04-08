@@ -61,6 +61,7 @@ def test_process(capsys, audio, mfcc, weights):
     proc = BottleneckProcessor(weights=weights)
     feat = proc.process(audio)
     assert feat.shape == (140, 80)
+    assert feat.shape[1] == proc.ndims
     assert np.allclose(feat.times, mfcc.times)
 
     # check the log messages

@@ -83,6 +83,11 @@ class DeltaPostProcessor(FeaturesPostProcessor):
                 'window must be in [1, 999], it is {}'.format(value))
         self._options.window = value
 
+    @property
+    def ndims(self):
+        raise ValueError(
+            'output dimension for delta processor depends on input')
+
     def process(self, features):
         """Compute deltas on `features` with the specified options
 

@@ -137,3 +137,7 @@ class MfccProcessor(MelFeaturesProcessor):
     @htk_compat.setter
     def htk_compat(self, value):
         self._options.htk_compat = value
+
+    @property
+    def ndims(self):
+        return self.num_ceps

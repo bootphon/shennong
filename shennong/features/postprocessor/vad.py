@@ -145,6 +145,10 @@ class VadPostProcessor(FeaturesPostProcessor):
                 .format(value))
         self._options.vad_proportion_threshold = value
 
+    @property
+    def ndims(self):
+        return 1
+
     def process(self, features):
         """Computes voice activity detection (VAD) on the input `features`
 

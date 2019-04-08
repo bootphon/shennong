@@ -34,7 +34,7 @@ def test_num_ceps(audio, num_ceps):
         proc = PlpProcessor(num_ceps=num_ceps)
         if 0 < proc.num_ceps:
             feat = proc.process(audio)
-            assert proc.num_ceps == num_ceps
+            assert proc.num_ceps == num_ceps == proc.ndims
             assert feat.shape == (140, num_ceps)
 
             proc.use_energy = False

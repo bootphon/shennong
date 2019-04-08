@@ -91,6 +91,10 @@ class CmvnPostProcessor(FeaturesPostProcessor):
         """The weighted total count of accumulated features frames"""
         return self.stats[0, -1]
 
+    @property
+    def ndims(self):
+        return self.dim
+
     def accumulate(self, features, weights=None):
         """Accumulates CMVN statistics
 

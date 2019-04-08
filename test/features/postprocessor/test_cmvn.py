@@ -62,6 +62,7 @@ def test_cmvn(mfcc, norm_vars):
         assert cmvn1.data.var(axis=0) == pytest.approx(np.ones(cmvn1.ndims))
     else:
         assert cmvn1.data.var(axis=0) == pytest.approx(mfcc.data.var(axis=0))
+    assert mfcc.ndims == proc.dim == proc.ndims == cmvn1.ndims
 
     # reverse cmvn
     cmvn2 = proc.process(cmvn1, norm_vars=norm_vars, reverse=True)
