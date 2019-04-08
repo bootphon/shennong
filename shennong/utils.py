@@ -24,6 +24,7 @@ def null_logger():
 
     """
     log = logging.getLogger()
+    log.handlers = []
     log.addHandler(logging.NullHandler())
     return log
 
@@ -79,6 +80,7 @@ def get_logger(name=None, level='info',
     handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(formatter)
 
+    log.handlers = []
     log.addHandler(handler)
     return log
 
