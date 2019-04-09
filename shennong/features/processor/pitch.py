@@ -245,7 +245,9 @@ class PitchProcessor(FeaturesProcessor):
 
     def times(self, nframes):
         """Returns the time label for the rows given by the `process` method"""
-        return np.arange(nframes) * self.frame_shift + self.frame_length / 2.0
+        return np.vstack((
+            np.arange(nframes) * self.frame_shift,
+            np.arange(nframes) * self.frame_shift + self.frame_length)).T
 
     def process(self, signal):
         """Extracts the (NCCF, pitch) from a given speech `signal`
