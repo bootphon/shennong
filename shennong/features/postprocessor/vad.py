@@ -11,11 +11,14 @@ continuity constraints.
 
 This method is a very simple energy-based method which only looks at
 the first coefficient of the input features, which is assumed to be
-**a log-energy or something similar**. A cutoff is set, we use a
-formula of the general type: `cutoff = 5.0 + 0.5 * (average
-log-energy)`, and for each frame the decision is based on the
-proportion of frames in a context window around the current frame,
-which are above this cutoff.
+**a log-energy or something similar**. If working from the raw signal,
+extract the energy using
+:class:`~shennong.features.processor.energy.EnergyProcessor`.
+
+ A cutoff is set, we use a formula of the general type: `cutoff = 5.0
++ 0.5 * (average log-energy)`, and for each frame the decision is
+based on the proportion of frames in a context window around the
+current frame, which are above this cutoff.
 
 .. note::
 

@@ -3,6 +3,7 @@
 import pytest
 
 from shennong.features.processor.bottleneck import BottleneckProcessor
+from shennong.features.processor.energy import EnergyProcessor
 from shennong.features.processor.filterbank import FilterbankProcessor
 from shennong.features.processor.mfcc import MfccProcessor
 from shennong.features.processor.onehot import (
@@ -12,6 +13,7 @@ from shennong.features.processor.plp import PlpProcessor
 
 
 PROCESSORS = [
+    EnergyProcessor,
     FilterbankProcessor,
     MfccProcessor,
     PlpProcessor,

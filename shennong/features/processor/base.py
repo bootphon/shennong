@@ -233,6 +233,12 @@ class FramesProcessor(FeaturesProcessor, metaclass=abc.ABCMeta):
     def snip_edges(self, value):
         self._frame_options.snip_edges = value
 
+    def times(self, nframes):
+        """Returns the times label for the rows given by :func:`process`"""
+        return np.vstack((
+            np.arange(nframes) * self.frame_shift,
+            np.arange(nframes) * self.frame_shift + self.frame_length)).T
+
 
 class MelFeaturesProcessor(FramesProcessor):
     """A base class for mel-based features processors
@@ -338,12 +344,6 @@ class MelFeaturesProcessor(FramesProcessor):
     @vtln_high.setter
     def vtln_high(self, value):
         self._mel_options.vtln_high = value
-
-    def times(self, nframes):
-        """Returns the times label for the rows given by :func:`process`"""
-        return np.vstack((
-            np.arange(nframes) * self.frame_shift,
-            np.arange(nframes) * self.frame_shift + self.frame_length)).T
 
     def process(self, signal, vtln_warp=1.0):
         """Compute features with the specified options
