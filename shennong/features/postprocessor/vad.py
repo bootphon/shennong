@@ -84,7 +84,7 @@ class VadPostProcessor(FeaturesPostProcessor):
         See also :func:`energy_mean_scale`
 
         """
-        return self._options.vad_energy_threshold
+        return np.float32(self._options.vad_energy_threshold)
 
     @energy_threshold.setter
     def energy_threshold(self, value):
@@ -99,7 +99,7 @@ class VadPostProcessor(FeaturesPostProcessor):
         :func:`energy_threshold`. Must be greater or equal to 0.
 
         """
-        return self._options.vad_energy_mean_scale
+        return np.float32(self._options.vad_energy_mean_scale)
 
     @energy_mean_scale.setter
     def energy_mean_scale(self, value):
@@ -135,7 +135,7 @@ class VadPostProcessor(FeaturesPostProcessor):
         be in ]0, 1[.
 
         """
-        return self._options.vad_proportion_threshold
+        return np.float32(self._options.vad_proportion_threshold)
 
     @proportion_threshold.setter
     def proportion_threshold(self, value):
