@@ -245,12 +245,12 @@ class MelFeaturesProcessor(FramesProcessor):
 
     The mel-based features are MFCC, PLP and filterbanks. The class
     implement common options for processing those features. See
-    [kaldi-mel]_ and [kaldi-frame]_.
+    [kaldi-mel]_ and [kaldi-frame-2]_.
 
     References
     ----------
 
-    .. [kaldi-frame]
+    .. [kaldi-frame-2]
        http://kaldi-asr.org/doc/structkaldi_1_1FrameExtractionOptions.html
 
     .. [kaldi-mel]
