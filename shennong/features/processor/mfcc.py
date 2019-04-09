@@ -129,7 +129,7 @@ class MfccProcessor(MelFeaturesProcessor):
         Put energy or C0 last and use a factor of sqrt(2) on C0.
 
         Warning: Not sufficient to get HTK compatible features (need
-        to change other parameters)
+        to change other parameters).
 
         """
         return self._options.htk_compat
