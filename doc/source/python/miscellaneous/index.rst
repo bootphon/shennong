@@ -10,5 +10,5 @@ This section documents various utility functions that are used by the
    :maxdepth: 3
 
    base
-   window
+   frames_windows
    misc
