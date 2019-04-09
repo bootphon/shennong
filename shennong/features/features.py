@@ -297,7 +297,7 @@ class Features:
 
         """
         # ensures time axis is shared accross the two features
-        if not np.array_equal(self.times, other.times):
+        if not np.allclose(self.times, other.times):
             raise ValueError('times are not equal')
 
         # TODO need a FeaturesParameter class: assign properties per
