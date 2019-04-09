@@ -81,12 +81,10 @@ class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
                 for name, signal in signals.items())})
 
 
-class MelFeaturesProcessor(FeaturesProcessor):
-    """A base class for mel-based features processors
+class FramesProcessor(FeaturesProcessor, metaclass=abc.ABCMeta):
+    """A base class for frame based features processors.
 
-    The mel-based features are MFCC, PLP and filterbanks. The class
-    implement common options for processing those features. See
-    [kaldi-mel]_ and [kaldi-frame]_.
+    Wrap the kaldi frames implementation. See [kaldi-frame]_.
 
     References
     ----------
@@ -94,16 +92,12 @@ class MelFeaturesProcessor(FeaturesProcessor):
     .. [kaldi-frame]
        http://kaldi-asr.org/doc/structkaldi_1_1FrameExtractionOptions.html
 
-    .. [kaldi-mel]
-       http://kaldi-asr.org/doc/structkaldi_1_1MelBanksOptions.html
-
     """
     def __init__(self, sample_rate=16000, frame_shift=0.01,
                  frame_length=0.025, dither=1.0, preemph_coeff=0.97,
                  remove_dc_offset=True, window_type='povey',
                  round_to_power_of_two=True, blackman_coeff=0.42,
-                 snip_edges=True, num_bins=23, low_freq=20,
-                 high_freq=0, vtln_low=100, vtln_high=-500):
+                 snip_edges=True):
         # frame extraction options
         self._frame_options = kaldi.feat.window.FrameExtractionOptions()
         self.sample_rate = sample_rate
@@ -116,14 +110,6 @@ class MelFeaturesProcessor(FeaturesProcessor):
         self.round_to_power_of_two = round_to_power_of_two
         self.blackman_coeff = blackman_coeff
         self.snip_edges = snip_edges
-
-        # mel banks options
-        self._mel_options = kaldi.feat.mel.MelBanksOptions()
-        self.num_bins = num_bins
-        self.low_freq = low_freq
-        self.high_freq = high_freq
-        self.vtln_low = vtln_low
-        self.vtln_high = vtln_high
 
     @property
     def sample_rate(self):
@@ -247,6 +233,51 @@ class MelFeaturesProcessor(FeaturesProcessor):
     def snip_edges(self, value):
         self._frame_options.snip_edges = value
 
+
+class MelFeaturesProcessor(FramesProcessor):
+    """A base class for mel-based features processors
+
+    The mel-based features are MFCC, PLP and filterbanks. The class
+    implement common options for processing those features. See
+    [kaldi-mel]_ and [kaldi-frame]_.
+
+    References
+    ----------
+
+    .. [kaldi-frame]
+       http://kaldi-asr.org/doc/structkaldi_1_1FrameExtractionOptions.html
+
+    .. [kaldi-mel]
+       http://kaldi-asr.org/doc/structkaldi_1_1MelBanksOptions.html
+
+    """
+    def __init__(self, sample_rate=16000, frame_shift=0.01,
+                 frame_length=0.025, dither=1.0, preemph_coeff=0.97,
+                 remove_dc_offset=True, window_type='povey',
+                 round_to_power_of_two=True, blackman_coeff=0.42,
+                 snip_edges=True, num_bins=23, low_freq=20,
+                 high_freq=0, vtln_low=100, vtln_high=-500):
+        # init of FramesProcessor parent
+        super().__init__(
+            sample_rate=sample_rate,
+            frame_shift=frame_shift,
+            frame_length=frame_length,
+            dither=dither,
+            preemph_coeff=preemph_coeff,
+            remove_dc_offset=remove_dc_offset,
+            window_type=window_type,
+            round_to_power_of_two=round_to_power_of_two,
+            blackman_coeff=blackman_coeff,
+            snip_edges=snip_edges)
+
+        # mel banks options
+        self._mel_options = kaldi.feat.mel.MelBanksOptions()
+        self.num_bins = num_bins
+        self.low_freq = low_freq
+        self.high_freq = high_freq
+        self.vtln_low = vtln_low
+        self.vtln_high = vtln_high
+
     @property
     def num_bins(self):
         """Number of triangular mel-frequency bins
@@ -361,7 +392,7 @@ class MelFeaturesProcessor(FeaturesProcessor):
 
         # we need to forward options (because the assignation here is
         # done by copy, not by reference. If the user do 'p =
-        # Processor; p.dither = 0', this is forwarded to Kaldi here)
+        # Processor(); p.dither = 0', this is forwarded to Kaldi here)
         self._options.frame_opts = self._frame_options
         self._options.mel_opts = self._mel_options
 
