@@ -53,10 +53,22 @@ class FilterbankProcessor(MelFeaturesProcessor):
                  use_energy=False, energy_floor=0.0, raw_energy=True,
                  htk_compat=False, use_log_fbank=True, use_power=True):
         # Forward options to MelFeaturesProcessor
-        super().__init__(sample_rate, frame_shift, frame_length,
-                         dither, preemph_coeff, remove_dc_offset, window_type,
-                         round_to_power_of_two, blackman_coeff, snip_edges,
-                         num_bins, low_freq, high_freq, vtln_low, vtln_high)
+        super().__init__(
+            sample_rate=sample_rate,
+            frame_shift=frame_shift,
+            frame_length=frame_length,
+            dither=dither,
+            preemph_coeff=preemph_coeff,
+            remove_dc_offset=remove_dc_offset,
+            window_type=window_type,
+            round_to_power_of_two=round_to_power_of_two,
+            blackman_coeff=blackman_coeff,
+            snip_edges=snip_edges,
+            num_bins=num_bins,
+            low_freq=low_freq,
+            high_freq=high_freq,
+            vtln_low=vtln_low,
+            vtln_high=vtln_high)
         self._options = kaldi.feat.fbank.FbankOptions()
         self._options.frame_opts = self._frame_options
         self._options.mel_opts = self._mel_options
