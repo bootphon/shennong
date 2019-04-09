@@ -2,7 +2,7 @@
 
 import pytest
 
-from shennong import version
+from shennong import version, version_long, url
 from shennong.base import BaseProcessor
 from shennong.features.processor.mfcc import MfccProcessor
 
@@ -25,6 +25,11 @@ def test_version():
     with pytest.raises(ValueError) as err:
         version(type='abc')
     assert 'version type must be str or tuple' in str(err)
+
+    assert version() in version_long()
+    assert 'gpl' in version_long().lower()
+    assert 'copyright' in version_long().lower()
+    assert 'shennong' in url()
 
 
 class ProcessorTest(BaseProcessor):

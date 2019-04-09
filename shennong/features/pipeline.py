@@ -308,7 +308,7 @@ def default_config(features, to_yaml=False, yaml_commented=True,
         to False.
     yaml_commented : bool, optional
         If True add the docstring of each parameter as a comment in
-        the YAML string, if False do nothing. Yhis option has an
+        the YAML string, if False do nothing. This option has an
         effect only if `to_yaml` is True. Default to True.
     with_pitch : bool, optional
         Configure the pipeline for pitch extraction, default to True

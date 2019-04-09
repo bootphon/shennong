@@ -57,6 +57,12 @@ def test_logger(capsys, level):
         assert 'DEBUG' in captured.err
 
 
+def test_logger_bad_level():
+    with pytest.raises(ValueError) as err:
+        utils.get_logger(level='bad')
+    assert 'invalid logging level' in str(err)
+
+
 @pytest.mark.parametrize('x', ['abc', 0, {'a': 0}, {0, 1}])
 def test_listarray_simple(x):
     f = utils.list2array

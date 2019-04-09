@@ -215,3 +215,38 @@ def test_compare_kaldi(wav_file):
     assert a1.dtype == np.int16 and a2.dtype == np.float32
     assert a1.shape == (22713,) and a2.shape == (1, 22713)
     assert pytest.approx(a1, a2)
+
+
+def test_segment(audio):
+    d = audio.duration
+    assert audio.segment([(0., d)])[0] == audio
+    assert audio.segment([(0., d+10)])[0] == audio
+
+    chunks = audio.segment([(0, d/2), (d/2, d)])
+    assert all(c.duration == pytest.approx(d/2, rel=1e-3) for c in chunks)
+    assert sum(c.nsamples for c in chunks) == audio.nsamples
+    assert AudioData(
+        np.concatenate([c.data for c in chunks]), audio.sample_rate) == audio
+
+    chunks = audio.segment([(0, d/3), (d/3, 2*d/3), (2*d/3, d)])
+    assert all(c.duration == pytest.approx(d/3, rel=1e-3) for c in chunks)
+    assert sum(c.nsamples for c in chunks) == audio.nsamples
+    assert AudioData(
+        np.concatenate([c.data for c in chunks]), audio.sample_rate) == audio
+
+
+def test_segment_bad(audio):
+    with pytest.raises(ValueError) as err:
+        audio.segment(0)
+    assert 'segments must be a list' in str(err)
+
+    with pytest.raises(ValueError) as err:
+        audio.segment([0, 1])
+    assert 'must be pairs' in str(err)
+    with pytest.raises(ValueError) as err:
+        audio.segment([(0, 1, 2)])
+    assert 'must be pairs' in str(err)
+
+    with pytest.raises(ValueError) as err:
+        audio.segment([(1, 0)])
+    assert 'must be sorted' in str(err)
