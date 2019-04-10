@@ -16,6 +16,7 @@ import yaml
 from shennong.audio import AudioData
 from shennong.features import FeaturesCollection
 from shennong.features.processor.bottleneck import BottleneckProcessor
+from shennong.features.processor.energy import EnergyProcessor
 from shennong.features.processor.filterbank import FilterbankProcessor
 from shennong.features.processor.mfcc import MfccProcessor
 from shennong.features.processor.plp import PlpProcessor
@@ -31,6 +32,7 @@ _valid_features = ['mfcc', 'filterbank', 'plp', 'bottleneck']
 
 _valid_processors = {
     'bottleneck': BottleneckProcessor,
+    'energy': EnergyProcessor,
     'filterbank': FilterbankProcessor,
     'mfcc': MfccProcessor,
     'pitch': PitchProcessor,
@@ -401,7 +403,7 @@ def _get_config_to_yaml(config, comments=True):
         np.float32, yaml.representer.Representer.represent_float)
 
     # build the yaml formated multiline string
-    config = yaml.dump(config).strip().split('\n')
+    config = yaml.dump(config).strip()
 
     if not comments:
         return config
@@ -409,7 +411,7 @@ def _get_config_to_yaml(config, comments=True):
     # incrust the parameters docstings as comments in the yaml
     config_commented = []
     processor = None
-    for line in config:
+    for line in config.split('\n'):
         if not line.startswith(' '):
             processor = line[:-1]
             config_commented.append(line)
