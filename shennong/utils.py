@@ -12,6 +12,9 @@ import re
 import sys
 
 
+_logger = logging.getLogger()
+
+
 def null_logger():
     """Configures and returns a logger sending messages to nowhere
 
@@ -23,10 +26,9 @@ def null_logger():
         Logging instance ignoring all the messages.
 
     """
-    log = logging.getLogger()
-    log.handlers = []
-    log.addHandler(logging.NullHandler())
-    return log
+    _logger.handlers = []
+    _logger.addHandler(logging.NullHandler())
+    return _logger
 
 
 def get_logger(name=None, level='info',
@@ -68,9 +70,9 @@ def get_logger(name=None, level='info',
         'warning': logging.WARNING,
         'error': logging.ERROR}
 
-    log = logging.getLogger(name)
+    _logger.name = name
     try:
-        log.setLevel(levels[level])
+        _logger.setLevel(levels[level])
     except KeyError:
         raise ValueError(
             'invalid logging level "{}", must be in {}'.format(
@@ -80,9 +82,9 @@ def get_logger(name=None, level='info',
     handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(formatter)
 
-    log.handlers = []
-    log.addHandler(handler)
-    return log
+    _logger.handlers = []
+    _logger.addHandler(handler)
+    return _logger
 
 
 def get_njobs(njobs, log=null_logger()):
