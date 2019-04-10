@@ -63,6 +63,9 @@ def test_process(capsys, audio, mfcc, weights):
     assert feat.shape == (140, 80)
     assert feat.shape[1] == proc.ndims
     assert np.allclose(feat.times, mfcc.times)
+    assert proc.frame_length == 0.025
+    assert proc.frame_shift == 0.01
+    assert proc.sample_rate == 8000
 
     # check the log messages
     captured = capsys.readouterr().err

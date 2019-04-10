@@ -545,7 +545,43 @@ class BottleneckProcessor(FeaturesProcessor):
 
     @property
     def ndims(self):
+        """The dimension of extracted frames
+
+        Cannot be tuned because the underlying neural networks are
+        trained with this parameter.
+
+        """
         return 80
+
+    @property
+    def sample_rate(self):
+        """Processing sample frequency in Hertz
+
+        Cannot be tuned because the underlying neural networks are
+        trained with this parameter.
+
+        """
+        return 8000
+
+    @property
+    def frame_length(self):
+        """The length of extracted frames (in seconds)
+
+        Cannot be tuned because the underlying neural networks are
+        trained with this parameter.
+
+        """
+        return 0.025
+
+    @property
+    def frame_shift(self):
+        """The time shift between two consecutive frames (in seconds)
+
+        Cannot be tuned because the underlying neural networks are
+        trained with this parameter.
+
+        """
+        return 0.01
 
     @classmethod
     def available_weights(cls):

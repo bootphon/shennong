@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 
+from shennong.features.processor.energy import EnergyProcessor
 from shennong.features.postprocessor.vad import VadPostProcessor
 
 
@@ -62,3 +63,15 @@ def test_mfcc(mfcc):
     # always 1
     assert p.ndims == 1
     assert vad.shape[1] == p.ndims
+
+
+def test_energy(audio, mfcc):
+    energy = EnergyProcessor().process(audio)
+    vad1 = VadPostProcessor().process(energy)
+    vad2 = VadPostProcessor().process(mfcc)
+
+    assert energy.shape == vad1.shape == vad2.shape == (140, 1)
+    assert np.allclose(vad1.times, vad2.times)
+    equal = np.equal(vad1.data, vad2.data)
+    # more than 90% of VAD cooccurence between MFCC and energy based
+    assert (sum(equal) / len(equal)) > 0.9

@@ -21,8 +21,8 @@ from shennong.utils import get_logger, get_njobs
 class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
     """Base class of all the features extraction models"""
     @abc.abstractproperty
-    def ndims(self):  # pragma: no cover
-        """Returns the dimension of the output features frames"""
+    def ndims(self):  # pragma: nocover
+        """Dimension of the output features frames"""
         pass
 
     @abc.abstractmethod
