@@ -337,7 +337,11 @@ class AudioData:
         return not sox.NO_SOX
 
     def _resample_sox(self, sample_rate):
+        """Resample the audio signal to the given `sample_rate` using sox"""
+        # inhibate some useless messages from pysox
         sox.logger.setLevel(logging.WARNING)
+
+        # setup the resampling processor
         tfm = sox.Transformer()
         tfm.rate(sample_rate, quality='h')
 
@@ -351,6 +355,7 @@ class AudioData:
             return AudioData.load(dest)
 
     def _resample_scipy(self, sample_rate):
+        """Resample the audio signal to the given `sample_rate` using scipy"""
         if sample_rate == self.sample_rate:
             return self
 
