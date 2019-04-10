@@ -1,6 +1,7 @@
 name: shennong
 channels:
   - pykaldi
+  - conda-forge
 dependencies:
   - python=3.7
   - cython
@@ -16,10 +17,12 @@ dependencies:
   - pytest-runner
   - pyyaml
   - scipy
+  - sox  # sox binary
   - sphinx
   - sphinx_rtd_theme
   - tabulate
   - pip:
+      - h5features
       - json-tricks
       - ninja
-      - h5features
+      - sox  # sox python wrapper

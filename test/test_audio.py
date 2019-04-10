@@ -176,27 +176,31 @@ def test_asbadtype(audio, dtype):
 
 
 @pytest.mark.parametrize(
-    'fs', [4000, 8000, 16000, 32000, 44100, 48000])
-def test_resample(audio, fs):
-    audio2 = audio.resample(fs)
+    'fs, backend', [
+        (f, b) for f in [4000, 8000, 16000, 32000, 44100, 48000]
+        for b in ('sox', 'scipy')])
+def test_resample(audio, fs, backend):
+    audio2 = audio.resample(fs, backend=backend)
     assert audio2.nchannels == audio.nchannels
     assert audio2.sample_rate == fs
-    assert audio2.nsamples == int(
-        audio.nsamples * fs / audio.sample_rate)
+    assert audio2.nsamples == pytest.approx(int(
+        audio.nsamples * fs / audio.sample_rate), abs=1)
     assert audio2.data.mean() == pytest.approx(audio.data.mean(), abs=0.25)
     assert audio2.dtype == audio.dtype
 
     # back to original sample rate
     if fs >= audio.sample_rate:
-        audio3 = audio2.resample(audio.sample_rate)
+        audio3 = audio2.resample(audio.sample_rate, backend=backend)
         assert audio3.nchannels == audio.nchannels
         assert audio3.sample_rate == audio.sample_rate
         assert audio3.dtype == audio.dtype
-        if audio3.nsamples == audio.nsamples:
-            assert audio3.data == pytest.approx(audio.data, abs=2)
-        else:
-            assert audio2.data.mean() == pytest.approx(
-                audio.data.mean(), abs=0.25)
+        assert audio2.data.mean() == pytest.approx(audio.data.mean(), abs=0.25)
+
+
+def test_resample_bad(audio):
+    with pytest.raises(ValueError) as err:
+        audio.resample(5, backend='a_bad_one')
+    assert 'backend must be sox or scipy, it is' in str(err)
 
 
 def test_compare_kaldi(wav_file):

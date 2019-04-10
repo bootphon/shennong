@@ -76,10 +76,13 @@ True
 """
 
 import collections
+import logging
 import os
 import numpy as np
 import scipy.signal
 import scipy.io.wavfile
+import sox
+import tempfile
 import warnings
 import wave
 
@@ -288,10 +291,17 @@ class AudioData:
 
         return AudioData(self.data[:, index], self.sample_rate)
 
-    def resample(self, sample_rate):
+    def resample(self, sample_rate, backend='sox'):
         """Returns the audio signal resampled at the given `sample_rate`
 
-        This method relies on :func:`scipy.signal.resample`.
+        This method first rely on `pysox
+        <https://github.com/rabitt/pysox>`_ (excepted if `backend` is
+        'scipy') and, if sox is not installed on your system or
+        anything goes wrong it falls back to `scipy.signal.resample`.
+
+        The sox backend is very fast and accurate but relies on an
+        external binary whereas scipy backend can be very slow but
+        works in pure Python.
 
         Parameters
         ----------
@@ -302,8 +312,45 @@ class AudioData:
         -------
         audio : AudioData
             An AudioData instance containing the resampled signal
+        backend : str, optional
+            The backend to use for resampling, must be 'sox' or
+            'scipy', default to 'sox'
+
+        Raises
+        ------
+        ValueError
+            If the `backend` is not 'sox' or 'scipy'
 
         """
+        if backend not in ('sox', 'scipy'):
+            raise ValueError(
+                'backend must be sox or scipy, it is {}'.format(backend))
+
+        if backend == 'sox' and self._sox_found():
+            return self._resample_sox(sample_rate)
+        else:
+            return self._resample_scipy(sample_rate)
+
+    @staticmethod
+    def _sox_found():
+        """Returns True if sox is installed on the system, False otherwise"""
+        return not sox.NO_SOX
+
+    def _resample_sox(self, sample_rate):
+        sox.logger.setLevel(logging.WARNING)
+        tfm = sox.Transformer()
+        tfm.rate(sample_rate, quality='h')
+
+        # sox works directly with audio files so we need to write it
+        # to disk and load it back after resampling
+        with tempfile.TemporaryDirectory() as tmp:
+            orig = os.path.join(tmp, 'orig.wav')
+            dest = os.path.join(tmp, 'dest.wav')
+            self.save(orig)
+            tfm.build(orig, dest)
+            return AudioData.load(dest)
+
+    def _resample_scipy(self, sample_rate):
         if sample_rate == self.sample_rate:
             return self
 
