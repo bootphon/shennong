@@ -66,12 +66,7 @@ def test_mfcc(mfcc):
 
 
 def test_energy(audio, mfcc):
-    energy = EnergyProcessor().process(audio)
-    vad1 = VadPostProcessor().process(energy)
+    # VAD from mfcc or energy is the same
+    vad1 = VadPostProcessor().process(EnergyProcessor().process(audio))
     vad2 = VadPostProcessor().process(mfcc)
-
-    assert energy.shape == vad1.shape == vad2.shape == (140, 1)
-    assert np.allclose(vad1.times, vad2.times)
-    equal = np.equal(vad1.data, vad2.data)
-    # more than 90% of VAD cooccurence between MFCC and energy based
-    assert (sum(equal) / len(equal)) > 0.9
+    assert vad1 == vad2

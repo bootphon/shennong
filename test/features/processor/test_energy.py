@@ -5,6 +5,8 @@ import pytest
 
 from shennong.audio import AudioData
 from shennong.features.processor.energy import EnergyProcessor
+from shennong.features.processor.mfcc import MfccProcessor
+from shennong.features.processor.plp import PlpProcessor
 
 
 def test_params(audio):
@@ -33,7 +35,18 @@ def test_compression(audio, compression):
         assert p.process(audio).shape == (140, 1)
 
 
-def test_output(audio):
+@pytest.mark.parametrize('raw_energy', [True, False])
+def test_raw(audio, raw_energy):
+    p = {'raw_energy': raw_energy, 'dither': 0}
+    mfcc = MfccProcessor(**p).process(audio).data[:, 0]
+    plp = PlpProcessor(**p).process(audio).data[:, 0]
+    energy = EnergyProcessor(**p).process(audio).data[:, 0]
+
+    assert np.allclose(mfcc, energy)
+    assert np.allclose(plp, energy)
+
+
+def test_output_shape(audio):
     assert EnergyProcessor(frame_shift=0.01).process(audio).shape == (140, 1)
     assert EnergyProcessor(frame_shift=0.02).process(audio).shape == (70, 1)
     assert EnergyProcessor(

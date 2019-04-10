@@ -4,8 +4,7 @@
     --> :class:`~shennong.features.features.Features`
 
 Computes the energy on window frames extracted from an audio
-signal. This algorithm is roughly equivalent (but not identical) to
-the first coefficient of
+signal. This algorithm is identical to the first coefficient of
 :class:`~shennong.features.processor.mfcc.MfccProcessor` or
 :class:`~shennong.features.processor.plp.PlpProcessor`.
 
@@ -59,7 +58,7 @@ class EnergyProcessor(FramesProcessor):
                  frame_length=0.025, dither=1.0, preemph_coeff=0.97,
                  remove_dc_offset=True, window_type='povey',
                  round_to_power_of_two=True, blackman_coeff=0.42,
-                 snip_edges=True, compression='log'):
+                 snip_edges=True, raw_energy=True, compression='log'):
         # init of FramesProcessor parent
         super().__init__(
             sample_rate=sample_rate,
@@ -78,6 +77,7 @@ class EnergyProcessor(FramesProcessor):
             'log': np.log,
             'sqrt': np.sqrt}
         self.compression = compression
+        self.raw_energy = raw_energy
 
     @property
     def ndims(self):
@@ -101,6 +101,15 @@ class EnergyProcessor(FramesProcessor):
                     ', '.join(self._compression_fun.keys()), value))
 
         self._compression = value
+
+    @property
+    def raw_energy(self):
+        """If true, compute energy before preemphasis and windowing"""
+        return self._raw_energy
+
+    @raw_energy.setter
+    def raw_energy(self, value):
+        self._raw_energy = value
 
     def process(self, signal):
         """Computes energy on the input `signal`
@@ -132,6 +141,11 @@ class EnergyProcessor(FramesProcessor):
                 'processor and signal mismatch in sample rates: '
                 '{} != {}'.format(self.sample_rate, signal.sample_rate))
 
+        if self.raw_energy:
+            old_conf = self.get_params()
+            self.preemph_coeff = 0
+            self.window_type = 'rectangular'
+
         # number of frames in the framed signal
         nframes = kaldi.feat.window.num_frames(
             signal.nsamples, self._frame_options, flush=True)
@@ -161,5 +175,8 @@ class EnergyProcessor(FramesProcessor):
             energy[frame] = compression(max(
                 (out_frame.numpy() ** 2).sum(),
                 np.finfo(np.float32).tiny))
+
+        if self.raw_energy:
+            self.set_params(**old_conf)
 
         return Features(energy, self.times(nframes), self.get_params())
