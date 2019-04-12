@@ -10,6 +10,7 @@ dependencies:
   - ipython
   - joblib
   - numpy
+  - pip
   - pykaldi
   - pyparsing
   - pytest
@@ -22,7 +23,7 @@ dependencies:
   - sphinx_rtd_theme
   - tabulate
   - pip:
-      - h5features
+      - h5features>=1.3.2
       - json-tricks
       - ninja
       - sox  # sox python wrapper
