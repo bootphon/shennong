@@ -5,6 +5,7 @@ import pytest
 
 from shennong.features import Features, FeaturesCollection
 from shennong.features.processor.mfcc import MfccProcessor
+from shennong.utils import get_logger
 
 
 def test_init_bad():
@@ -106,6 +107,28 @@ def test_concatenate(mfcc):
     with pytest.raises(ValueError) as err:
         mfcc.concatenate(mfcc2)
     assert 'times are not equal' in str(err)
+
+
+def test_concatenate_tolerance(capsys):
+    get_logger(level='info')
+    f1 = Features(np.random.random((12, 2)), np.ones((12,)))
+    f2 = Features(np.random.random((10, 2)), np.ones((10,)))
+
+    with pytest.raises(ValueError) as err:
+        f1.concatenate(f2, tolerance=0)
+    assert 'features have a different number of frames' in str(err)
+
+    with pytest.raises(ValueError) as err:
+        f1.concatenate(f2, tolerance=1)
+    assert 'features differs number of frames, and greater than ' in str(err)
+
+    f3 = f1.concatenate(f2, tolerance=2)
+    assert f3.shape == (10, 4)
+    assert 'WARNING' in capsys.readouterr().err
+
+    f3 = f2.concatenate(f1, tolerance=2)
+    assert f3.shape == (10, 4)
+    assert 'WARNING' in capsys.readouterr().err
 
 
 def test_collection(mfcc):

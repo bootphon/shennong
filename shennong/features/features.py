@@ -6,10 +6,12 @@ import copy
 import numpy as np
 
 from shennong.features.serializers import get_serializer
-from shennong.utils import dict_equal
+from shennong.utils import dict_equal, get_logger
 
 
 class Features:
+    _log = get_logger()
+
     def __init__(self, data, times, properties={}, validate=True):
         self._data = data
         self._times = times
@@ -274,7 +276,7 @@ class Features:
         if not all(n == index[n] for n in range(self.nframes)):
             raise ValueError('times is not sorted in increasing order')
 
-    def concatenate(self, other):
+    def concatenate(self, other, tolerance=0):
         """Returns the concatenation of this features with `other`
 
         Build a new Features instance made of the concatenation of
@@ -283,21 +285,64 @@ class Features:
 
         Parameters
         ----------
-        other : Features, shape = [nframes, ndim2]
+        other : Features, shape = [nframes +/- tolerance, ndim2]
             The other features to concatenate at the end of this one
+        tolerance : int, optional
+            If the number of frames of the two features is different,
+            trim the longest one up to a frame difference of
+            `tolerance`, otherwise raise a ValueError. This option is
+            usefull when concatenating pitch with other 'standard'
+            features because pitch processing includes a downsampling
+            which can alter the resulting number of frames (the same
+            tolerance is applied in Kaldi, e.g. in paste-feats).
+            Default to 0.
 
         Returns
         -------
-        features : Features, shape = [nframes, ndim1 + ndim2]
+        features : Features, shape = [nframes +/- tolerance, ndim1 + ndim2]
 
         Raises
         ------
         ValueError
-            If `other` cannot be concatenated because of inconsistencies
+            If `other` cannot be concatenated because of
+            inconsistencies: number of frames difference greater than
+            tolerance, inequal times values.
 
         """
+        # check the number of frames is within the tolerance
+        need_trim = False
+        diff = abs(self.nframes - other.nframes)
+        if diff:
+            if not tolerance:
+                raise ValueError(
+                    'features have a different number of frames')
+            if tolerance and diff > tolerance:
+                raise ValueError(
+                    'features differs number of frames, and '
+                    'greater than tolerance: |{} - {}| > {}'.format(
+                        self.nframes, other.nframes, tolerance))
+            else:
+                self._log.warning(
+                    'features differs in number of frames, but '
+                    'within tolerance (|%s - %s| <= %s), trim the longest one',
+                    self.nframes, other.nframes, tolerance)
+                need_trim = True
+
+        # trim the longest features to the size of the shortest one
+        d1 = self.data
+        d2 = other.data
+        t1 = self.times
+        t2 = other.times
+        if need_trim:
+            if self.nframes > other.nframes:
+                d1 = d1[:-diff]
+                t1 = t1[:-diff]
+            else:
+                d2 = d2[:-diff]
+                t2 = t2[:-diff]
+
         # ensures time axis is shared accross the two features
-        if not np.allclose(self.times, other.times):
+        if not np.allclose(t1, t2):
             raise ValueError('times are not equal')
 
         # TODO need a FeaturesParameter class: assign properties per
@@ -305,10 +350,7 @@ class Features:
         properties = copy.deepcopy(self.properties)
         properties.update(other.properties)
 
-        return Features(
-            np.hstack((self.data, other.data)),
-            self.times,
-            properties=properties)
+        return Features(np.hstack((d1, d2)), t1, properties=properties)
 
 
 class FeaturesCollection(dict):
