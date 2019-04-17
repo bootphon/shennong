@@ -188,15 +188,12 @@ def command_extract(args):
     features.save(args.out_file)
 
 
+@utils.CatchExceptions
 def main():
     # a footer for help messages
     epilog = (
         'speech-features is part of the shennong library\n'
         'see full documentation at https://coml.lscp.ens.fr/shennong')
-
-    commands = [
-        ('config', 'Generate a configuration for features extraction'),
-        ('extract', 'Extract features from wav files given a configuration')]
 
     parser = argparse.ArgumentParser(
         description=__doc__, epilog=epilog,
@@ -222,6 +219,7 @@ def main():
         command_config(args)
     elif args.command == 'extract':
         command_extract(args)
+
 
 if __name__ == '__main__':
     main()

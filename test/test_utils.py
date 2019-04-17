@@ -116,3 +116,28 @@ def test_listfiles(data_path, abspath, realpath, recursive):
     wavs = f(data_path, '.wav',
              abspath=abspath, realpath=realpath, recursive=recursive)
     assert [os.path.basename(w) for w in wavs] == ['test.8k.wav', 'test.wav']
+
+
+def test_catch_exceptions(capsys):
+    def f1():
+        raise ValueError('foo')
+
+    @utils.CatchExceptions
+    def g1():
+        return f1()
+
+    with pytest.raises(ValueError):
+        f1()
+    with pytest.raises(SystemExit):
+        g1()
+    assert 'fatal error: foo' in capsys.readouterr().err
+
+    def f2():
+        raise KeyboardInterrupt
+
+    @utils.CatchExceptions
+    def g2():
+        return f2()
+    with pytest.raises(SystemExit):
+        g2()
+    assert 'keyboard interruption' in capsys.readouterr().err

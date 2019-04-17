@@ -8,6 +8,7 @@ import logging
 import multiprocessing
 import numpy as np
 import os
+import pkg_resources
 import re
 import sys
 
@@ -213,3 +214,46 @@ def list_files_with_extension(
     if realpath:
         matched = (os.path.realpath(m) for m in matched)
     return sorted(matched)
+
+
+class CatchExceptions(object):
+    """Decorator wrapping a function in a try/except block
+
+    When an exception occurs, display a user friendly message on
+    standard output before exiting with error code 1.
+
+    The detected exceptions are ValueError, OSError, RuntimeError,
+    AssertionError, KeyboardInterrupt and
+    pkg_resources.DistributionNotFound.
+
+    Parameters
+    ----------
+    function :
+        The function to wrap in a try/except block
+
+    """
+    def __init__(self, function):
+        self.function = function
+
+    def __call__(self):
+        """Executes the wrapped function and catch common exceptions"""
+        try:
+            self.function()
+
+        except (IOError, ValueError, OSError,
+                RuntimeError, AssertionError) as err:
+            self.exit('fatal error: {}'.format(err))
+
+        except pkg_resources.DistributionNotFound:  # pragma: nocover
+            self.exit(
+                'fatal error: shennong package not found\n'
+                'please install shennong on your system')
+
+        except KeyboardInterrupt:
+            self.exit('keyboard interruption, exiting')
+
+    @staticmethod
+    def exit(msg):
+        """Write `msg` on stderr and exit with error code 1"""
+        sys.stderr.write(msg.strip() + '\n')
+        sys.exit(1)
