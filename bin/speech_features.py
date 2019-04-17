@@ -1,115 +1,143 @@
 #!/usr/bin/env python
 """Computes speech features on raw speech audio files
 
-            +-----------------------------+
-            |features +--> CMVN +         |
-            |                   |         |
-   wavs +-->|                   +--> delta+---> output
-            |                   |         |
-            |             pitch +         |
-            +-----------------------------+
+            +-------------------------------+
+            | features +--> CMVN +--> delta |
+            |                               |
+   wavs +-->|                               |+---> output
+            |                               |
+            |             pitch             |
+            +-------------------------------+
 
 """
 
 import argparse
 import datetime
-import logging
 import os
 import sys
 
+import shennong.features.pipeline as pipeline
+import shennong.utils as utils
 from shennong import version_long
 from shennong.audio import AudioData
-from shennong.features.processor import get_processor
 from shennong.features.serializers import supported_extensions
-from shennong.utils import list_files_with_extension, null_logger, get_logger
 
 
-log = null_logger()
+log = utils.null_logger()
 
 
 def list_wavs(data_dir):
-    wavs = list_files_with_extension(data_dir, '.wav', abspath=True)
+    wavs = utils.list_files_with_extension(data_dir, '.wav', abspath=True)
     return {os.path.splitext(os.path.basename(wav))[0]: wav for wav in wavs}
 
 
-def init_parser(subparsers, command, epilog):
-    processor_class = get_processor(command)
-    processor_instance = processor_class()
-
-    parser = subparsers.add_parser(
-        command,
-        description=processor_class.__doc__.split('\n')[0],
-        epilog=epilog,
-        formatter_class=argparse.RawDescriptionHelpFormatter)
-
-    parser.add_argument(
-        '-V', '--version', action='version', version=version_long(),
-        help='display version information and exit')
-
+def _parser_verbose(parser):
     # add verbose/quiet options to control log level
-    group = parser.add_mutually_exclusive_group()
+    group = parser.add_argument_group('log messages arguments')
+    group = group.add_mutually_exclusive_group()
     group.add_argument(
         '-v', '--verbose', action='count', default=0, help='''
         increase the amount of logging on stderr (by default only
         warnings and errors are displayed, a single '-v' adds info
         messages and '-vv' adds debug messages, use '--quiet' to
         disable logging)''')
-
     group.add_argument(
         '-q', '--quiet', action='store_true',
         help='do not display any log message')
+
+
+def parser_config(subparsers, epilog):
+    """Initialize options for 'speech-features config'"""
+    parser = subparsers.add_parser(
+        'config',
+        description='Generate a configuration for features extraction',
+        epilog=epilog,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+
+    parser.add_argument(
+        '-o', '--output', metavar='config-file', default=None,
+        help='The YAML configuration file to write. '
+        'If not specified, write to stdout')
+
+    # init verbose options -v/-q
+    _parser_verbose(parser)
+
+    parser.add_argument(
+        '--no-comments', action='store_true',
+        help='Do not include comments in the output YAML configuration file. '
+        'By default all parameters in the YAML are explained in comments.')
+
+    group = parser.add_argument_group('pipeline arguments')
+    group.add_argument(
+        'features', type=str, choices=pipeline.valid_features(),
+        help='Configure the pipeline to extract those features')
+
+    group.add_argument(
+        '--no-pitch', action='store_true',
+        help='Configure without pitch extraction')
+
+    group.add_argument(
+        '--no-cmvn', action='store_true',
+        help='Configure without CMVN normalization')
+
+    group.add_argument(
+        '--no-delta', action='store_true',
+        help='Configure without deltas extraction')
+
+
+def command_config(args):
+    config = pipeline.get_default_config(
+        args.features,
+        to_yaml=True, yaml_commented=not args.no_comments,
+        with_pitch=not args.no_pitch,
+        with_cmvn=not args.no_cmvn,
+        with_delta=not args.no_delta)
+
+    output = sys.stdout if not args.output else open(args.output, 'w')
+    output.write(config)
+
+
+def parser_extract(subparsers, epilog):
+    parser = subparsers.add_parser(
+        'extract',
+        description='Extract features from wav files given a configuration',
+        epilog=epilog,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument(
         '-j', '--njobs', type=int, default=1, metavar='<int>',
         help='number of parallel jobs to use, default to %(default)s')
 
-    group = parser.add_argument_group('input/output arguments')
-    group.add_argument(
-        'wav', nargs='+', help='wav files to compute features on')
-    group.add_argument(
-        'output_file', help='file to save the computed features')
+    # group = parser.add_argument_group('input/output arguments')
+    # group.add_argument(
+    #     'wav', nargs='+', help='wav files to compute features on')
+    # group.add_argument(
+    #     'output_file', help='file to save the computed features')
 
-    # the sample rate is adapted per wav (and thus it is not fixed
-    # globally), We also skip htk_compat because this too
-    # low-level for a command-line tool.
-    ignored_attributes = ['sample_rate', 'htk_compat']
+    # # the sample rate is adapted per wav (and thus it is not fixed
+    # # globally), We also skip htk_compat because this too
+    # # low-level for a command-line tool.
+    # ignored_attributes = ['sample_rate', 'htk_compat']
 
-    group = parser.add_argument_group(
-        '{} features extraction parameters'.format(command))
-    for param, default in processor_instance.get_params().items():
-        if param not in ignored_attributes:
-            # prepare the help message using the attribute docstring
-            help = getattr(processor_class, param).__doc__.strip()
-            if help[-1] == '.':
-                help = help[:-1]
-            help += '. Default is {}.'.format(
-                '{:.5g}'.format(default) if isinstance(default, float)
-                else default)
+    # group = parser.add_argument_group(
+    #     '{} features extraction parameters'.format(command))
+    # for param, default in processor_instance.get_params().items():
+    #     if param not in ignored_attributes:
+    #         # prepare the help message using the attribute docstring
+    #         help = getattr(processor_class, param).__doc__.strip()
+    #         if help[-1] == '.':
+    #             help = help[:-1]
+    #         help += '. Default is {}.'.format(
+    #             '{:.5g}'.format(default) if isinstance(default, float)
+    #             else default)
 
-            # add the attribute to the parser
-            group.add_argument(
-                '--{}'.format(param.replace('_', '-')),
-                type=type(default),
-                metavar='<{}>'.format(type(default).__name__),
-                default=default,
-                help=help)
-
-
-class GetConfAction(argparse.Action):
-    def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        print(option_strings)
-        print(dest)
-        print(nargs)
-        print(kwargs)
-        super().__init__(option_strings, dest, nargs=nargs, **kwargs)
-        print(self.__dict__)
-        print('-'*30)
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        print(namespace)
-        print(values)
-        print(option_string)
-        sys.exit(0)
+    #         # add the attribute to the parser
+    #         group.add_argument(
+    #             '--{}'.format(param.replace('_', '-')),
+    #             type=type(default),
+    #             metavar='<{}>'.format(type(default).__name__),
+    #             default=default,
+    #             help=help)
 
 
 def main():
@@ -118,75 +146,53 @@ def main():
         'speech-features is part of the shennong library\n'
         'see full documentation at https://coml.lscp.ens.fr/shennong')
 
-    # the possible features processors to be used
-    processors = ['mfcc', 'filterbank', 'plp', 'bottleneck']
+    commands = [
+        ('config', 'Generate a configuration for features extraction'),
+        ('extract', 'Extract features from wav files given a configuration')]
 
     parser = argparse.ArgumentParser(
         description=__doc__, epilog=epilog,
         formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
-        '-V', '--version', action='version', version=version_long(),
-        help='display version information and exit')
+        '--version', action='version', version=version_long(),
+        help='display version and copyright information and exit')
 
-    group = parser.add_argument_group('pipeline configuration')
-    group.add_argument(
-        '-c', '--config-file',
-        metavar='<config-file>', type=str, required=True,
-        help='configuration file in YAML format, if -F/--fetch-conf is used '
-        'the fetched configuration is wrote to this file, else it is read to '
-        'initialize the features extraction pipeline')
+    # group = parser.add_argument_group('input/output arguments')
+    # group.add_argument(
+    #     'wav', nargs='+', help='wav files to compute features on')
+    # group.add_argument(
+    #     'output_file', metavar='<output-file>', type=str,
+    #     help='file to save the computed features')
 
-    group.add_argument(
-        '-F', '--fetch-conf', action=GetConfAction, choices=processors)
+    # use a disctinct subcommand for each features processor
+    subparsers = parser.add_subparsers(
+        title='available commands',
+        dest='command')  # ,
+        # help='\n'.join('{} - {}'.format(c[0], c[1]) for c in commands))
 
-    # add verbose/quiet options to control log level
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument(
-        '-v', '--verbose', action='count', default=0, help='''
-        increase the amount of logging on stderr (by default only
-        warnings and errors are displayed, a single '-v' adds info
-        messages and '-vv' adds debug messages, use '--quiet' to
-        disable logging)''')
-
-    group.add_argument(
-        '-q', '--quiet', action='store_true',
-        help='do not display any log message')
-
-    parser.add_argument(
-        '-j', '--njobs', type=int, default=1, metavar='<int>',
-        help='number of parallel jobs to use, default to %(default)s')
-
-    group = parser.add_argument_group('input/output arguments')
-    group.add_argument(
-        'wav', nargs='+', help='wav files to compute features on')
-    group.add_argument(
-        'output_file', metavar='<output-file>', type=str,
-        help='file to save the computed features')
-
-    # # use a disctinct subcommand for each features processor
-    # subparsers = parser.add_subparsers(
-    #     title='available features extraction commands',
-    #     help='\n'.join('{} - {}'.format(
-    #         c, get_processor(c).__doc__.split('\n')[0]) for c in commands))
-    # for command in commands:
-    #     init_parser(subparsers, command, epilog)
+    # add parser for each command
+    parser_config(subparsers, epilog)
+    parser_extract(subparsers, epilog)
 
     # parse the command line options
     args = parser.parse_args()
 
+    if args.command == 'config':
+        command_config(args)
+
     # setup the logger (level given by -q/-v arguments)
     if args.quiet:
-        log = null_logger()
+        log = utils.null_logger()
     else:
         if args.verbose == 0:
-            level = logging.WARNING
+            level = 'warning'
         elif args.verbose == 1:
-            level = logging.INFO
+            level = 'info'
         else:  # verbose >= 2
-            level = logging.DEBUG
-        log = get_logger(name='speech-features', level=level)
+            level = 'debug'
+        log = utils.get_logger(name='speech-features', level=level)
     # forward the initialized log to shennong
-    AudioData._log = log
+    utils._logger = log
 
     # make sure the output file is not already existing and have a
     # valid extension
