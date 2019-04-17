@@ -170,11 +170,13 @@ class EnergyProcessor(FramesProcessor):
             kaldi.feat.window.extract_window(
                 0, signal, frame, self._frame_options, window, out_frame)
 
+            # square the signal, force float64 to avoid overflow
+            square = np.square(out_frame.numpy(), dtype=np.float64)
+
             # avoid doing log on 0 (should be avoided already by
             # dithering, but who knows...)
-            energy[frame] = compression(max(
-                (out_frame.numpy() ** 2).sum(),
-                np.finfo(np.float32).tiny))
+            energy[frame] = compression(
+                max(square.sum(), np.finfo(np.float64).tiny))
 
         if self.raw_energy:
             self.set_params(**old_conf)
