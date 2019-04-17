@@ -664,7 +664,7 @@ class BottleneckProcessor(FeaturesProcessor):
             signal.dtype is not np.dtype(np.int16))
 
         if need_resample:
-            self._log.info(
+            self._log.debug(
                 'resampling audio from %dHz@%db to %dHz@%db',
                 signal.sample_rate, signal.dtype.itemsize * 8, 8000, 16)
             signal = signal.resample(8000).astype(np.int16)
@@ -691,8 +691,8 @@ class BottleneckProcessor(FeaturesProcessor):
         if not voiced_frames:
             raise RuntimeError(
                 'no voice detected in signal, failed to extract features')
-        self._log.info('%d frames of speech detected (on %d total frames)',
-                       voiced_frames, len(vad))
+        self._log.debug('%d frames of speech detected (on %d total frames)',
+                        voiced_frames, len(vad))
 
         # from audio signal to mel filterbank
         signal = _add_dither(signal, 0.1)
