@@ -1,13 +1,15 @@
 #!/usr/bin/env python
-"""Computes speech features on raw speech audio files
+"""Computes speech features on raw speech wav files
 
-            +-------------------------------+
-            | features +--> CMVN +--> delta |
-            |                               |
-   wavs +-->|                               |+---> output
-            |                               |
-            |             pitch             |
-            +-------------------------------+
+The general (and configurable) extraction pipeline is as follow:
+
+          |--> features --> CMVN --> delta -->|
+   wav -->|                                   |--> output
+          |---------------> pitch ----------->|
+
+Features extraction basically involves two steps: configuring an
+extraction pipeline and extracting features given a configuration. See
+the available commands below for more info.
 
 """
 
@@ -23,15 +25,15 @@ from shennong.audio import AudioData
 from shennong.features.serializers import supported_extensions
 
 
+binary_name = 'speech-features'
+"""The name of executable as users see it"""
+
 log = utils.null_logger()
-
-
-def list_wavs(data_dir):
-    wavs = utils.list_files_with_extension(data_dir, '.wav', abspath=True)
-    return {os.path.splitext(os.path.basename(wav))[0]: wav for wav in wavs}
+"""A logger to display messages (configurable with -v/-q options)"""
 
 
 def _parser_verbose(parser):
+    """Initializes log messages options (-v/-q)"""
     # add verbose/quiet options to control log level
     group = parser.add_argument_group('log messages arguments')
     group = group.add_mutually_exclusive_group()
@@ -46,6 +48,10 @@ def _parser_verbose(parser):
         help='do not display any log message')
 
 
+#
+# speech-features config
+#
+
 def parser_config(subparsers, epilog):
     """Initialize options for 'speech-features config'"""
     parser = subparsers.add_parser(
@@ -58,9 +64,6 @@ def parser_config(subparsers, epilog):
         '-o', '--output', metavar='config-file', default=None,
         help='The YAML configuration file to write. '
         'If not specified, write to stdout')
-
-    # init verbose options -v/-q
-    _parser_verbose(parser)
 
     parser.add_argument(
         '--no-comments', action='store_true',
@@ -97,6 +100,10 @@ def command_config(args):
     output.write(config)
 
 
+#
+# speech-features extract
+#
+
 def parser_extract(subparsers, epilog):
     parser = subparsers.add_parser(
         'extract',
@@ -108,78 +115,18 @@ def parser_extract(subparsers, epilog):
         '-j', '--njobs', type=int, default=1, metavar='<int>',
         help='number of parallel jobs to use, default to %(default)s')
 
-    # group = parser.add_argument_group('input/output arguments')
-    # group.add_argument(
-    #     'wav', nargs='+', help='wav files to compute features on')
-    # group.add_argument(
-    #     'output_file', help='file to save the computed features')
-
-    # # the sample rate is adapted per wav (and thus it is not fixed
-    # # globally), We also skip htk_compat because this too
-    # # low-level for a command-line tool.
-    # ignored_attributes = ['sample_rate', 'htk_compat']
-
-    # group = parser.add_argument_group(
-    #     '{} features extraction parameters'.format(command))
-    # for param, default in processor_instance.get_params().items():
-    #     if param not in ignored_attributes:
-    #         # prepare the help message using the attribute docstring
-    #         help = getattr(processor_class, param).__doc__.strip()
-    #         if help[-1] == '.':
-    #             help = help[:-1]
-    #         help += '. Default is {}.'.format(
-    #             '{:.5g}'.format(default) if isinstance(default, float)
-    #             else default)
-
-    #         # add the attribute to the parser
-    #         group.add_argument(
-    #             '--{}'.format(param.replace('_', '-')),
-    #             type=type(default),
-    #             metavar='<{}>'.format(type(default).__name__),
-    #             default=default,
-    #             help=help)
+    group = parser.add_argument_group('input/output arguments')
+    group.add_argument(
+        'config', metavar='<config-yaml>', type=str,
+        help='the pipeline configuration as a YAML file')
+    group.add_argument(
+        'wavs', metavar='<wavs-index>', type=str,
+        help='wav files to compute features on')
+    group.add_argument(
+        'output_file', help='file to save the computed features')
 
 
-def main():
-    # a footer for help messages
-    epilog = (
-        'speech-features is part of the shennong library\n'
-        'see full documentation at https://coml.lscp.ens.fr/shennong')
-
-    commands = [
-        ('config', 'Generate a configuration for features extraction'),
-        ('extract', 'Extract features from wav files given a configuration')]
-
-    parser = argparse.ArgumentParser(
-        description=__doc__, epilog=epilog,
-        formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument(
-        '--version', action='version', version=version_long(),
-        help='display version and copyright information and exit')
-
-    # group = parser.add_argument_group('input/output arguments')
-    # group.add_argument(
-    #     'wav', nargs='+', help='wav files to compute features on')
-    # group.add_argument(
-    #     'output_file', metavar='<output-file>', type=str,
-    #     help='file to save the computed features')
-
-    # use a disctinct subcommand for each features processor
-    subparsers = parser.add_subparsers(
-        title='available commands',
-        dest='command')  # ,
-        # help='\n'.join('{} - {}'.format(c[0], c[1]) for c in commands))
-
-    # add parser for each command
-    parser_config(subparsers, epilog)
-    parser_extract(subparsers, epilog)
-
-    # parse the command line options
-    args = parser.parse_args()
-
-    if args.command == 'config':
-        command_config(args)
-
+def command_extract(args):
     # setup the logger (level given by -q/-v arguments)
     if args.quiet:
         log = utils.null_logger()
@@ -240,6 +187,41 @@ def main():
     features = processor.process_all(audios, njobs=args.njobs)
     features.save(args.out_file)
 
+
+def main():
+    # a footer for help messages
+    epilog = (
+        'speech-features is part of the shennong library\n'
+        'see full documentation at https://coml.lscp.ens.fr/shennong')
+
+    commands = [
+        ('config', 'Generate a configuration for features extraction'),
+        ('extract', 'Extract features from wav files given a configuration')]
+
+    parser = argparse.ArgumentParser(
+        description=__doc__, epilog=epilog,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument(
+        '--version', action='version', version=version_long(),
+        help='display version and copyright information and exit')
+
+    # use a disctinct subcommand for each features processor
+    subparsers = parser.add_subparsers(
+        title='speech-features commands',
+        description='bla bla',
+        dest='command')
+
+    # add parser for each command
+    parser_config(subparsers, epilog)
+    parser_extract(subparsers, epilog)
+
+    # parse the command line options
+    args = parser.parse_args()
+
+    if args.command == 'config':
+        command_config(args)
+    elif args.command == 'extract':
+        command_extract(args)
 
 if __name__ == '__main__':
     main()

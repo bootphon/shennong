@@ -7,6 +7,7 @@ and do the postprocessing.
 
 import collections
 import datetime
+import importlib
 import joblib
 import numpy as np
 import os
@@ -16,32 +17,52 @@ import yaml
 
 from shennong.audio import AudioData
 from shennong.features import FeaturesCollection
-from shennong.features.processor.bottleneck import BottleneckProcessor
-from shennong.features.processor.energy import EnergyProcessor
-from shennong.features.processor.filterbank import FilterbankProcessor
-from shennong.features.processor.mfcc import MfccProcessor
-from shennong.features.processor.plp import PlpProcessor
-from shennong.features.processor.pitch import (
-    PitchProcessor, PitchPostProcessor)
-from shennong.features.postprocessor.cmvn import CmvnPostProcessor
-from shennong.features.postprocessor.delta import DeltaPostProcessor
-from shennong.features.postprocessor.vad import VadPostProcessor
 from shennong.utils import get_logger, get_njobs
 
 
 _valid_features = ['mfcc', 'plp', 'filterbank', 'bottleneck']
 
 _valid_processors = {
-    'bottleneck': BottleneckProcessor,
-    'energy': EnergyProcessor,
-    'filterbank': FilterbankProcessor,
-    'mfcc': MfccProcessor,
-    'pitch': PitchProcessor,
-    'pitch_post': PitchPostProcessor,
-    'plp': PlpProcessor,
-    'cmvn': CmvnPostProcessor,
-    'delta': DeltaPostProcessor,
-    'vad': VadPostProcessor}
+    'bottleneck': ('processor', 'BottleneckProcessor'),
+    'energy': ('processor', 'EnergyProcessor'),
+    'filterbank': ('processor', 'FilterbankProcessor'),
+    'mfcc': ('processor', 'MfccProcessor'),
+    'pitch': ('processor', 'PitchProcessor'),
+    'pitch_post': ('processor', 'PitchPostProcessor'),
+    'plp': ('processor', 'PlpProcessor'),
+    'cmvn': ('postprocessor', 'CmvnPostProcessor'),
+    'delta': ('postprocessor', 'DeltaPostProcessor'),
+    'vad': ('postprocessor', 'VadPostProcessor')}
+
+
+def _get_processor(name):
+    """Returns the (post)processor class `name`
+
+    This function enables dynamic import of processors classes to
+    avoid a big list of useless imports
+
+    Raises a ValueError if the `name` is not valid or the module/class
+    cannot be imported
+
+    """
+    try:
+        _module, _class = _valid_processors[name]
+    except KeyError:
+        raise ValueError('invalid processors "{}"'.format(name))
+    if name == 'pitch_post':
+        name = 'pitch'
+
+    module = 'shennong.features.{}.{}'.format(_module, name)
+    try:
+        module = importlib.import_module(module)
+    except ModuleNotFoundError:
+        raise ValueError('cannot import module "{}"'.format(module))
+
+    try:
+        return module.__dict__[_class]
+    except KeyError:
+        raise ValueError(
+            'cannot find class "{}" in module {}'.format(_class, module))
 
 
 def valid_features():
@@ -103,7 +124,7 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
     # the input wav file
     config[features] = {
         k: v for k, v in
-        _valid_processors[features]().get_params().items()
+        _get_processor(features)().get_params().items()
         if k not in ('sample_rate', 'htk_compat')}
 
     if with_pitch:
@@ -111,17 +132,17 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
         # the features, and sample rate
         config['pitch'] = {
             k: v for k, v
-            in _valid_processors['pitch']().get_params().items()
+            in _get_processor('pitch')().get_params().items()
             if k not in ('frame_length', 'frame_shift', 'sample_rate')}
-        config['pitch_post'] = _valid_processors['pitch_post']().get_params()
+        config['pitch_post'] = _get_processor('pitch_post')().get_params()
 
     if with_cmvn:
         config['cmvn'] = {
             'by_speaker': True, 'with_vad': True}
-        config['vad'] = _valid_processors['vad']().get_params()
+        config['vad'] = _get_processor('vad')().get_params()
 
     if with_delta:
-        config['delta'] = _valid_processors['delta']().get_params()
+        config['delta'] = _get_processor('delta')().get_params()
 
     if to_yaml:
         return _get_config_to_yaml(config, comments=yaml_commented)
@@ -202,7 +223,7 @@ def _get_config_to_yaml(config, comments=True):
     config = yaml.dump(config).strip()
 
     if not comments:
-        return config
+        return config + '\n'
 
     # incrust the parameters docstings as comments in the yaml
     config_commented = []
@@ -226,7 +247,7 @@ def _get_config_to_yaml(config, comments=True):
                     'consider voice activity for normalization')
             else:
                 docstring = getattr(
-                    _valid_processors[processor], param).__doc__ or ''
+                    _get_processor(processor), param).__doc__ or ''
                 docstring = re.sub(r'\n\n', '. ', docstring)
                 docstring = re.sub(r'\n', ' ', docstring)
                 docstring = re.sub(r' +', ' ', docstring).strip()
@@ -238,7 +259,7 @@ def _get_config_to_yaml(config, comments=True):
                 '  # ' + w for w in textwrap.wrap(docstring, width=66)]
             config_commented.append(line)
 
-    return '\n'.join(config_commented)
+    return '\n'.join(config_commented) + '\n'
 
 
 def _init_config(config, log=get_logger()):
@@ -258,7 +279,7 @@ def _init_config(config, log=get_logger()):
 
     # ensure all the keys in config are known
     unknown_keys = [
-        k for k in config.keys() if k not in _valid_processors.keys()]
+        k for k in config.keys() if k not in _valid_processors]
     if unknown_keys:
         raise ValueError(
             'invalid keys in configuration: {}'.format(
@@ -420,7 +441,7 @@ def _init_pipeline(config, speakers, log=get_logger()):
 
     # main features extraction
     features = [k for k in config.keys() if k in _valid_features][0]
-    pipeline['features'] = _valid_processors[features](**config[features])
+    pipeline['features'] = _get_processor(features)(**config[features])
 
     # cmvn, if by speaker instanciate a cmvn processr per speaker,
     # else a single one, if vad build a energy+vad processor (mfcc and
@@ -432,28 +453,29 @@ def _init_pipeline(config, speakers, log=get_logger()):
         if config['cmvn']['by_speaker']:
             # instanciate a CMVN processor by speaker
             for speaker in speakers:
-                pipeline['cmvn'][speaker] = CmvnPostProcessor(
+                pipeline['cmvn'][speaker] = _get_processor('cmvn')(
                     pipeline['features'].ndims)
         else:
-            pipeline['cmvn']['cmvn'] = CmvnPostProcessor(
+            pipeline['cmvn']['cmvn'] = _get_processor('cmvn')(
                     pipeline['features'].ndims)
         if config['cmvn']['with_vad']:
-            pipeline['cmvn']['energy'] = EnergyProcessor(
+            pipeline['cmvn']['energy'] = _get_processor('energy')(
                 frame_length=pipeline['features'].frame_length,
                 frame_shift=pipeline['features'].frame_shift)
-            pipeline['cmvn']['vad'] = VadPostProcessor(**config['vad'])
+            pipeline['cmvn']['vad'] = _get_processor('vad')(**config['vad'])
 
     # delta is straightforward
     if 'delta' in config:
-        pipeline['delta'] = DeltaPostProcessor(**config['delta'])
+        pipeline['delta'] = _get_processor('delta')(**config['delta'])
 
     # frames for pitch are the same are those for features
     if 'pitch' in config:
-        pipeline['pitch'] = PitchProcessor(**config['pitch'])
+        pipeline['pitch'] = _get_processor('pitch')(**config['pitch'])
         # forward framing parameters
         pipeline['pitch'].frame_shift = pipeline['features'].frame_shift
         pipeline['pitch'].frame_length = pipeline['features'].frame_length
-        pipeline['pitch_post'] = PitchPostProcessor(**config['pitch_post'])
+        pipeline['pitch_post'] = _get_processor('pitch_post')(
+            **config['pitch_post'])
 
     return pipeline
 
