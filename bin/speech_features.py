@@ -7,45 +7,40 @@ The general (and configurable) extraction pipeline is as follow:
    wav -->|                                   |--> output
           |---------------> pitch ----------->|
 
-Features extraction basically involves two steps: configuring an
-extraction pipeline and extracting features given a configuration. See
-the available commands below for more info.
+Features extraction basically involves three steps:
+
+1. Configuring an extraction pipeline. For exemple this defines a full
+   pipeline for MFCCs extraction (with CMVN, delta and pitch):
+
+     speech-features config mfcc -o config.yaml
+
+2. Defining a list of wav files on which to extract features (along
+   with optional speakers or utterances identification), for exemple
+   you can a 'wavs.txt' file with the following content (see
+   'speeh-features extract --help' for details on the format)
+
+     utterance1 /path/to/wav1.wav speaker1
+     utterance2 /path/to/wav2.wav speaker1
+     utterance3 /path/to/wav3.wav speaker2
+
+3. Apply the configured pipeline on the defined wavs. For exemple this
+   computes the features using 4 parallel subprocesses and save them
+   to a file in the numpy format:
+
+     speech-features extract --njobs 4 config.yaml wavs.txt features.npz
+
+See the detail on each speech-features command for more info.
 
 """
 
 import argparse
-import datetime
 import os
 import sys
 
 import shennong.features.pipeline as pipeline
 import shennong.utils as utils
 from shennong import version_long
-from shennong.audio import AudioData
 from shennong.features.serializers import supported_extensions
-
-
-binary_name = 'speech-features'
-"""The name of executable as users see it"""
-
-log = utils.null_logger()
-"""A logger to display messages (configurable with -v/-q options)"""
-
-
-def _parser_verbose(parser):
-    """Initializes log messages options (-v/-q)"""
-    # add verbose/quiet options to control log level
-    group = parser.add_argument_group('log messages arguments')
-    group = group.add_mutually_exclusive_group()
-    group.add_argument(
-        '-v', '--verbose', action='count', default=0, help='''
-        increase the amount of logging on stderr (by default only
-        warnings and errors are displayed, a single '-v' adds info
-        messages and '-vv' adds debug messages, use '--quiet' to
-        disable logging)''')
-    group.add_argument(
-        '-q', '--quiet', action='store_true',
-        help='do not display any log message')
 
 
 #
@@ -105,6 +100,8 @@ def command_config(args):
 #
 
 def parser_extract(subparsers, epilog):
+    # TODO definition of <input-wavs> and available extensions for
+    # <output-file> in --help
     parser = subparsers.add_parser(
         'extract',
         description='Extract features from wav files given a configuration',
@@ -117,13 +114,27 @@ def parser_extract(subparsers, epilog):
 
     group = parser.add_argument_group('input/output arguments')
     group.add_argument(
-        'config', metavar='<config-yaml>', type=str,
-        help='the pipeline configuration as a YAML file')
+        'config', metavar='<input-config>', type=str,
+        help='pipeline configuration file in YAML format')
     group.add_argument(
-        'wavs', metavar='<wavs-index>', type=str,
+        'wavs', metavar='<input-wavs>', type=str,
         help='wav files to compute features on')
     group.add_argument(
-        'output_file', help='file to save the computed features')
+        'output_file', metavar='<output-file>',
+        help='file to save the computed features, must not exist')
+
+    # add verbose/quiet options to control log level
+    group = parser.add_argument_group('log messages arguments')
+    group = group.add_mutually_exclusive_group()
+    group.add_argument(
+        '-v', '--verbose', action='count', default=0, help='''
+        increase the amount of logging on stderr (by default only
+        warnings and errors are displayed, a single '-v' adds info
+        messages and '-vv' adds debug messages, use '--quiet' to
+        disable logging)''')
+    group.add_argument(
+        '-q', '--quiet', action='store_true',
+        help='do not display any log message')
 
 
 def command_extract(args):
@@ -154,38 +165,18 @@ def command_extract(args):
             output_ext, ", ".join(supported_extensions().keys()))
         return
 
-    # the list of wav files on which to estimate speech
-    # features. Check they are all correct (loadable). Check as well
-    # for sample rate (warning if not homogeneous) and mono (fail if
-    # one or more is not mono)
-    if not args.wav:
-        log.error('no wav files, exiting')
-        sys.exit(-1)
-    wavs_metadata = [AudioData.scan(w) for w in args.wav]
-    log.info(
-        'get %s wav files, total duration: %s', len(args.wav),
-        datetime.timedelta(seconds=sum(w.duration for w in wavs_metadata)))
-    if not all(w.nchannels == 1 for w in wavs_metadata):
-        log.error('all wavs are not mono, exiting')
-        sys.exit(-1)
-    samplerates = set(w.sample_rate for w in wavs_metadata)
-    if len(samplerates) > 1:
-        log.warning(
-            'several sample rates found in wav files: %s, features extraction '
-            'will work but this may not be a good idea to work on '
-            'heterogeneous data',
-            ', '.join(str(s) + 'Hz' for s in samplerates))
+    # make sure the input config and wavs_index exists
+    for filename in (args.config, args.wavs_index):
+        if not os.path.exists(filename):
+            log.error('input file not found: %s', filename)
 
-    # TODO
-    audios = {
-        os.path.splitext(os.path.basename(w))[0]: AudioData.load(w)
-        for w in args.wav}
-    return
+    # run the pipeline
+    features = pipeline.extract_features(
+        args.config, open(args.wavs_index, 'r'), njobs=args.njobs, log=log)
 
-    # computes MFCC with default arguments and save them to disk
-    processor = MfccProcessor(sample_rate=args.sample_rate)
-    features = processor.process_all(audios, njobs=args.njobs)
-    features.save(args.out_file)
+    # save the features
+    log.info('saving the features to %s', output_file)
+    features.save(output_file)
 
 
 @utils.CatchExceptions
@@ -205,7 +196,9 @@ def main():
     # use a disctinct subcommand for each features processor
     subparsers = parser.add_subparsers(
         title='speech-features commands',
-        description='bla bla',
+        description="use 'speech-features <command> --help' for more details",
+        help="the 'config' command generates configuration templates, "
+        "the 'extract' command extracts features given a configuration",
         dest='command')
 
     # add parser for each command
@@ -215,6 +208,7 @@ def main():
     # parse the command line options
     args = parser.parse_args()
 
+    # execute the requested command
     if args.command == 'config':
         command_config(args)
     elif args.command == 'extract':
