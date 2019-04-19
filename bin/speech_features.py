@@ -1,35 +1,111 @@
 #!/usr/bin/env python
-"""Computes speech features on raw speech wav files
+"""Speech features extraction pipeline from raw wav files
 
-The general (and configurable) extraction pipeline is as follow:
+The general extraction pipeline is as follow:
 
-          |--> features --> CMVN --> delta -->|
-   wav -->|                                   |--> output
-          |---------------> pitch ----------->|
+     <input-config>     |--> features --> CMVN --> delta -->|
+         and         -->|                                   |--> <output-file>
+  <input-wavs-index>    |---------------> pitch ----------->|
+
+
+Simple exemple
+~~~~~~~~~~~~~~
 
 Features extraction basically involves three steps:
 
-1. Configuring an extraction pipeline. For exemple this defines a full
-   pipeline for MFCCs extraction (with CMVN, delta and pitch):
+1. Configure an extraction pipeline. For exemple this defines a full
+   pipeline for MFCCs extraction (with CMVN, but without delta nor
+   pitch) and writes it to the file 'config.yaml':
 
-     speech-features config mfcc -o config.yaml
+     speech-features config mfcc --no-pitch --no-delta -o config.yaml
 
-2. Defining a list of wav files on which to extract features (along
-   with optional speakers or utterances identification), for exemple
-   you can a 'wavs.txt' file with the following content (see
+2. Define a list of wav files on which to extract features (along with
+   optional speakers or utterances identification), for exemple you
+   can write a 'wavs_index.txt' file with the following content (see
    'speeh-features extract --help' for details on the format)
 
      utterance1 /path/to/wav1.wav speaker1
      utterance2 /path/to/wav2.wav speaker1
      utterance3 /path/to/wav3.wav speaker2
 
-3. Apply the configured pipeline on the defined wavs. For exemple this
-   computes the features using 4 parallel subprocesses and save them
-   to a file in the numpy format:
+3. Apply the configured pipeline on the defined wavs index. For
+   exemple this computes the features using 4 parallel subprocesses
+   and save them to a file in the numpy .npz format:
 
-     speech-features extract --njobs 4 config.yaml wavs.txt features.npz
+     speech-features extract --njobs 4 config.yaml wavs_index.txt features.npz
 
-See the detail on each speech-features command for more info.
+
+Definition of `<input-config>`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The <input-config> is a configuration file in YAML format defining all
+the parameters of the extraction pipeline, including main features
+extraction (mfcc, plp, filterbank or bottleneck features) and
+post-processing (CMVN, delta and pitch extraction).
+
+You can generate a configuration template using 'speech-features
+config'. It will write a YAML file with default parameters that you
+can edit. See 'speeech-features config --help' for description of the
+available options.
+
+
+Definition of `<input-wavs-index>`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The <input-wavs-index> is a text file indexing the wav files on which
+to apply the extraction pipeline. Each line of the file defines a
+single utterance (or speech fragment). It can have one of the
+following formats:
+
+1. <wav-file>
+
+    The simplest format, with a wav file per line. Each wav is
+    considered as a single uterance. The <utterance-id> is named after
+    the wav filename. Each wav file must be unique.
+
+2. <utterance-id> <wav-file>
+
+    Give a name to each utterance, utterance ids must be unique.
+
+3. <utterance-id> <wav-file> <speaker-id>
+
+    Specify a speaker for each utterance. This is required if you are
+    using CMVN normalization per speaker.
+
+4. <utterance-id> <wav-file> <tstart> <tstop>
+
+    Each wav contains several uterances, the utterance boudanries are
+    defined by the start and stop timestamps within the wav file
+    (given in seconds).
+
+5. <utterance-id> <wav-file> <speaker-id> <tstart> <tstop>
+
+    Combination of 3 and 4. Several utterances per wav, with speakers
+    identification.
+
+
+Definition of `<output-file>`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The <output-file> will store the extracted features. The underlying
+format is a dictionnary of utterances. Each utterance's features are
+stored as a matrix [nframes * ndims], along with timestamps and
+metadata.
+
+Several file formats are supported, the format is guessed by the file
+extension specified in command line:
+
+File format  Extension Use case
+-----------  --------- --------------------------------
+h5features   .h5f      First choice, fast and efficient
+numpy        .npz      Second choice, standard numpy format
+pickle       .pkl      Very fast, standard Python format
+matlab       .mat      Compatibility with Matlab
+kaldi        .ark      Compatibility with Kaldi
+JSON         .json     Very slow, for manual introspection only
+
+More info on file formats are available on the online documentation,
+at https://coml.lscp.ens.fr/shennong/python/features/serialization.html.
 
 """
 
@@ -51,7 +127,8 @@ def parser_config(subparsers, epilog):
     """Initialize options for 'speech-features config'"""
     parser = subparsers.add_parser(
         'config',
-        description='Generate a configuration for features extraction',
+        description='Generate a configuration for features extraction, '
+        "have a 'speech-features --help' for more details",
         epilog=epilog,
         formatter_class=argparse.RawDescriptionHelpFormatter)
 
@@ -100,11 +177,10 @@ def command_config(args):
 #
 
 def parser_extract(subparsers, epilog):
-    # TODO definition of <input-wavs> and available extensions for
-    # <output-file> in --help
     parser = subparsers.add_parser(
         'extract',
-        description='Extract features from wav files given a configuration',
+        description='Extract features from wav files given a configuration, '
+        "have a 'speech-features --help' for more details",
         epilog=epilog,
         formatter_class=argparse.RawDescriptionHelpFormatter)
 
@@ -115,13 +191,16 @@ def parser_extract(subparsers, epilog):
     group = parser.add_argument_group('input/output arguments')
     group.add_argument(
         'config', metavar='<input-config>', type=str,
-        help='pipeline configuration file in YAML format')
+        help='pipeline configuration file in YAML format, as generated by '
+        "the 'speech-features config' command")
     group.add_argument(
-        'wavs', metavar='<input-wavs>', type=str,
-        help='wav files to compute features on')
+        'wavs', metavar='<input-wavs-index>', type=str,
+        help='wavs index file defining wavs on which to compute features on, '
+        "see 'speech-features --help' for a description of the format")
     group.add_argument(
         'output_file', metavar='<output-file>',
-        help='file to save the computed features, must not exist')
+        help='file to save the computed features (must not exist), '
+        "see 'speech-features --help' for a list of supported output formats")
 
     # add verbose/quiet options to control log level
     group = parser.add_argument_group('log messages arguments')
@@ -186,8 +265,13 @@ def main():
         'speech-features is part of the shennong library\n'
         'see full documentation at https://coml.lscp.ens.fr/shennong')
 
+    description = (__doc__ +
+                   'Command line arguments\n' +
+                   '~~~~~~~~~~~~~~~~~~~~~~\n')
+
     parser = argparse.ArgumentParser(
-        description=__doc__, epilog=epilog,
+        description=description,
+        epilog=epilog,
         formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
         '--version', action='version', version=version_long(),
