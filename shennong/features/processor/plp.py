@@ -6,14 +6,14 @@ Extract PLP (Perceptual Linear Predictive analysis of speech) from an
 audio signal. Uses the Kaldi implementation (see [Hermansky1990]_ and
 [kaldi-plp]_).
 
-    :class:`AudioData` ---> PlpProcessor ---> :class:`Features`
+    :class:`Audio` ---> PlpProcessor ---> :class:`Features`
 
 Examples
 --------
 
->>> from shennong.audio import AudioData
+>>> from shennong.audio import Audio
 >>> from shennong.features.processor.plp import PlpProcessor
->>> audio = AudioData.load('./test/data/test.wav')
+>>> audio = Audio.load('./test/data/test.wav')
 
 Initialize the PLP processor with some options. Options can be
 specified at construction, or after:

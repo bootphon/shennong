@@ -36,10 +36,10 @@ Examples
 --------
 
 >>> import numpy as np
->>> from shennong.audio import AudioData
+>>> from shennong.audio import Audio
 >>> from shennong.features.processor.mfcc import MfccProcessor
 >>> from shennong.features.postprocessor.vad import VadPostProcessor
->>> audio = AudioData.load('./test/data/test.wav')
+>>> audio = Audio.load('./test/data/test.wav')
 >>> mfcc = MfccProcessor().process(audio)
 
 Computes the voice activity detection on the extracted MFCCs:

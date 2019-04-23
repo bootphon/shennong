@@ -2,7 +2,7 @@
 
 A speech features processor takes an audio signal as input and output features:
 
-    :class:`~shennong.audio.AudioData` --> FeaturesProcessor -->
+    :class:`~shennong.audio.Audio` --> FeaturesProcessor -->
     :class:`~shennong.features.features.Features`
 
 """
@@ -31,7 +31,7 @@ class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        signal: :class`~shennong.audio.AudioData`
+        signal: :class`~shennong.audio.Audio`
             The input audio signal to process features on
 
         Returns
@@ -49,7 +49,7 @@ class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        signals: dict of :class`~shennong.audio.AudioData`
+        signals: dict of :class`~shennong.audio.Audio`
             A dictionnary of input audio signals to process features
             on, where the keys are item names and values are audio
             signals.
@@ -353,7 +353,7 @@ class MelFeaturesProcessor(FramesProcessor):
 
         Parameters
         ----------
-        signal : AudioData, shape = [nsamples, 1]
+        signal : Audio, shape = [nsamples, 1]
             The input audio signal to compute the features on, must be
             mono
         vtln_warp : float, optional

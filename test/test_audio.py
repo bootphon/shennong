@@ -5,11 +5,11 @@ import numpy as np
 import pytest
 
 from kaldi.util.table import SequentialWaveReader
-from shennong.audio import AudioData
+from shennong.audio import Audio
 
 
 def test_scan(wav_file, audio):
-    meta = AudioData.scan(wav_file)
+    meta = Audio.scan(wav_file)
     assert meta.sample_rate == audio.sample_rate == 16000
     assert meta.nchannels == audio.nchannels == 1
     assert meta.nsamples == audio.nsamples == 22713
@@ -18,11 +18,11 @@ def test_scan(wav_file, audio):
 
 def test_scan_bad():
     with pytest.raises(ValueError) as err:
-        AudioData.scan(__file__)
+        Audio.scan(__file__)
     assert 'is it a wav?' in str(err)
 
     with pytest.raises(ValueError) as err:
-        AudioData.scan('/path/to/some/lost/place')
+        Audio.scan('/path/to/some/lost/place')
     assert 'file not found' in str(err)
 
 
@@ -37,13 +37,13 @@ def test_load(audio):
 
 def test_load_notwav():
     with pytest.raises(ValueError) as err:
-        AudioData.load(__file__)
+        Audio.load(__file__)
     assert 'is it a wav?' in str(err)
 
 
 def test_load_badfile():
     with pytest.raises(ValueError) as err:
-        AudioData.load('/spam/spam/with/eggs')
+        Audio.load('/spam/spam/with/eggs')
     assert 'file not found' in str(err)
 
 
@@ -56,20 +56,20 @@ def test_save(tmpdir, audio):
         audio.save(p)
     assert 'file already exist' in str(err)
 
-    audio2 = AudioData.load(p)
+    audio2 = Audio.load(p)
     assert audio == audio2
 
 
 def test_equal(audio):
     assert audio == audio
 
-    audio2 = AudioData(audio.data, audio.sample_rate)
+    audio2 = Audio(audio.data, audio.sample_rate)
     assert audio == audio2
 
-    audio2 = AudioData(audio.data, audio.sample_rate + 1)
+    audio2 = Audio(audio.data, audio.sample_rate + 1)
     assert audio != audio2
 
-    audio2 = AudioData(audio.data * 2, audio.sample_rate)
+    audio2 = Audio(audio.data * 2, audio.sample_rate)
     assert audio.duration == audio2.duration
     assert audio.sample_rate == audio2.sample_rate
     assert audio != audio2
@@ -84,7 +84,7 @@ def test_channels_mono(audio):
 
 def test_channels_stereo():
     data = np.random.random((1000, 2))
-    audio2 = AudioData(data, sample_rate=16000)
+    audio2 = Audio(data, sample_rate=16000)
     assert audio2.nchannels == 2
 
     audio1 = audio2.channel(0)
@@ -107,12 +107,12 @@ def test_isvalid(audio):
     assert audio.is_valid()
 
     # brutal cast from int16 to float32, still with values greater than 1
-    audio2 = AudioData(
+    audio2 = Audio(
         audio.data.astype(np.float32), audio.sample_rate, validate=False)
     assert audio2.dtype is np.dtype(np.float32)
     assert not audio2.is_valid()
     with pytest.raises(ValueError) as err:
-        AudioData(audio.data.astype(np.float32),
+        Audio(audio.data.astype(np.float32),
                   audio.sample_rate, validate=True)
         'invalid audio data' in err
 
@@ -125,14 +125,14 @@ def test_isvalid(audio):
     data = audio3.data.copy()
     data[6] = 1.1
     with pytest.raises(ValueError) as err:
-        AudioData(data, audio.sample_rate)
+        Audio(data, audio.sample_rate)
         assert 'invalid audio data for type' in err
 
-    audio4 = AudioData(data, audio.sample_rate, validate=False)
+    audio4 = Audio(data, audio.sample_rate, validate=False)
     assert not audio4.is_valid()
 
     # brutal cast to invalid uint8 dtype
-    audio5 = AudioData(
+    audio5 = Audio(
         audio.data.astype(np.uint8), audio.sample_rate, validate=False)
     assert audio5.dtype is np.dtype(np.uint8)
     assert not audio5.is_valid()
@@ -204,7 +204,7 @@ def test_resample_bad(audio):
 
 
 def test_compare_kaldi(wav_file):
-    a1 = AudioData.load(wav_file).data
+    a1 = Audio.load(wav_file).data
 
     with tempfile.NamedTemporaryFile('w+') as tfile:
         tfile.write('test {}\n'.format(wav_file))
@@ -229,13 +229,13 @@ def test_segment(audio):
     chunks = audio.segment([(0, d/2), (d/2, d)])
     assert all(c.duration == pytest.approx(d/2, rel=1e-3) for c in chunks)
     assert sum(c.nsamples for c in chunks) == audio.nsamples
-    assert AudioData(
+    assert Audio(
         np.concatenate([c.data for c in chunks]), audio.sample_rate) == audio
 
     chunks = audio.segment([(0, d/3), (d/3, 2*d/3), (2*d/3, d)])
     assert all(c.duration == pytest.approx(d/3, rel=1e-3) for c in chunks)
     assert sum(c.nsamples for c in chunks) == audio.nsamples
-    assert AudioData(
+    assert Audio(
         np.concatenate([c.data for c in chunks]), audio.sample_rate) == audio
 
 

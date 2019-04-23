@@ -9,16 +9,16 @@ speech recognition systems
 Uses the Kaldi implementation of pitch extraction and postprocessing
 (see [Ghahremani2014]_ and [kaldi-pitch]_).
 
-    :class:`AudioData` ---> PitchProcessor ---> PitchPostProcessor \
+    :class:`Audio` ---> PitchProcessor ---> PitchPostProcessor \
     ---> :class:`Features`
 
 Examples
 --------
 
->>> from shennong.audio import AudioData
+>>> from shennong.audio import Audio
 >>> from shennong.features.processor.pitch import (
 ...     PitchProcessor, PitchPostProcessor)
->>> audio = AudioData.load('./test/data/test.wav')
+>>> audio = Audio.load('./test/data/test.wav')
 
 Initialize a pitch processor with some options. Options can be
 specified at construction, or after:
@@ -254,7 +254,7 @@ class PitchProcessor(FeaturesProcessor):
 
         Parameters
         ----------
-        signal : AudioData
+        signal : Audio
             The speech signal on which to estimate the pitch. The
             signal's sample rate must match the sample rate specified
             in the `PitchProcessor` options.

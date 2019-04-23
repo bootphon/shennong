@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from shennong.audio import AudioData
+from shennong.audio import Audio
 from shennong.features.processor.energy import EnergyProcessor
 from shennong.features.processor.mfcc import MfccProcessor
 from shennong.features.processor.plp import PlpProcessor
@@ -60,6 +60,6 @@ def test_output_shape(audio):
     # only mono signals are accepted
     with pytest.raises(ValueError) as err:
         data = np.random.random((1000, 2))
-        stereo = AudioData(data, sample_rate=16000)
+        stereo = Audio(data, sample_rate=16000)
         EnergyProcessor(sample_rate=stereo.sample_rate).process(stereo)
     assert 'must have one dimension' in str(err)

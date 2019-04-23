@@ -3,14 +3,14 @@
 Extract MFCC (Mel Frequency Cepstral Coeficients) from an audio
 signal. Uses the Kaldi implementation (see [kaldi-mfcc]_):
 
-    :class:`AudioData` ---> MfccProcessor ---> :class:`Features`
+    :class:`Audio` ---> MfccProcessor ---> :class:`Features`
 
 Examples
 --------
 
->>> from shennong.audio import AudioData
+>>> from shennong.audio import Audio
 >>> from shennong.features.processor.mfcc import MfccProcessor
->>> audio = AudioData.load('./test/data/test.wav')
+>>> audio = Audio.load('./test/data/test.wav')
 
 Initialize the MFCC processor with some options. Options can be
 specified at construction, or after:

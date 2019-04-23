@@ -7,7 +7,7 @@ import yaml
 
 import shennong.features.pipeline as pipeline
 import shennong.utils as utils
-from shennong.audio import AudioData
+from shennong.audio import Audio
 
 
 @pytest.fixture(scope='session')
@@ -167,8 +167,8 @@ def test_wavs_bad(wav_file, wav_file_8k, tmpdir, capsys):
 
     # build a stereo file and make sure it is not supported by the
     # pipeline
-    audio = AudioData.load(wav_file)
-    stereo = AudioData(
+    audio = Audio.load(wav_file)
+    stereo = Audio(
         np.asarray((audio.data, audio.data)).T, sample_rate=audio.sample_rate)
     assert stereo.nchannels == 2
     wav_file_2 = str(tmpdir.join('stereo.wav'))

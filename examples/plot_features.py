@@ -5,7 +5,7 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
-from shennong.audio import AudioData
+from shennong.audio import Audio
 from shennong.features.filterbank import FilterbankProcessor
 from shennong.features.mfcc import MfccProcessor
 from shennong.features.plp import PlpProcessor
@@ -18,7 +18,7 @@ def main():
 
     # load the wav file
     wav_file = parser.parse_args().wav
-    audio = AudioData.load(wav_file)
+    audio = Audio.load(wav_file)
 
     # initialize features processors
     processors = {

@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from shennong.audio import AudioData
+from shennong.audio import Audio
 from shennong.features import Features
 from shennong.features.processor.pitch import (
     PitchProcessor, PitchPostProcessor)
@@ -54,7 +54,7 @@ def test_output(audio):
     # only mono signals are accepted
     with pytest.raises(ValueError):
         data = np.random.random((1000, 2))
-        stereo = AudioData(data, sample_rate=16000)
+        stereo = Audio(data, sample_rate=16000)
         PitchProcessor(sample_rate=stereo.sample_rate).process(stereo)
 
 

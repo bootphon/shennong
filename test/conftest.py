@@ -5,7 +5,7 @@ import struct
 import numpy as np
 import pytest
 
-from shennong.audio import AudioData
+from shennong.audio import Audio
 from shennong.alignment import AlignmentCollection
 from shennong.features import Features, FeaturesCollection
 from shennong.features.processor.mfcc import MfccProcessor
@@ -33,7 +33,7 @@ def wav_file(data_path):
 
 @pytest.fixture(scope='session')
 def audio(wav_file):
-    return AudioData.load(wav_file)
+    return Audio.load(wav_file)
 
 
 @pytest.fixture(scope='session')
@@ -43,12 +43,12 @@ def wav_file_8k(data_path):
 
 @pytest.fixture(scope='session')
 def audio_8k(wav_file_8k):
-    return AudioData.load(wav_file_8k)
+    return Audio.load(wav_file_8k)
 
 
 @pytest.fixture(scope='session')
 def audio_tiny(audio):
-    return AudioData(audio.data[:10], audio.sample_rate)
+    return Audio(audio.data[:10], audio.sample_rate)
 
 
 @pytest.fixture(scope='session')

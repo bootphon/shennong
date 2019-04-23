@@ -11,7 +11,7 @@ import os
 import tabulate
 import tempfile
 
-from shennong.audio import AudioData
+from shennong.audio import Audio
 from shennong.utils import list_files_with_extension
 from shennong.features import FeaturesCollection
 from shennong.features.processor.mfcc import MfccProcessor
@@ -100,7 +100,7 @@ def main():
 
     # load audio data and compute total duration
     audio_data = {
-        os.path.basename(f): AudioData.load(f)
+        os.path.basename(f): Audio.load(f)
         for f in list_files_with_extension(args.data_dir, '.wav')}
     total_duration = datetime.timedelta(
         seconds=int(sum(a.duration for a in audio_data.values())))

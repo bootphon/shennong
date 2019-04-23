@@ -1,10 +1,10 @@
-"""Provides the :class:`AudioData` class that handles audio signals
+"""Provides the :class:`Audio` class that handles audio signals
 
 .. note::
 
    For now, only WAV files are supported for input/output.
 
-The :class:`AudioData` class allows to load, save and manipulate
+The :class:`Audio` class allows to load, save and manipulate
 multichannels audio data. The underlying audio samples can be of one
 of the following types (with the corresponding min and max):
 
@@ -17,10 +17,10 @@ of the following types (with the corresponding min and max):
     np.float64 -1.0        +1.0
     ========== =========== ===========
 
-When loading an audio file with :func:`AudioData.load`, those min/max
-are expected to be respected. When creating an `AudioData` instance
+When loading an audio file with :func:`Audio.load`, those min/max
+are expected to be respected. When creating an `Audio` instance
 from a raw data array, the `validate` parameter in the class
-constructor and the method :func:`AudioData.is_valid` make sure the
+constructor and the method :func:`Audio.is_valid` make sure the
 data type and min/max are respected.
 
 Examples
@@ -28,11 +28,11 @@ Examples
 
 >>> import os
 >>> import numpy as np
->>> from shennong.audio import AudioData
+>>> from shennong.audio import Audio
 
 Create 1000 samples of a stereo signal at 16 kHz:
 
->>> audio = AudioData(np.random.random((1000, 2)), 16000)
+>>> audio = Audio(np.random.random((1000, 2)), 16000)
 >>> audio.data.shape
 (1000, 2)
 >>> audio.dtype
@@ -54,17 +54,17 @@ True
 >>> audio2.dtype
 dtype('int16')
 
-Save the `AudioData` instance as a wav file, load an existing wav
-file as an `AudioData` instance:
+Save the `Audio` instance as a wav file, load an existing wav
+file as an `Audio` instance:
 
 >>> audio.save('stereo.wav')
->>> audio3 = AudioData.load('stereo.wav')
+>>> audio3 = Audio.load('stereo.wav')
 >>> audio == audio3
 True
 >>> os.remove('stereo.wav')
 
 Extract mono signal from a stereo one (`left` and `right` are
-instances of AudioData as well):
+instances of Audio as well):
 
 >>> left = audio.channel(0)
 >>> right = audio.channel(1)
@@ -89,7 +89,7 @@ import wave
 from shennong.utils import get_logger
 
 
-class AudioData:
+class Audio:
     """Create an audio signal with the given `data` and `sample_rate`
 
     Attributes
@@ -208,7 +208,7 @@ class AudioData:
 
     @classmethod
     def load(cls, wav_file):
-        """Creates an `AudioData` instance from a WAV file
+        """Creates an `Audio` instance from a WAV file
 
         Parameters
         ----------
@@ -217,8 +217,8 @@ class AudioData:
 
         Returns
         -------
-        audio : AudioData
-            The AudioData instance initialized from the `wav_file`
+        audio : Audio
+            The Audio instance initialized from the `wav_file`
 
         Raises
         ------
@@ -234,9 +234,9 @@ class AudioData:
             cls._log.debug('loading %s', wav_file)
             sample_rate, data = scipy.io.wavfile.read(wav_file)
 
-            # build and return the AudioData instance, we assume the
+            # build and return the Audio instance, we assume the
             # underlying audio samples are valid
-            return AudioData(data, sample_rate, validate=False)
+            return Audio(data, sample_rate, validate=False)
         except ValueError:
             raise ValueError(
                 '{}: cannot read file, is it a wav?'.format(wav_file))
@@ -271,7 +271,7 @@ class AudioData:
 
         Returns
         -------
-        mono : AudioData
+        mono : Audio
             The extracted single-channel data
 
         Raises
@@ -289,7 +289,7 @@ class AudioData:
                 '(indices count starts at 0)'.format(
                     self.nchannels, index))
 
-        return AudioData(self.data[:, index], self.sample_rate)
+        return Audio(self.data[:, index], self.sample_rate)
 
     def resample(self, sample_rate, backend='sox'):
         """Returns the audio signal resampled at the given `sample_rate`
@@ -310,8 +310,8 @@ class AudioData:
 
         Returns
         -------
-        audio : AudioData
-            An AudioData instance containing the resampled signal
+        audio : Audio
+            An Audio instance containing the resampled signal
         backend : str, optional
             The backend to use for resampling, must be 'sox' or
             'scipy', default to 'sox'
@@ -352,7 +352,7 @@ class AudioData:
             dest = os.path.join(tmp, 'dest.wav')
             self.save(orig)
             tfm.build(orig, dest)
-            return AudioData.load(dest)
+            return Audio.load(dest)
 
     def _resample_scipy(self, sample_rate):
         """Resample the audio signal to the given `sample_rate` using scipy"""
@@ -368,7 +368,7 @@ class AudioData:
             data = scipy.signal.resample(self.data, nsamples)
 
         # resampling cast to float64, reformat to the original dtype
-        return AudioData(data.astype(self.dtype), sample_rate, validate=False)
+        return Audio(data.astype(self.dtype), sample_rate, validate=False)
 
     @staticmethod
     def _is_valid_dtype(dtype):
@@ -380,7 +380,7 @@ class AudioData:
     def is_valid(self):
         """Returns True if the audio data is valid, False otherwise
 
-        An `AudioData` instance is valid if the underlying data type
+        An `Audio` instance is valid if the underlying data type
         is supported (must be np.int16, np.int32, np.float32 or
         np.float64), and if the samples min/max are within the
         expected boundaries for the given data type (see above).
@@ -464,7 +464,7 @@ class AudioData:
             else:  # float32 or float64
                 data = self.data
 
-        return AudioData(data.astype(dtype), self.sample_rate, validate=False)
+        return Audio(data.astype(dtype), self.sample_rate, validate=False)
 
     def segment(self, segments):
         """Returns audio chunks segmented from the original signal
@@ -479,7 +479,7 @@ class AudioData:
 
         Returns
         -------
-        chunks : list of AudioData
+        chunks : list of Audio
             The signal chunks created from the given `segments`
 
         Raises
@@ -505,6 +505,6 @@ class AudioData:
         for segment in segments:
             istart = int(segment[0] * self.sample_rate)
             istop = int(segment[1] * self.sample_rate)
-            chunks.append(AudioData(
+            chunks.append(Audio(
                 self.data[istart:istop], self.sample_rate, validate=False))
         return chunks

@@ -3,15 +3,15 @@
 Extract mel-filterbank features from an audio signal. Use the Kaldi
 implementation (see [kaldi-fbank]_).
 
-    :class:`AudioData` ---> FilterbankProcessor ---> :class:`Features`
+    :class:`Audio` ---> FilterbankProcessor ---> :class:`Features`
 
 
 Examples
 --------
 
->>> from shennong.audio import AudioData
+>>> from shennong.audio import Audio
 >>> from shennong.features.processor.filterbank import FilterbankProcessor
->>> audio = AudioData.load('./test/data/test.wav')
+>>> audio = Audio.load('./test/data/test.wav')
 
 Initialize the filterbank processor with some options and compute the
 features:

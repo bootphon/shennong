@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pytest
 
-from shennong.audio import AudioData
+from shennong.audio import Audio
 from shennong.utils import null_logger, get_logger
 from shennong.features.processor.bottleneck import (
     BottleneckProcessor, _compute_vad)
@@ -84,7 +84,7 @@ def test_compare_original(audio_8k, bottleneck_original):
 
 
 def test_silence():
-    silence = AudioData(np.zeros((100,)), 16000)
+    silence = Audio(np.zeros((100,)), 16000)
 
     with pytest.raises(RuntimeError) as err:
         BottleneckProcessor().process(silence)

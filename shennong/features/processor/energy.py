@@ -1,6 +1,6 @@
 """Extraction of energy from audio signals
 
-    :class:`~shennong.audio.AudioData` --> EnergyProcessor
+    :class:`~shennong.audio.Audio` --> EnergyProcessor
     --> :class:`~shennong.features.features.Features`
 
 Computes the energy on window frames extracted from an audio
@@ -11,9 +11,9 @@ signal. This algorithm is identical to the first coefficient of
 Examples
 --------
 
->>> from shennong.audio import AudioData
+>>> from shennong.audio import Audio
 >>> from shennong.features.processor.energy import EnergyProcessor
->>> audio = AudioData.load('./test/data/test.wav')
+>>> audio = Audio.load('./test/data/test.wav')
 
 Computes energy on the audio signal:
 

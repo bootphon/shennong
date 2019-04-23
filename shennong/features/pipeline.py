@@ -15,7 +15,7 @@ import re
 import textwrap
 import yaml
 
-from shennong.audio import AudioData
+from shennong.audio import Audio
 from shennong.features import FeaturesCollection
 from shennong.utils import get_logger, get_njobs
 
@@ -415,7 +415,7 @@ def _init_wavs(wavs, log=get_logger()):
         raise ValueError(
             'the following wav files are not found: {}'
             .format(', '.join(not_found)))
-    wavs_metadata = [AudioData.scan(w) for w in wavs]
+    wavs_metadata = [Audio.scan(w) for w in wavs]
     log.info(
         'get %s wav files%s, total duration: %s',
         len(wavs),
@@ -601,7 +601,7 @@ def _extract_features(config, speakers, wavs_index, njobs=1, log=get_logger()):
 
 
 def _extract_pass_one(name, wav_entry, pipeline, log=get_logger()):
-    audio = AudioData.load(wav_entry.file)
+    audio = Audio.load(wav_entry.file)
     if wav_entry.tstart is not None:
         assert wav_entry.tstop > wav_entry.tstart
         audio = audio.segment([(wav_entry.tstart, wav_entry.tstop)])[0]

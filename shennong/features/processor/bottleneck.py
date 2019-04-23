@@ -41,7 +41,7 @@
 ###############################################################################
 """Extraction of bottleneck features from a speech signal
 
-    :class:`AudioData` --> BottleneckProcessor --> :class:`Features`
+    :class:`Audio` --> BottleneckProcessor --> :class:`Features`
 
 This module provides the class BottleneckProcessor which computes
 stacked bottleneck features from audio signals (see [Silnova2018]_ and
@@ -66,9 +66,9 @@ Examples
 Compute bottleneck features on some speech using the multilingual
 network (*BabelMulti*):
 
->>> from shennong.audio import AudioData
+>>> from shennong.audio import Audio
 >>> from shennong.features.processor.bottleneck import BottleneckProcessor
->>> audio = AudioData.load('./test/data/test.wav')
+>>> audio = Audio.load('./test/data/test.wav')
 >>> processor = BottleneckProcessor(weights='BabelMulti')
 >>> features = processor.process(audio)
 >>> features.shape
@@ -638,7 +638,7 @@ class BottleneckProcessor(FeaturesProcessor):
 
         Parameters
         ----------
-        signal : AudioData, shape = [nsamples, 1]
+        signal : Audio, shape = [nsamples, 1]
             The input audio signal to compute the features on, must be
             mono. The signal is up/down-sampled at 8 kHz during
             processing.

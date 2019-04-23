@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from kaldi.util.table import SequentialWaveReader
-from shennong.audio import AudioData
+from shennong.audio import Audio
 from shennong.features.processor.mfcc import MfccProcessor
 
 
@@ -115,7 +115,7 @@ def test_output(audio):
     # only mono signals are accepted
     with pytest.raises(ValueError):
         data = np.random.random((1000, 2))
-        stereo = AudioData(data, sample_rate=16000)
+        stereo = Audio(data, sample_rate=16000)
         MfccProcessor(sample_rate=stereo.sample_rate).process(stereo)
 
 
@@ -136,13 +136,13 @@ def test_subover_sample(audio, sample_rate):
 @pytest.mark.parametrize('dtype', [np.int16, np.int32, np.float32, np.float64])
 def test_kaldi_audio(wav_file, audio, dtype):
     # make sure we have results when loading a wav file with
-    # shennong.AudioData and with the Kaldi code.
+    # shennong.Audio and with the Kaldi code.
     with tempfile.NamedTemporaryFile('w+') as tfile:
         tfile.write('test {}\n'.format(wav_file))
         tfile.seek(0)
         with SequentialWaveReader('scp,t:' + tfile.name) as reader:
             for key, wave in reader:
-                audio_kaldi = AudioData(
+                audio_kaldi = Audio(
                     wave.data().numpy().reshape(audio.data.shape),
                     audio.sample_rate, validate=False)
 
