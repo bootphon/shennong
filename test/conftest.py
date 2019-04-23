@@ -37,11 +37,6 @@ def audio(wav_file):
 
 
 @pytest.fixture(scope='session')
-def mfcc(audio):
-    return MfccProcessor().process(audio)
-
-
-@pytest.fixture(scope='session')
 def wav_file_8k(data_path):
     return os.path.join(data_path, 'test.8k.wav')
 
@@ -54,6 +49,11 @@ def audio_8k(wav_file_8k):
 @pytest.fixture(scope='session')
 def audio_tiny(audio):
     return AudioData(audio.data[:10], audio.sample_rate)
+
+
+@pytest.fixture(scope='session')
+def mfcc(audio):
+    return MfccProcessor().process(audio)
 
 
 @pytest.fixture(scope='session')

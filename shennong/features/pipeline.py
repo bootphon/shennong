@@ -48,19 +48,19 @@ def _get_processor(name):
     try:
         _module, _class = _valid_processors[name]
     except KeyError:
-        raise ValueError('invalid processors "{}"'.format(name))
+        raise ValueError('invalid processor "{}"'.format(name))
     if name == 'pitch_post':
         name = 'pitch'
 
     module = 'shennong.features.{}.{}'.format(_module, name)
     try:
         module = importlib.import_module(module)
-    except ModuleNotFoundError:
+    except ModuleNotFoundError:  # pragma: nocover
         raise ValueError('cannot import module "{}"'.format(module))
 
     try:
         return module.__dict__[_class]
-    except KeyError:
+    except KeyError:    # pragma: nocover
         raise ValueError(
             'cannot find class "{}" in module {}'.format(_class, module))
 
@@ -139,7 +139,9 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
     if with_cmvn:
         config['cmvn'] = {
             'by_speaker': True, 'with_vad': True}
-        config['vad'] = _get_processor('vad')().get_params()
+        vad_opts = _get_processor('vad')().get_params()
+        for k, v in vad_opts.items():
+            config['cmvn']['vad_' + k] = v
 
     if with_delta:
         config['delta'] = _get_processor('delta')().get_params()
@@ -181,6 +183,9 @@ def extract_features(config, wavs_index, njobs=1, log=get_logger()):
 
     # the list of speakers
     speakers = set(w.speaker for w in wavs_index.values())
+    if speakers == {None}:
+        speakers = None
+    _check_speakers(config, speakers, log)
 
     # do all the computations
     return _extract_features(
@@ -209,7 +214,7 @@ def _get_config_to_yaml(config, comments=True):
         to a file
 
     """
-    # do not sort keys by alphabetical order
+    # inform yaml to not sort keys by alphabetical order
     yaml.add_representer(
         dict, lambda self, data:
         yaml.representer.SafeRepresenter.represent_dict(
@@ -238,19 +243,20 @@ def _get_config_to_yaml(config, comments=True):
 
             if processor == 'cmvn' and param == 'by_speaker':
                 docstring = (
-                    'If false, do normalization by wav file, '
+                    'If false, do normalization by utterance, '
                     'if true do normalization by speaker')
             elif processor == 'cmvn' and param == 'with_vad':
                 docstring = (
                     'If true do normalization only on frames where '
                     'voice activity has been detected, if false do not '
                     'consider voice activity for normalization')
+
+            # special case 'vad_xxx' -> 'vad', 'xxx'
+            elif processor == 'cmvn' and param.startswith('vad_'):
+                docstring = _get_docstring('vad', param.replace('vad_', ''))
+                docstring += ". This has no effect if 'with_vad' is false"
             else:
-                docstring = getattr(
-                    _get_processor(processor), param).__doc__ or ''
-                docstring = re.sub(r'\n\n', '. ', docstring)
-                docstring = re.sub(r'\n', ' ', docstring)
-                docstring = re.sub(r' +', ' ', docstring).strip()
+                docstring = _get_docstring(processor, param)
 
             docstring += '. Default is {}.'.format(default)
             docstring = re.sub(r'\.+', '.', docstring)
@@ -262,11 +268,21 @@ def _get_config_to_yaml(config, comments=True):
     return '\n'.join(config_commented) + '\n'
 
 
+def _get_docstring(processor, param):
+    """Return sthe docstring of a given processor's parameter"""
+    docstring = getattr(
+        _get_processor(processor), param).__doc__ or ''
+    docstring = re.sub(r'\n\n', '. ', docstring)
+    docstring = re.sub(r'\n', ' ', docstring)
+    docstring = re.sub(r' +', ' ', docstring).strip()
+    return docstring
+
+
 def _init_config(config, log=get_logger()):
     try:
         if os.path.isfile(config):
             log.debug('loading configuration from %s', config)
-            config = open(config, 'r')
+            config = open(config, 'r').read()
     except TypeError:
         pass
 
@@ -275,7 +291,7 @@ def _init_config(config, log=get_logger()):
         try:
             config = yaml.load(config, Loader=yaml.FullLoader)
         except yaml.YAMLError as err:
-            raise ValueError('Error in configuration file: {}', str(err))
+            raise ValueError('error in configuration: {}', str(err))
 
     # ensure all the keys in config are known
     unknown_keys = [
@@ -290,23 +306,22 @@ def _init_config(config, log=get_logger()):
     features = [k for k in config.keys() if k in _valid_features]
     if not features:
         raise ValueError(
-            'the configuration do not define any features extraction, '
+            'the configuration does not define any features extraction, '
             'only post-processing (must have one and only one entry of {})'
             .format(', '.join(_valid_features)))
     if len(features) > 1:
         raise ValueError(
-            'more than one features extraction processor is defined, '
+            'more than one features extraction processors are defined, '
             '(must have one and only one entry of {}): {}'
-            .format(', '.join(_valid_features)), ', '.join(features))
+            .format(', '.join(valid_features()), ', '.join(features)))
 
-    # if cmvn with vad, make sure vad options are defined
-    try:
-        if config['cmvn']['with_vad']:
-            if 'vad' not in config:
-                raise ValueError(
-                    'requested cmvn with vad, but no vad options defined')
-    except KeyError:
-        pass
+    if 'cmvn' in config:
+        # force by_speaker to False if not existing
+        if 'by_speaker' not in config['cmvn']:
+            log.warning(
+                'by_speaker option not specified for cmvn, '
+                'assuming it is false and doing cmvn by utterance')
+            config['cmvn']['by_speaker'] = False
 
     # if we have pitch or pitch_post, make sure we have the other
     if 'pitch' in config and 'pitch_post' not in config:
@@ -317,16 +332,16 @@ def _init_config(config, log=get_logger()):
             'configuration defines pitch_post but not pitch')
 
     # log message describing the pipeline configuration
-    post = []
+    msg = []
     if 'pitch' in config:
-        post.append('pitch')
+        msg.append('pitch')
     if 'cmvn' in config:
-        post.append('cmvn')
+        msg.append('cmvn')
     if 'delta' in config:
-        post.append('delta')
+        msg.append('delta')
     log.info(
         'pipeline configured for %s features extraction%s',
-        features[0], ' with {}'.format(', '.join(post)) if post else '')
+        features[0], ' with {}'.format(', '.join(msg)) if msg else '')
 
     return config
 
@@ -336,13 +351,19 @@ wav_entry = collections.namedtuple(
 
 
 def _init_wavs(wavs, log=get_logger()):
+    """Returns a dict {utt_id: (wav_file, speaker_id, tstart, tstop)}
+
+    Raises on any error, log a warning on strange but non-critical
+    issues.
+
+    """
     # guess the for format of `wavs` and ensure it is homogeneous
     wavs = list((w,) if isinstance(w, str) else w for w in wavs)
     format = set(len(w) for w in wavs)
     if not len(format) == 1:
         raise ValueError(
             'the wavs index is not homogeneous, entries have different '
-            'length: {}'.format(', '.join(str(t) for t in format)))
+            'lengths: {}'.format(', '.join(str(t) for t in format)))
     format = list(format)[0]
 
     # ensure the wavs index format is valid
@@ -402,7 +423,7 @@ def _init_wavs(wavs, log=get_logger()):
             len(set(w.speaker for w in wavs_index.values()))),
         datetime.timedelta(seconds=sum(w.duration for w in wavs_metadata)))
     if not all(w.nchannels == 1 for w in wavs_metadata):
-        raise ValueError('all wavs are not mono, exiting')
+        raise ValueError('all wav files are not mono')
     samplerates = set(w.sample_rate for w in wavs_metadata)
     if len(samplerates) > 1:
         log.warning(
@@ -418,23 +439,41 @@ def _init_wavs(wavs, log=get_logger()):
         for (tstart, tstop, wfile) in tstamps:
             if not tstart < tstop:
                 raise ValueError(
-                    'timestamps are not in increasong order for {}: {} >= {}'
+                    'timestamps are not in increasing order for {}: {} >= {}'
                     .format(wfile, tstart, tstop))
 
     return wavs_index
 
 
+def _check_speakers(config, speakers, log):
+    """Ensures the configuration is compatible with speakers information
+
+    On any error raises a ValueError. Logs a warning if speakers
+    information is provided but not used by the pipeline. If all is
+    good, silently returns None.
+
+    """
+    # ensures speakers info provided if cmvn by speaker is requested
+    if 'cmvn' not in config:
+        cmvn_by_speaker = False
+    elif not config['cmvn']['by_speaker']:
+        cmvn_by_speaker = False
+    else:  # config['cmvn']['by_speaker'] exists and is True
+        assert config['cmvn']['by_speaker']
+        cmvn_by_speaker = True
+
+    if cmvn_by_speaker and not speakers:
+        raise ValueError(
+            'cmvn normalization by speaker requested '
+            'but no speaker information provided')
+    if not cmvn_by_speaker and speakers:
+        log.warning(
+            'speakers information is provided but will not be used '
+            '(CMVN%s disabled)', ' by speaker' if 'cmvn' in config else '')
+
+
 def _init_pipeline(config, speakers, log=get_logger()):
     """Instanciates the processors required for the pipeline"""
-    # ensures speakers info provided if cmvn by speaker is requested
-    try:
-        if config['cmvn']['by_speaker'] and speakers == {None}:
-            raise ValueError(
-                'cmvn normalization by speaker requested '
-                'but no speaker information provided')
-    except KeyError:
-        pass
-
     # instanciate the features processor and postpipeline all in a
     # single dictionnary
     pipeline = {}
@@ -462,7 +501,12 @@ def _init_pipeline(config, speakers, log=get_logger()):
             pipeline['cmvn']['energy'] = _get_processor('energy')(
                 frame_length=pipeline['features'].frame_length,
                 frame_shift=pipeline['features'].frame_shift)
-            pipeline['cmvn']['vad'] = _get_processor('vad')(**config['vad'])
+
+            # init vad from parameters in 'cmvn' group starting with 'vad_'
+            vad_params = {
+                k.replace('vad_', ''): v for k, v in config['cmvn'].items()
+                if k.startswith('vad_')}
+            pipeline['cmvn']['vad'] = _get_processor('vad')(**vad_params)
 
     # delta is straightforward
     if 'delta' in config:
@@ -488,7 +532,7 @@ class _Parallel(joblib.Parallel):
         self.log = log
 
     def _print(self, msg, msg_args):
-        if not self.verbose:
+        if not self.verbose:  # pragma: nocover
             return
         msg = (msg % msg_args).replace('Done', 'done')
         self.log.info('%s: %s', self, msg)
@@ -558,6 +602,9 @@ def _extract_features(config, speakers, wavs_index, njobs=1, log=get_logger()):
 
 def _extract_pass_one(name, wav_entry, pipeline, log=get_logger()):
     audio = AudioData.load(wav_entry.file)
+    if wav_entry.tstart is not None:
+        assert wav_entry.tstop > wav_entry.tstart
+        audio = audio.segment([(wav_entry.tstart, wav_entry.tstop)])[0]
 
     # features extraction
     p = pipeline['features']
@@ -573,7 +620,7 @@ def _extract_pass_one(name, wav_entry, pipeline, log=get_logger()):
         else:
             cmvn = pipeline['cmvn']['cmvn']
 
-        # weight CMVN by voice activity detextion (null weights on
+        # weight CMVN by voice activity detection (null weights on
         # non-voiced frames)
         if 'vad' in pipeline['cmvn']:
             pipeline['cmvn']['energy'].sample_rate = audio.sample_rate
