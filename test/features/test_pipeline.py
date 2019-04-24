@@ -146,7 +146,7 @@ def test_check_environment(capsys):
 
 
 def test_wavs_bad(wav_file, wav_file_8k, tmpdir, capsys):
-    fun = pipeline._init_wavs
+    fun = pipeline._init_utterances
 
     # ensure we catch basic errors
     with pytest.raises(ValueError) as err:
@@ -155,11 +155,11 @@ def test_wavs_bad(wav_file, wav_file_8k, tmpdir, capsys):
 
     with pytest.raises(ValueError) as err:
         fun([('a', 'b', 'c', 'd', 'e', 'g')])
-    assert 'unknown format for wavs index' in str(err)
+    assert 'unknown format for utterances index' in str(err)
 
     with pytest.raises(ValueError) as err:
         fun([('a'), ('a')])
-    assert 'duplicates found in wavs index' in str(err)
+    assert 'duplicates found in utterances index' in str(err)
 
     with pytest.raises(ValueError) as err:
         fun([('/foo/bar/a')])

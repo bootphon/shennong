@@ -21,6 +21,8 @@ from shennong.utils import get_logger, get_njobs
 
 
 _valid_features = ['mfcc', 'plp', 'filterbank', 'bottleneck']
+"""The main features available in shennong, excluding post-processing"""
+
 
 _valid_processors = {
     'bottleneck': ('processor', 'BottleneckProcessor'),
@@ -33,6 +35,7 @@ _valid_processors = {
     'cmvn': ('postprocessor', 'CmvnPostProcessor'),
     'delta': ('postprocessor', 'DeltaPostProcessor'),
     'vad': ('postprocessor', 'VadPostProcessor')}
+"""The features processors and post-porcessors as {name: (module, class)}"""
 
 
 def _get_processor(name):
@@ -66,7 +69,7 @@ def _get_processor(name):
 
 
 def valid_features():
-    """Returns the list of features that can be extracted by he pipeline"""
+    """Returns the list of features that can be extracted by the pipeline"""
     return _valid_features
 
 
@@ -151,10 +154,10 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
     return config
 
 
-def extract_features(config, wavs_index, njobs=1, log=get_logger()):
+def extract_features(config, utterances_index, njobs=1, log=get_logger()):
     """Speech features extraction pipeline
 
-    Format of each element in `wavs_index`:
+    Format of each element in `utts_index`:
     * 1-uple (or str): <wav-file>
     * 2-uple: <utterance-id> <wav-file>
     * 3-uple: <utterance-id> <wav-file> <speaker-id>
@@ -167,8 +170,8 @@ def extract_features(config, wavs_index, njobs=1, log=get_logger()):
         The pipeline configuration, can be a dictionary, a path to a
         YAML file or a string formatted in YAML. To get a
         configuration example, see :func:`get_default_config`
-    wavs_index : sequence of tuples
-        The list of wav file to extract the features on.
+    utterances_index : sequence of tuples
+        The list of utterances to extract the features on.
     njobs : int, optional
         The number to subprocesses to execute in parallel, use a
         single process by default.
@@ -179,23 +182,23 @@ def extract_features(config, wavs_index, njobs=1, log=get_logger()):
     # checks to ensure all is correct
     njobs = get_njobs(njobs, log=log)
     config = _init_config(config, log=log)
-    wavs_index = _init_wavs(wavs_index, log=log)
+    utterances_index = _init_utterances(utterances_index, log=log)
 
     # the list of speakers
-    speakers = set(w.speaker for w in wavs_index.values())
+    speakers = set(u.speaker for u in utterances_index.values())
     if speakers == {None}:
         speakers = None
     _check_speakers(config, speakers, log)
 
     # do all the computations
     return _extract_features(
-        config, speakers, wavs_index, njobs=njobs, log=log)
+        config, speakers, utterances_index, njobs=njobs, log=log)
 
 
 def _get_config_to_yaml(config, comments=True):
     """Converts a configuration from dict to a yaml string
 
-    Auxiliary method to :func:`default_config`.
+    Auxiliary method to :func:`get_default_config`.
 
     Parameters
     ----------
@@ -269,7 +272,7 @@ def _get_config_to_yaml(config, comments=True):
 
 
 def _get_docstring(processor, param):
-    """Return sthe docstring of a given processor's parameter"""
+    """Returns the docstring of a given processor's parameter"""
     docstring = getattr(
         _get_processor(processor), param).__doc__ or ''
     docstring = re.sub(r'\n\n', '. ', docstring)
@@ -331,7 +334,8 @@ def _init_config(config, log=get_logger()):
         raise ValueError(
             'configuration defines pitch_post but not pitch')
 
-    # log message describing the pipeline configuration
+    # log message describing the pipeline configuration TODO more
+    # details on CMVN
     msg = []
     if 'pitch' in config:
         msg.append('pitch')
@@ -346,11 +350,11 @@ def _init_config(config, log=get_logger()):
     return config
 
 
-wav_entry = collections.namedtuple(
-    'wav_entry', ['file', 'speaker', 'tstart', 'tstop'])
+Utterance = collections.namedtuple(
+    'Utterance', ['file', 'speaker', 'tstart', 'tstop'])
 
 
-def _init_wavs(wavs, log=get_logger()):
+def _init_utterances(utts_index, log=get_logger()):
     """Returns a dict {utt_id: (wav_file, speaker_id, tstart, tstop)}
 
     Raises on any error, log a warning on strange but non-critical
@@ -358,15 +362,15 @@ def _init_wavs(wavs, log=get_logger()):
 
     """
     # guess the for format of `wavs` and ensure it is homogeneous
-    wavs = list((w,) if isinstance(w, str) else w for w in wavs)
-    format = set(len(w) for w in wavs)
+    utts = list((u,) if isinstance(u, str) else u for u in utts_index)
+    format = set(len(u) for u in utts)
     if not len(format) == 1:
         raise ValueError(
             'the wavs index is not homogeneous, entries have different '
             'lengths: {}'.format(', '.join(str(t) for t in format)))
     format = list(format)[0]
 
-    # ensure the wavs index format is valid
+    # ensure the utterances index format is valid
     valid_formats = {
         1: '<wav-file>',
         2: '<utterance-id> <wav-file>',
@@ -375,55 +379,59 @@ def _init_wavs(wavs, log=get_logger()):
         5: '<utterance-id> <wav-file> <speaker-id> <tstart> <tstop>'}
     try:
         log.info(
-            'detected format for wavs index is: %s',
+            'detected format for utterances index is: %s',
             valid_formats[format])
     except KeyError:
-        raise ValueError('unknown format for wavs index')
+        raise ValueError('unknown format for utterances index')
 
     # ensure 1st column has unique elements
-    duplicates = [w for w, c in collections.Counter(
-        w[0] for w in wavs).items() if c > 1]
+    duplicates = [u for u, c in collections.Counter(
+        u[0] for u in utts).items() if c > 1]
     if duplicates:
         raise ValueError(
-            'duplicates found in wavs index: {}'.format(', '.join(duplicates)))
+            'duplicates found in utterances index: {}'.format(', '.join(duplicates)))
 
     # build a dict {utt_id: (wav_file, speaker_id, tstart, tstop)}
-    wavs_index = {}
-    for n, wav in enumerate(wavs, start=1):
+    utterances = {}
+    for n, utt in enumerate(utts, start=1):
         if format == 1:
             utt_id = 'utt_{}'.format(str(n))
-            wav_file = wav[0]
+            wav_file = utt[0]
         else:
-            utt_id = wav[0]
-            wav_file = wav[1]
+            utt_id = utt[0]
+            wav_file = utt[1]
 
-        wavs_index[utt_id] = wav_entry(
+        utterances[utt_id] = Utterance(
             file=wav_file,
-            speaker=wav[2] if format in (3, 5) else None,
-            tstart=(float(wav[2]) if format == 4
-                    else float(wav[3]) if format == 5 else None),
-            tstop=(float(wav[3]) if format == 4
-                   else float(wav[4]) if format == 5 else None))
+            speaker=utt[2] if format in (3, 5) else None,
+            tstart=(float(utt[2]) if format == 4
+                    else float(utt[3]) if format == 5 else None),
+            tstop=(float(utt[3]) if format == 4
+                   else float(utt[4]) if format == 5 else None))
 
-    # ensure all the wavs are here, log the total duration and the
-    # number of speakers, make sure all wavs are mono abd check the
-    # sample rate (warning if all the wavs are not at the same sample
-    # rate)
-    wavs = [w.file for w in wavs_index.values()]
+    # ensure all the wavs are here
+    wavs = [w.file for w in utterances.values()]
     not_found = [w for w in wavs if not os.path.isfile(w)]
     if not_found:
         raise ValueError(
             'the following wav files are not found: {}'
             .format(', '.join(not_found)))
+
+    # log the total duration and the number of speakers
     wavs_metadata = [Audio.scan(w) for w in wavs]
+    total_duration = sum(w.duration for w in wavs_metadata)
+    nspeakers = len(set(w.speaker for w in utterances.values()))
     log.info(
-        'get %s wav files%s, total duration: %s',
-        len(wavs),
-        '' if format not in (3, 5) else ' from {} speakers'.format(
-            len(set(w.speaker for w in wavs_index.values()))),
-        datetime.timedelta(seconds=sum(w.duration for w in wavs_metadata)))
+        'get %s wav files%s, total duration: %s', len(wavs),
+        '' if format not in (3, 5) else ' from {} speakers'.format(nspeakers),
+        datetime.timedelta(seconds=total_duration))
+
+    # make sure all wavs are mono
     if not all(w.nchannels == 1 for w in wavs_metadata):
         raise ValueError('all wav files are not mono')
+
+    # check the sample rate (warning if all the wavs are not at the
+    # same sample rate)
     samplerates = set(w.sample_rate for w in wavs_metadata)
     if len(samplerates) > 1:
         log.warning(
@@ -435,14 +443,14 @@ def _init_wavs(wavs, log=get_logger()):
     # ensure all (tstart, tstop) pairs are valid (numbers and
     # tstart < tstop)
     if format in (4, 5):
-        tstamps = [(w.tstart, w.tstop, w.file) for w in wavs_index.values()]
+        tstamps = [(w.tstart, w.tstop, w.file) for w in utterances.values()]
         for (tstart, tstop, wfile) in tstamps:
             if not tstart < tstop:
                 raise ValueError(
                     'timestamps are not in increasing order for {}: {} >= {}'
                     .format(wfile, tstart, tstop))
 
-    return wavs_index
+    return utterances
 
 
 def _check_speakers(config, speakers, log):
@@ -454,9 +462,7 @@ def _check_speakers(config, speakers, log):
 
     """
     # ensures speakers info provided if cmvn by speaker is requested
-    if 'cmvn' not in config:
-        cmvn_by_speaker = False
-    elif not config['cmvn']['by_speaker']:
+    if 'cmvn' not in config or not config['cmvn']['by_speaker']:
         cmvn_by_speaker = False
     else:  # config['cmvn']['by_speaker'] exists and is True
         assert config['cmvn']['by_speaker']
@@ -557,9 +563,10 @@ def _check_environment(njobs, log=get_logger()):
             'OMP_NUM_THREADS=1 to disable this warning', njobs)
 
 
-def _extract_features(config, speakers, wavs_index, njobs=1, log=get_logger()):
+def _extract_features(config, speakers, utterances,
+                      njobs=1, log=get_logger()):
     # instanciate the pipeline components
-    pipeline = _init_pipeline(config, wavs_index, log=log)
+    pipeline = _init_pipeline(config, utterances, log=log)
 
     # check the OMP_NUM_THREADS variable for parallel computations
     _check_environment(njobs, log=log)
@@ -575,16 +582,16 @@ def _extract_features(config, speakers, wavs_index, njobs=1, log=get_logger()):
             'features extraction, pass 1', log,
             n_jobs=njobs, verbose=verbose, prefer='threads')(
                 joblib.delayed(_extract_pass_one)(
-                    name, wav_entry, pipeline, log=log)
-                for name, wav_entry in wavs_index.items())
+                    name, utt, pipeline, log=log)
+                for name, utt in utterances.items())
 
         # apply cmvn and extract deltas
         feats = FeaturesCollection(**{k: v for k, v in _Parallel(
             'features extraction, pass 2', log,
             n_jobs=njobs, verbose=verbose, prefer='threads')(
                 joblib.delayed(_extract_pass_two)(
-                    name, wav_entry, feats, pitch, pipeline, log=log)
-                for name, wav_entry, feats, pitch in feats)})
+                    name, utt, feats, pitch, pipeline, log=log)
+                for name, utt, feats, pitch in feats)})
 
     # no cmvn: single pass
     else:
@@ -592,19 +599,19 @@ def _extract_features(config, speakers, wavs_index, njobs=1, log=get_logger()):
             'features extraction', log,
             n_jobs=njobs, verbose=verbose, prefer='threads')(
                 joblib.delayed(_extract_single_pass)(
-                    name, wav_entry, pipeline, log=log)
-                for name, wav_entry in list(wavs_index.items()))})
+                    name, utt, pipeline, log=log)
+                for name, utt in list(utterances.items()))})
 
     # TODO log a message with structure of the output features
     # (labels on columns)
     return feats
 
 
-def _extract_pass_one(name, wav_entry, pipeline, log=get_logger()):
-    audio = Audio.load(wav_entry.file)
-    if wav_entry.tstart is not None:
-        assert wav_entry.tstop > wav_entry.tstart
-        audio = audio.segment([(wav_entry.tstart, wav_entry.tstop)])[0]
+def _extract_pass_one(name, utt, pipeline, log=get_logger()):
+    audio = Audio.load(utt.file)
+    if utt.tstart is not None:
+        assert utt.tstop > utt.tstart
+        audio = audio.segment([(utt.tstart, utt.tstop)])[0]
 
     # features extraction
     p = pipeline['features']
@@ -615,11 +622,6 @@ def _extract_pass_one(name, wav_entry, pipeline, log=get_logger()):
     feats = p.process(audio)
 
     if 'cmvn' in pipeline:
-        if pipeline['cmvn']['by_speaker']:
-            cmvn = pipeline['cmvn'][wav_entry.speaker]
-        else:
-            cmvn = pipeline['cmvn']['cmvn']
-
         # weight CMVN by voice activity detection (null weights on
         # non-voiced frames)
         if 'vad' in pipeline['cmvn']:
@@ -629,6 +631,9 @@ def _extract_pass_one(name, wav_entry, pipeline, log=get_logger()):
             vad = vad.data.reshape((vad.shape[0], ))  # reshape as 1d array
         else:
             vad = None
+
+        cmvn = pipeline['cmvn'][
+            utt.speaker if pipeline['cmvn']['by_speaker'] else 'cmvn']
         cmvn.accumulate(feats, weights=vad)
 
     if 'pitch' in pipeline:
@@ -639,18 +644,16 @@ def _extract_pass_one(name, wav_entry, pipeline, log=get_logger()):
     else:
         pitch = None
 
-    return name, wav_entry, feats, pitch
+    return name, utt, feats, pitch
 
 
-def _extract_pass_two(name, wav_entry, feats, pitch, pipeline,
+def _extract_pass_two(name, utt, feats, pitch, pipeline,
                       tolerance=2, log=get_logger()):
     # apply cmvn
     if 'cmvn' in pipeline:
-        if pipeline['cmvn']['by_speaker']:
-            p = pipeline['cmvn'][wav_entry.speaker]
-        else:
-            p = pipeline['cmvn']['cmvn']
-        feats = p.process(feats)
+        cmvn = pipeline['cmvn'][
+            utt.speaker if pipeline['cmvn']['by_speaker'] else 'cmvn']
+        feats = cmvn.process(feats)
 
     if 'delta' in pipeline:
         feats = pipeline['delta'].process(feats)
@@ -668,7 +671,7 @@ def _extract_pass_two(name, wav_entry, feats, pitch, pipeline,
     return name, feats
 
 
-def _extract_single_pass(name, wav_entry, pipeline, log=get_logger()):
-    _, _, feats, pitch = _extract_pass_one(name, wav_entry, pipeline, log=log)
+def _extract_single_pass(name, utt, pipeline, log=get_logger()):
+    _, _, feats, pitch = _extract_pass_one(name, utt, pipeline, log=log)
     return _extract_pass_two(
-        name, wav_entry, feats, pitch, pipeline, log=log)
+        name, utt, feats, pitch, pipeline, log=log)
