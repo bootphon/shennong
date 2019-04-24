@@ -11,7 +11,7 @@ from shennong.audio import Audio
 
 
 @pytest.fixture(scope='session')
-def wavs_index(wav_file):
+def utterances_index(wav_file):
     return [('utt1', wav_file, 'speaker1')]
 
 
@@ -34,7 +34,7 @@ def equal_dict(d1, d2):
 
 
 @pytest.mark.parametrize(
-    'features', pipeline._valid_features)
+    'features', pipeline.valid_features())
 def test_config_good(features):
     c1 = pipeline.get_default_config(features, to_yaml=False)
     c2 = pipeline.get_default_config(
@@ -49,7 +49,7 @@ def test_config_good(features):
 
 
 @pytest.mark.parametrize('kind', ['dict', 'file', 'str'])
-def test_config_format(wavs_index, capsys, tmpdir, kind):
+def test_config_format(utterances_index, capsys, tmpdir, kind):
     config = pipeline.get_default_config('mfcc', to_yaml=kind != 'dict')
 
     if kind == 'file':
@@ -70,7 +70,7 @@ def test_config_format(wavs_index, capsys, tmpdir, kind):
         assert word in parsed
 
 
-def test_config_bad(wavs_index):
+def test_config_bad(utterances_index):
     with pytest.raises(ValueError) as err:
         pipeline.get_default_config('bad')
     assert 'invalid features "bad"' in str(err)
@@ -78,63 +78,60 @@ def test_config_bad(wavs_index):
     config = pipeline.get_default_config('mfcc')
     del config['mfcc']
     with pytest.raises(ValueError) as err:
-        pipeline.extract_features(config, wavs_index)
+        pipeline.extract_features(config, utterances_index)
     assert 'the configuration does not define any features' in str(err)
 
     config = pipeline.get_default_config('mfcc')
     config['plp'] = config['mfcc']
     with pytest.raises(ValueError) as err:
-        pipeline.extract_features(config, wavs_index)
+        pipeline.extract_features(config, utterances_index)
     assert 'more than one features extraction processor' in str(err)
 
     config = pipeline.get_default_config('mfcc')
     config['invalid'] = config['mfcc']
     with pytest.raises(ValueError) as err:
-        pipeline.extract_features(config, wavs_index)
+        pipeline.extract_features(config, utterances_index)
     assert 'invalid keys in configuration' in str(err)
 
     config = pipeline.get_default_config('mfcc')
     del config['cmvn']['with_vad']
     parsed = pipeline._init_config(config)
     assert 'cmvn' in parsed
-    assert 'with_vad' not in parsed['cmvn']
-    assert 'vad' not in parsed
-
-    config = pipeline.get_default_config('mfcc')
-    del config['pitch']
-    with pytest.raises(ValueError) as err:
-        pipeline.extract_features(config, wavs_index)
-    assert 'configuration defines pitch_post but not pitch' in str(err)
-
-    config = pipeline.get_default_config('mfcc')
-    del config['pitch_post']
-    with pytest.raises(ValueError) as err:
-        pipeline.extract_features(config, wavs_index)
-    assert 'configuration defines pitch but not pitch_post' in str(err)
+    assert parsed['cmvn']['with_vad']
 
     config = pipeline.get_default_config('mfcc')
     del config['cmvn']['by_speaker']
     c = pipeline._init_config(config)
     assert not c['cmvn']['by_speaker']
 
+    config = pipeline.get_default_config('mfcc')
+    del config['pitch']['postprocessing']
+    c = pipeline._init_config(config)
+    assert c['pitch']['postprocessing'] == {}
 
-def test_check_speakers(wavs_index, capsys):
+
+def test_check_speakers(utterances_index, capsys):
     log = utils.get_logger(level='info')
 
     config = pipeline.get_default_config('mfcc')
     with pytest.raises(ValueError) as err:
-        pipeline.extract_features(config, [(wavs_index[0][1], )], log=log)
+        pipeline.extract_features(
+            config, [(utterances_index[0][1], )], log=log)
     assert 'no speaker information provided' in str(err)
 
+    capsys.readouterr()  # clean the buffer
     config = pipeline.get_default_config('mfcc', with_cmvn=False)
-    pipeline.extract_features(config, wavs_index, log=log)
+    pipeline.extract_features(config, utterances_index, log=log)
     log_out = capsys.readouterr()
+    assert 'cmvn' not in log_out.err
     assert '(CMVN disabled)' in log_out.err
 
     config = pipeline.get_default_config('mfcc', with_cmvn=True)
     config['cmvn']['by_speaker'] = False
-    pipeline.extract_features(config, wavs_index, log=log)
-    assert '(CMVN by speaker disabled)' in capsys.readouterr().err
+    pipeline.extract_features(config, utterances_index, log=log)
+    log_out = capsys.readouterr().err
+    assert 'cmvn by utterance' in log_out
+    assert '(CMVN by speaker disabled)' in log_out
 
 
 def test_check_environment(capsys):
@@ -145,7 +142,7 @@ def test_check_environment(capsys):
     assert 'working on 2 threads but implicit parallelism is active' in out
 
 
-def test_wavs_bad(wav_file, wav_file_8k, tmpdir, capsys):
+def test_utts_bad(wav_file, wav_file_8k, tmpdir, capsys):
     fun = pipeline._init_utterances
 
     # ensure we catch basic errors
@@ -165,6 +162,15 @@ def test_wavs_bad(wav_file, wav_file_8k, tmpdir, capsys):
         fun([('/foo/bar/a')])
     assert 'the following wav files are not found' in str(err)
 
+
+def test_check_wavs_bad(wav_file, wav_file_8k, tmpdir, capsys):
+    def fun(utts):
+        c = pipeline._init_config(pipeline.get_default_config(
+            'mfcc', with_cmvn=False))
+        u = pipeline._init_utterances(utts)
+        pipeline.ProcessorsFactory(c, u)
+        return u
+
     # build a stereo file and make sure it is not supported by the
     # pipeline
     audio = Audio.load(wav_file)
@@ -174,10 +180,11 @@ def test_wavs_bad(wav_file, wav_file_8k, tmpdir, capsys):
     wav_file_2 = str(tmpdir.join('stereo.wav'))
     stereo.save(wav_file_2)
     with pytest.raises(ValueError) as err:
-        fun([(wav_file_2)])
+        fun([(wav_file_2,)])
     assert 'all wav files are not mono' in str(err)
 
     # ensure we catch differences in sample rates
+    capsys.readouterr()  # clear buffer
     w = [(wav_file, ), (wav_file_8k, )]
     out = fun(w)
     err = capsys.readouterr().err
@@ -191,7 +198,7 @@ def test_wavs_bad(wav_file, wav_file_8k, tmpdir, capsys):
 
 
 def test_processor_bad():
-    get = pipeline._get_processor
+    get = pipeline.ProcessorsFactory.get_processor_class
     with pytest.raises(ValueError) as err:
         get('bad')
     assert 'invalid processor "' in str(err)
@@ -202,45 +209,61 @@ def test_processor_bad():
 
 
 @pytest.mark.parametrize('features', pipeline.valid_features())
-def test_extract_features(wavs_index, features):
+def test_extract_features(utterances_index, features):
     config = pipeline.get_default_config(
         features, with_cmvn=False, with_pitch=False)
-    feats = pipeline.extract_features(config, wavs_index)
-    feat1 = feats[wavs_index[0][0]]
+    feats = pipeline.extract_features(config, utterances_index)
+    feat1 = feats[utterances_index[0][0]]
     assert feat1.is_valid()
     assert feat1.shape[0] == 140
 
     config = pipeline.get_default_config(
         features, with_cmvn=False, with_pitch=True)
-    feats = pipeline.extract_features(config, wavs_index)
-    feat2 = feats[wavs_index[0][0]]
+    feats = pipeline.extract_features(config, utterances_index)
+    feat2 = feats[utterances_index[0][0]]
     assert feat2.is_valid()
     assert feat2.shape[0] == 140
     assert feat2.shape[1] == feat1.shape[1] + 3
 
-    wavs_index = [('u1', wavs_index[0][1], 0, 1)]
+    utterances_index = [('u1', utterances_index[0][1], 0, 1)]
     config = pipeline.get_default_config(
         features, with_cmvn=False, with_pitch=False)
-    feats = pipeline.extract_features(config, wavs_index)
-    feat3 = feats[wavs_index[0][0]]
+    feats = pipeline.extract_features(config, utterances_index)
+    feat3 = feats[utterances_index[0][0]]
     assert feat3.is_valid()
     assert feat3.shape[0] == 98
     assert feat3.shape[1] == feat1.shape[1]
 
 
-# def test_extract_features_full(wav_file, wav_file_8k, capsys):
-#     # difficult case with different sampling rates, speakers and segments
-#     index = [
-#         ('u1', wav_file, 's1', 0, 1),
-#         ('u2', wav_file, 's2', 1, 1.2),
-#         ('u3', wav_file_8k, 's1', 0, 3)]
-#     config = pipeline.get_default_config('mfcc')
+@pytest.mark.parametrize(
+    'by_speaker, with_vad',
+    [(s, v) for s in (True, False) for v in (True, False)])
+def test_cmvn(utterances_index, by_speaker, with_vad):
+    config = pipeline.get_default_config(
+        'mfcc', with_cmvn=True, with_pitch=False, with_delta=False)
+    config['cmvn']['by_speaker'] = by_speaker
+    config['cmvn']['with_vad'] = with_vad
+    feats = pipeline.extract_features(config, utterances_index)
+    feat2 = feats[utterances_index[0][0]]
+    assert feat2.is_valid()
+    assert feat2.shape[0] == 140
+    assert feat2.shape[1] == 13
 
-#     feats = pipeline.extract_features(config, index, log=utils.get_logger())
 
-#     # ensure we have the expected log messages
-#     messages = capsys.readouterr().err
-#     assert 'WARNING - several sample rates found in wav files' in messages
+def test_extract_features_full(wav_file, wav_file_8k, capsys):
+    # difficult case with different sampling rates, speakers and segments
+    index = [
+        ('u1', wav_file, 's1', 0, 1),
+        ('u2', wav_file, 's2', 1, 1.2),
+        ('u3', wav_file_8k, 's1', 0, 3)]
+    config = pipeline.get_default_config('mfcc')
 
-#     for utt in ('u1', 'u2', 'u3'):
-#         assert utt in feats
+    feats = pipeline.extract_features(
+        config, index, njobs=2, log=utils.get_logger())
+
+    # ensure we have the expected log messages
+    messages = capsys.readouterr().err
+    assert 'WARNING - several sample rates found in wav files' in messages
+
+    for utt in ('u1', 'u2', 'u3'):
+        assert utt in feats

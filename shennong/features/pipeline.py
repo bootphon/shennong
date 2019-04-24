@@ -20,57 +20,9 @@ from shennong.features import FeaturesCollection
 from shennong.utils import get_logger, get_njobs
 
 
-_valid_features = ['mfcc', 'plp', 'filterbank', 'bottleneck']
-"""The main features available in shennong, excluding post-processing"""
-
-
-_valid_processors = {
-    'bottleneck': ('processor', 'BottleneckProcessor'),
-    'energy': ('processor', 'EnergyProcessor'),
-    'filterbank': ('processor', 'FilterbankProcessor'),
-    'mfcc': ('processor', 'MfccProcessor'),
-    'pitch': ('processor', 'PitchProcessor'),
-    'pitch_post': ('processor', 'PitchPostProcessor'),
-    'plp': ('processor', 'PlpProcessor'),
-    'cmvn': ('postprocessor', 'CmvnPostProcessor'),
-    'delta': ('postprocessor', 'DeltaPostProcessor'),
-    'vad': ('postprocessor', 'VadPostProcessor')}
-"""The features processors and post-porcessors as {name: (module, class)}"""
-
-
-def _get_processor(name):
-    """Returns the (post)processor class `name`
-
-    This function enables dynamic import of processors classes to
-    avoid a big list of useless imports
-
-    Raises a ValueError if the `name` is not valid or the module/class
-    cannot be imported
-
-    """
-    try:
-        _module, _class = _valid_processors[name]
-    except KeyError:
-        raise ValueError('invalid processor "{}"'.format(name))
-    if name == 'pitch_post':
-        name = 'pitch'
-
-    module = 'shennong.features.{}.{}'.format(_module, name)
-    try:
-        module = importlib.import_module(module)
-    except ModuleNotFoundError:  # pragma: nocover
-        raise ValueError('cannot import module "{}"'.format(module))
-
-    try:
-        return module.__dict__[_class]
-    except KeyError:    # pragma: nocover
-        raise ValueError(
-            'cannot find class "{}" in module {}'.format(_class, module))
-
-
 def valid_features():
     """Returns the list of features that can be extracted by the pipeline"""
-    return _valid_features
+    return ProcessorsFactory._valid_features
 
 
 def get_default_config(features, to_yaml=False, yaml_commented=True,
@@ -117,9 +69,9 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
 
     """
     # check features are correct
-    if features not in _valid_features:
+    if features not in valid_features():
         raise ValueError('invalid features "{}", must be in {}'.format(
-            features, ', '.join(_valid_features)))
+            features, ', '.join(valid_features())))
 
     config = {}
 
@@ -127,7 +79,7 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
     # the input wav file
     config[features] = {
         k: v for k, v in
-        _get_processor(features)().get_params().items()
+        ProcessorsFactory.get_processor_params(features).items()
         if k not in ('sample_rate', 'htk_compat')}
 
     if with_pitch:
@@ -135,19 +87,17 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
         # the features, and sample rate
         config['pitch'] = {
             k: v for k, v
-            in _get_processor('pitch')().get_params().items()
+            in ProcessorsFactory.get_processor_params('pitch').items()
             if k not in ('frame_length', 'frame_shift', 'sample_rate')}
-        config['pitch_post'] = _get_processor('pitch_post')().get_params()
+        config['pitch']['postprocessing'] = (
+            ProcessorsFactory.get_processor_params('pitch_post'))
 
     if with_cmvn:
-        config['cmvn'] = {
-            'by_speaker': True, 'with_vad': True}
-        vad_opts = _get_processor('vad')().get_params()
-        for k, v in vad_opts.items():
-            config['cmvn']['vad_' + k] = v
+        config['cmvn'] = {'by_speaker': True, 'with_vad': True}
+        config['cmvn']['vad'] = ProcessorsFactory.get_processor_params('vad')
 
     if with_delta:
-        config['delta'] = _get_processor('delta')().get_params()
+        config['delta'] = ProcessorsFactory.get_processor_params('delta')
 
     if to_yaml:
         return _get_config_to_yaml(config, comments=yaml_commented)
@@ -182,17 +132,47 @@ def extract_features(config, utterances_index, njobs=1, log=get_logger()):
     # checks to ensure all is correct
     njobs = get_njobs(njobs, log=log)
     config = _init_config(config, log=log)
-    utterances_index = _init_utterances(utterances_index, log=log)
+    utterances = _init_utterances(utterances_index, log=log)
 
-    # the list of speakers
-    speakers = set(u.speaker for u in utterances_index.values())
-    if speakers == {None}:
-        speakers = None
-    _check_speakers(config, speakers, log)
+    # check the OMP_NUM_THREADS variable for parallel computations
+    _check_environment(njobs, log=log)
 
     # do all the computations
     return _extract_features(
-        config, speakers, utterances_index, njobs=njobs, log=log)
+        config, utterances, njobs=njobs, log=log)
+
+
+# a little tweak to change the &log message in joblib parallel loops
+class _Parallel(joblib.Parallel):
+    def __init__(self, name, log, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name = name
+        self.log = log
+
+    def _print(self, msg, msg_args):
+        if not self.verbose:  # pragma: nocover
+            return
+        msg = (msg % msg_args).replace('Done', 'done')
+        self.log.info('%s: %s', self, msg)
+
+    def __repr__(self):
+        return self.name
+
+
+def _check_environment(njobs, log=get_logger()):
+    if njobs == 1:
+        return
+
+    try:
+        nthreads = int(os.environ['OMP_NUM_THREADS'])
+    except KeyError:
+        nthreads = None
+
+    if not nthreads or nthreads > 1:
+        log.warning(
+            'working on %s threads but implicit parallelism is active, '
+            'this may slow down the processing. Set the environment variable '
+            'OMP_NUM_THREADS=1 to disable this warning', njobs)
 
 
 def _get_config_to_yaml(config, comments=True):
@@ -237,8 +217,15 @@ def _get_config_to_yaml(config, comments=True):
     config_commented = []
     processor = None
     for line in config.split('\n'):
-        if not line.startswith(' '):
-            processor = line[:-1]
+        if line.endswith(':'):
+            processor = line[:-1].strip()
+            # special case of pitch_postprocessor
+            if processor == 'postprocessing':
+                processor = 'pitch_post'
+
+            if processor == 'vad':
+                config_commented.append(
+                    "  # The vad options are not used if 'with_vad' is false")
             config_commented.append(line)
         else:
             param = line.split(': ')[0].strip()
@@ -253,32 +240,17 @@ def _get_config_to_yaml(config, comments=True):
                     'If true do normalization only on frames where '
                     'voice activity has been detected, if false do not '
                     'consider voice activity for normalization')
-
-            # special case 'vad_xxx' -> 'vad', 'xxx'
-            elif processor == 'cmvn' and param.startswith('vad_'):
-                docstring = _get_docstring('vad', param.replace('vad_', ''))
-                docstring += ". This has no effect if 'with_vad' is false"
             else:
-                docstring = _get_docstring(processor, param)
+                docstring = ProcessorsFactory.get_docstring(
+                    processor, param, default)
 
-            docstring += '. Default is {}.'.format(default)
-            docstring = re.sub(r'\.+', '.', docstring)
-
+            offset = 4 if processor in ('vad', 'pitch_post') else 2
             config_commented += [
-                '  # ' + w for w in textwrap.wrap(docstring, width=66)]
+                ' ' * offset + '# ' + w
+                for w in textwrap.wrap(docstring, width=68 - offset)]
             config_commented.append(line)
 
     return '\n'.join(config_commented) + '\n'
-
-
-def _get_docstring(processor, param):
-    """Returns the docstring of a given processor's parameter"""
-    docstring = getattr(
-        _get_processor(processor), param).__doc__ or ''
-    docstring = re.sub(r'\n\n', '. ', docstring)
-    docstring = re.sub(r'\n', ' ', docstring)
-    docstring = re.sub(r' +', ' ', docstring).strip()
-    return docstring
 
 
 def _init_config(config, log=get_logger()):
@@ -298,7 +270,8 @@ def _init_config(config, log=get_logger()):
 
     # ensure all the keys in config are known
     unknown_keys = [
-        k for k in config.keys() if k not in _valid_processors]
+        k for k in config.keys()
+        if k not in ProcessorsFactory._valid_processors]
     if unknown_keys:
         raise ValueError(
             'invalid keys in configuration: {}'.format(
@@ -306,12 +279,12 @@ def _init_config(config, log=get_logger()):
 
     # ensure one and only one features processor is defined in the
     # configuration
-    features = [k for k in config.keys() if k in _valid_features]
+    features = [k for k in config.keys() if k in valid_features()]
     if not features:
         raise ValueError(
             'the configuration does not define any features extraction, '
             'only post-processing (must have one and only one entry of {})'
-            .format(', '.join(_valid_features)))
+            .format(', '.join(valid_features())))
     if len(features) > 1:
         raise ValueError(
             'more than one features extraction processors are defined, '
@@ -325,24 +298,24 @@ def _init_config(config, log=get_logger()):
                 'by_speaker option not specified for cmvn, '
                 'assuming it is false and doing cmvn by utterance')
             config['cmvn']['by_speaker'] = False
+        # force with_vad to True if not existing
+        if 'with_vad' not in config['cmvn']:
+            config['cmvn']['with_vad'] = True
 
-    # if we have pitch or pitch_post, make sure we have the other
-    if 'pitch' in config and 'pitch_post' not in config:
-        raise ValueError(
-            'configuration defines pitch but not pitch_post')
-    if 'pitch_post' in config and 'pitch' not in config:
-        raise ValueError(
-            'configuration defines pitch_post but not pitch')
+    # if pitch, make sure we have a 'postprocessing' entry
+    if 'pitch' in config and 'postprocessing' not in config['pitch']:
+        config['pitch']['postprocessing'] = {}
 
-    # log message describing the pipeline configuration TODO more
-    # details on CMVN
+    # log message describing the pipeline configuration
     msg = []
     if 'pitch' in config:
         msg.append('pitch')
-    if 'cmvn' in config:
-        msg.append('cmvn')
     if 'delta' in config:
         msg.append('delta')
+    if 'cmvn' in config:
+        by = 'speaker' if config['cmvn']['by_speaker'] else 'utterance'
+        vad = ' with vad' if config['cmvn']['with_vad'] else ''
+        msg.append('cmvn by {}{}'.format(by, vad))
     log.info(
         'pipeline configured for %s features extraction%s',
         features[0], ' with {}'.format(', '.join(msg)) if msg else '')
@@ -350,8 +323,8 @@ def _init_config(config, log=get_logger()):
     return config
 
 
-Utterance = collections.namedtuple(
-    'Utterance', ['file', 'speaker', 'tstart', 'tstop'])
+_Utterance = collections.namedtuple(
+    '_Utterance', ['file', 'speaker', 'tstart', 'tstop'])
 
 
 def _init_utterances(utts_index, log=get_logger()):
@@ -363,12 +336,12 @@ def _init_utterances(utts_index, log=get_logger()):
     """
     # guess the for format of `wavs` and ensure it is homogeneous
     utts = list((u,) if isinstance(u, str) else u for u in utts_index)
-    format = set(len(u) for u in utts)
-    if not len(format) == 1:
+    index_format = set(len(u) for u in utts)
+    if not len(index_format) == 1:
         raise ValueError(
             'the wavs index is not homogeneous, entries have different '
-            'lengths: {}'.format(', '.join(str(t) for t in format)))
-    format = list(format)[0]
+            'lengths: {}'.format(', '.join(str(t) for t in index_format)))
+    index_format = list(index_format)[0]
 
     # ensure the utterances index format is valid
     valid_formats = {
@@ -380,7 +353,7 @@ def _init_utterances(utts_index, log=get_logger()):
     try:
         log.info(
             'detected format for utterances index is: %s',
-            valid_formats[format])
+            valid_formats[index_format])
     except KeyError:
         raise ValueError('unknown format for utterances index')
 
@@ -389,25 +362,27 @@ def _init_utterances(utts_index, log=get_logger()):
         u[0] for u in utts).items() if c > 1]
     if duplicates:
         raise ValueError(
-            'duplicates found in utterances index: {}'.format(', '.join(duplicates)))
+            'duplicates found in utterances index: {}'.format(
+                ', '.join(duplicates)))
 
-    # build a dict {utt_id: (wav_file, speaker_id, tstart, tstop)}
+    # build the utterances collection as a dict
+    # {utt_id: (wav_file, speaker_id, tstart, tstop)}
     utterances = {}
     for n, utt in enumerate(utts, start=1):
-        if format == 1:
+        if index_format == 1:
             utt_id = 'utt_{}'.format(str(n))
             wav_file = utt[0]
         else:
             utt_id = utt[0]
             wav_file = utt[1]
 
-        utterances[utt_id] = Utterance(
+        utterances[utt_id] = _Utterance(
             file=wav_file,
-            speaker=utt[2] if format in (3, 5) else None,
-            tstart=(float(utt[2]) if format == 4
-                    else float(utt[3]) if format == 5 else None),
-            tstop=(float(utt[3]) if format == 4
-                   else float(utt[4]) if format == 5 else None))
+            speaker=utt[2] if index_format in (3, 5) else None,
+            tstart=(float(utt[2]) if index_format == 4
+                    else float(utt[3]) if index_format == 5 else None),
+            tstop=(float(utt[3]) if index_format == 4
+                   else float(utt[4]) if index_format == 5 else None))
 
     # ensure all the wavs are here
     wavs = [w.file for w in utterances.values()]
@@ -417,261 +392,351 @@ def _init_utterances(utts_index, log=get_logger()):
             'the following wav files are not found: {}'
             .format(', '.join(not_found)))
 
-    # log the total duration and the number of speakers
-    wavs_metadata = [Audio.scan(w) for w in wavs]
-    total_duration = sum(w.duration for w in wavs_metadata)
-    nspeakers = len(set(w.speaker for w in utterances.values()))
-    log.info(
-        'get %s wav files%s, total duration: %s', len(wavs),
-        '' if format not in (3, 5) else ' from {} speakers'.format(nspeakers),
-        datetime.timedelta(seconds=total_duration))
-
-    # make sure all wavs are mono
-    if not all(w.nchannels == 1 for w in wavs_metadata):
-        raise ValueError('all wav files are not mono')
-
-    # check the sample rate (warning if all the wavs are not at the
-    # same sample rate)
-    samplerates = set(w.sample_rate for w in wavs_metadata)
-    if len(samplerates) > 1:
-        log.warning(
-            'several sample rates found in wav files: %s, features extraction '
-            'pipeline will work but this may not be a good idea to work on '
-            'heterogeneous data',
-            ', '.join(str(s) + 'Hz' for s in samplerates))
-
-    # ensure all (tstart, tstop) pairs are valid (numbers and
-    # tstart < tstop)
-    if format in (4, 5):
-        tstamps = [(w.tstart, w.tstop, w.file) for w in utterances.values()]
-        for (tstart, tstop, wfile) in tstamps:
-            if not tstart < tstop:
-                raise ValueError(
-                    'timestamps are not in increasing order for {}: {} >= {}'
-                    .format(wfile, tstart, tstop))
-
     return utterances
 
 
-def _check_speakers(config, speakers, log):
-    """Ensures the configuration is compatible with speakers information
+def _extract_features(config, utterances, njobs=1, log=get_logger()):
+    # the factory will instanciate the pipeline components
+    factory = ProcessorsFactory(config, utterances, log=log)
 
-    On any error raises a ValueError. Logs a warning if speakers
-    information is provided but not used by the pipeline. If all is
-    good, silently returns None.
-
-    """
-    # ensures speakers info provided if cmvn by speaker is requested
-    if 'cmvn' not in config or not config['cmvn']['by_speaker']:
-        cmvn_by_speaker = False
-    else:  # config['cmvn']['by_speaker'] exists and is True
-        assert config['cmvn']['by_speaker']
-        cmvn_by_speaker = True
-
-    if cmvn_by_speaker and not speakers:
-        raise ValueError(
-            'cmvn normalization by speaker requested '
-            'but no speaker information provided')
-    if not cmvn_by_speaker and speakers:
-        log.warning(
-            'speakers information is provided but will not be used '
-            '(CMVN%s disabled)', ' by speaker' if 'cmvn' in config else '')
-
-
-def _init_pipeline(config, speakers, log=get_logger()):
-    """Instanciates the processors required for the pipeline"""
-    # instanciate the features processor and postpipeline all in a
-    # single dictionnary
-    pipeline = {}
-
-    # main features extraction
-    features = [k for k in config.keys() if k in _valid_features][0]
-    pipeline['features'] = _get_processor(features)(**config[features])
-
-    # cmvn, if by speaker instanciate a cmvn processr per speaker,
-    # else a single one, if vad build a energy+vad processor (mfcc and
-    # plp already embeed energy as 1st column but this depends on
-    # parameters raw_energy/use_energy/htk_compat, so it is safer and
-    # simpler to recompute the energy from scratch anyway)
-    if 'cmvn' in config:
-        pipeline['cmvn'] = {**config['cmvn']}
-        if config['cmvn']['by_speaker']:
-            # instanciate a CMVN processor by speaker
-            for speaker in speakers:
-                pipeline['cmvn'][speaker] = _get_processor('cmvn')(
-                    pipeline['features'].ndims)
-        else:
-            pipeline['cmvn']['cmvn'] = _get_processor('cmvn')(
-                    pipeline['features'].ndims)
-        if config['cmvn']['with_vad']:
-            pipeline['cmvn']['energy'] = _get_processor('energy')(
-                frame_length=pipeline['features'].frame_length,
-                frame_shift=pipeline['features'].frame_shift)
-
-            # init vad from parameters in 'cmvn' group starting with 'vad_'
-            vad_params = {
-                k.replace('vad_', ''): v for k, v in config['cmvn'].items()
-                if k.startswith('vad_')}
-            pipeline['cmvn']['vad'] = _get_processor('vad')(**vad_params)
-
-    # delta is straightforward
-    if 'delta' in config:
-        pipeline['delta'] = _get_processor('delta')(**config['delta'])
-
-    # frames for pitch are the same are those for features
-    if 'pitch' in config:
-        pipeline['pitch'] = _get_processor('pitch')(**config['pitch'])
-        # forward framing parameters
-        pipeline['pitch'].frame_shift = pipeline['features'].frame_shift
-        pipeline['pitch'].frame_length = pipeline['features'].frame_length
-        pipeline['pitch_post'] = _get_processor('pitch_post')(
-            **config['pitch_post'])
-
-    return pipeline
-
-
-# a little tweak to change the &log message in joblib parallel loops
-class _Parallel(joblib.Parallel):
-    def __init__(self, name, log, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.name = name
-        self.log = log
-
-    def _print(self, msg, msg_args):
-        if not self.verbose:  # pragma: nocover
-            return
-        msg = (msg % msg_args).replace('Done', 'done')
-        self.log.info('%s: %s', self, msg)
-
-    def __repr__(self):
-        return self.name
-
-
-def _check_environment(njobs, log=get_logger()):
-    if njobs == 1:
-        return
-
-    try:
-        nthreads = int(os.environ['OMP_NUM_THREADS'])
-    except KeyError:
-        nthreads = None
-
-    if not nthreads or nthreads > 1:
-        log.warning(
-            'working on %s threads but implicit parallelism is active, '
-            'this may slow down the processing. Set the environment variable '
-            'OMP_NUM_THREADS=1 to disable this warning', njobs)
-
-
-def _extract_features(config, speakers, utterances,
-                      njobs=1, log=get_logger()):
-    # instanciate the pipeline components
-    pipeline = _init_pipeline(config, utterances, log=log)
-
-    # check the OMP_NUM_THREADS variable for parallel computations
-    _check_environment(njobs, log=log)
+    # pipeline = _init_pipeline(config, utterances, log=log)
 
     # verbosity level for joblib
     verbose = 8
 
     # cmvn : two passes. 1st with features pitch and cmvn
     # accumulation, 2nd with cmvn application and delta
-    if 'cmvn' in pipeline:
+    if 'cmvn' in config:
         # extract features and pitch, accumulate cmvn stats
-        feats = _Parallel(
+        pass_one = _Parallel(
             'features extraction, pass 1', log,
             n_jobs=njobs, verbose=verbose, prefer='threads')(
                 joblib.delayed(_extract_pass_one)(
-                    name, utt, pipeline, log=log)
-                for name, utt in utterances.items())
+                    utterance, factory, log=log) for utterance in utterances)
 
         # apply cmvn and extract deltas
-        feats = FeaturesCollection(**{k: v for k, v in _Parallel(
+        features = FeaturesCollection(**{k: v for k, v in _Parallel(
             'features extraction, pass 2', log,
             n_jobs=njobs, verbose=verbose, prefer='threads')(
                 joblib.delayed(_extract_pass_two)(
-                    name, utt, feats, pitch, pipeline, log=log)
-                for name, utt, feats, pitch in feats)})
+                    utterance, factory, features, pitch, log=log)
+                for utterance, features, pitch in pass_one)})
 
     # no cmvn: single pass
     else:
-        feats = FeaturesCollection(**{k: v for k, v in _Parallel(
+        features = FeaturesCollection(**{k: v for k, v in _Parallel(
             'features extraction', log,
             n_jobs=njobs, verbose=verbose, prefer='threads')(
                 joblib.delayed(_extract_single_pass)(
-                    name, utt, pipeline, log=log)
-                for name, utt in list(utterances.items()))})
+                    utterance, factory, log=log) for utterance in utterances)})
 
     # TODO log a message with structure of the output features
     # (labels on columns)
-    return feats
+    return features
 
 
-def _extract_pass_one(name, utt, pipeline, log=get_logger()):
-    audio = Audio.load(utt.file)
-    if utt.tstart is not None:
-        assert utt.tstop > utt.tstart
-        audio = audio.segment([(utt.tstart, utt.tstop)])[0]
+def _extract_pass_one(utt_name, factory, log=get_logger()):
+    # load audio signal of the utterance
+    audio = factory.get_audio(utt_name)
 
-    # features extraction
-    p = pipeline['features']
-    try:
-        p.sample_rate = audio.sample_rate
-    except AttributeError:  # bottleneck processor use fixed sample rate
-        pass
-    feats = p.process(audio)
+    # main features extraction
+    features = factory.get_features_processor(utt_name).process(audio)
 
-    if 'cmvn' in pipeline:
+    # cmvn accumulation
+    if 'cmvn' in factory.config:
         # weight CMVN by voice activity detection (null weights on
         # non-voiced frames)
-        if 'vad' in pipeline['cmvn']:
-            pipeline['cmvn']['energy'].sample_rate = audio.sample_rate
-            energy = pipeline['cmvn']['energy'].process(audio)
-            vad = pipeline['cmvn']['vad'].process(energy)
+        if factory.config['cmvn']['with_vad']:
+            energy = factory.get_energy_processor(utt_name).process(audio)
+            vad = factory.get_vad_processor(utt_name).process(energy)
             vad = vad.data.reshape((vad.shape[0], ))  # reshape as 1d array
         else:
             vad = None
 
-        cmvn = pipeline['cmvn'][
-            utt.speaker if pipeline['cmvn']['by_speaker'] else 'cmvn']
-        cmvn.accumulate(feats, weights=vad)
+        factory.get_cmvn_processor(utt_name).accumulate(features, weights=vad)
 
-    if 'pitch' in pipeline:
-        p1 = pipeline['pitch']
-        p1.sample_rate = audio.sample_rate
-        p2 = pipeline['pitch_post']
+    # pitch extraction
+    if 'pitch' in factory.config:
+        p1 = factory.get_pitch_processor(utt_name)
+        p2 = factory.get_pitch_post_processor(utt_name)
         pitch = p2.process(p1.process(audio))
     else:
         pitch = None
 
-    return name, utt, feats, pitch
+    return utt_name, features, pitch
 
 
-def _extract_pass_two(name, utt, feats, pitch, pipeline,
+def _extract_pass_two(utt_name, factory, features, pitch,
                       tolerance=2, log=get_logger()):
     # apply cmvn
-    if 'cmvn' in pipeline:
-        cmvn = pipeline['cmvn'][
-            utt.speaker if pipeline['cmvn']['by_speaker'] else 'cmvn']
-        feats = cmvn.process(feats)
+    if 'cmvn' in factory.config:
+        features = factory.get_cmvn_processor(utt_name).process(features)
 
-    if 'delta' in pipeline:
-        feats = pipeline['delta'].process(feats)
+    # apply delta
+    if 'delta' in factory.config:
+        features = factory.get_delta_processor(utt_name).process(features)
 
     # concatenate the pitch features to the main ones. because of
     # downsampling in pitch processing the resulting number of frames
     # can differ (the same tolerance is applied in Kaldi, see
     # the paste-feats binary)
     if pitch:
-        feats._log = log
-        feats = feats.concatenate(pitch, tolerance=tolerance)
+        features._log = log
+        features = features.concatenate(pitch, tolerance=tolerance)
 
     # TODO clean properties (with reference to wav, speaker, all
     # pipeline, etc...)
-    return name, feats
+    return utt_name, features
 
 
-def _extract_single_pass(name, utt, pipeline, log=get_logger()):
-    _, _, feats, pitch = _extract_pass_one(name, utt, pipeline, log=log)
-    return _extract_pass_two(
-        name, utt, feats, pitch, pipeline, log=log)
+def _extract_single_pass(utt_name, factory, log=get_logger()):
+    _, features, pitch = _extract_pass_one(utt_name, factory, log=log)
+    return _extract_pass_two(utt_name, factory, features, pitch, log=log)
+
+
+class ProcessorsFactory:
+    """This class handles the instanciation of processors for the pipeline
+
+    Instanciation is the "hard part" because it relies on several
+    parameters (CMVN or not, by speaker or not, at which sample rate,
+    etc...). All this mechanics is abstracted by this class.
+
+    """
+    _valid_features = ['mfcc', 'plp', 'filterbank', 'bottleneck']
+    """The main features available in shennong, excluding post-processing"""
+
+    _valid_processors = {
+        'bottleneck': ('processor', 'BottleneckProcessor'),
+        'energy': ('processor', 'EnergyProcessor'),
+        'filterbank': ('processor', 'FilterbankProcessor'),
+        'mfcc': ('processor', 'MfccProcessor'),
+        'pitch': ('processor', 'PitchProcessor'),
+        'pitch_post': ('processor', 'PitchPostProcessor'),
+        'plp': ('processor', 'PlpProcessor'),
+        'cmvn': ('postprocessor', 'CmvnPostProcessor'),
+        'delta': ('postprocessor', 'DeltaPostProcessor'),
+        'vad': ('postprocessor', 'VadPostProcessor')}
+    """The features processors as a dict {name: (module, class)}"""
+
+    def __init__(self, config, utterances, log=get_logger()):
+        self._config = config
+        self._utterances = utterances
+        self.log = log
+
+        # the list of speakers
+        self._speakers = set(u.speaker for u in self.utterances.values())
+        if self._speakers == {None}:
+            self._speakers = None
+        self._check_speakers()
+
+        # store the metadata because we need to access the sample rate
+        # for processors instanciation
+        self._wavs_metadata = {
+            k: Audio.scan(v.file) for k, v in utterances.items()}
+
+        # make sure all the wavs are compatible with the pipeline
+        self._check_wavs()
+
+        # the features type to be extracted and framing parameters
+        self.features = [
+            k for k in self.config.keys() if k in self._valid_features][0]
+        some_utterance = next(iter(self.utterances.keys()))
+        p = self.get_features_processor(some_utterance)
+        self.frame_length = p.frame_length
+        self.frame_shift = p.frame_shift
+        self.ndims = p.ndims
+
+        # if CMVN by speaker, instanciate a CMVN processor by speaker
+        # here, else instanciate a processor per utterance
+        if 'cmvn' in self.config:
+            if self.config['cmvn']['by_speaker']:
+                self._cmvn_processors = {
+                    spk: self.get_processor_class('cmvn')(self.ndims)
+                    for spk in self.speakers}
+            else:
+                self._cmvn_processors = {
+                    utt: self.get_processor_class('cmvn')(self.ndims)
+                    for utt in self.utterances}
+
+    @property
+    def config(self):
+        return self._config
+
+    @property
+    def utterances(self):
+        return self._utterances
+
+    @property
+    def speakers(self):
+        return self._speakers
+
+    def _check_speakers(self):
+        """Ensures the configuration is compatible with speakers information
+
+        On any error raises a ValueError. Logs a warning if speakers
+        information is provided but not used by the pipeline. If all is
+        good, silently returns None.
+
+        """
+        # ensures speakers info provided if cmvn by speaker is requested
+        if 'cmvn' not in self.config or not self.config['cmvn']['by_speaker']:
+            cmvn_by_speaker = False
+        else:  # config['cmvn']['by_speaker'] exists and is True
+            assert self.config['cmvn']['by_speaker']
+            cmvn_by_speaker = True
+
+        if cmvn_by_speaker and not self.speakers:
+            raise ValueError(
+                'cmvn normalization by speaker requested '
+                'but no speaker information provided')
+        if not cmvn_by_speaker and self.speakers:
+            self.log.warning(
+                'speakers information is provided but will not be used '
+                '(CMVN%s disabled)',
+                ' by speaker' if 'cmvn' in self.config else '')
+
+    def _check_wavs(self):
+        """Ensures all the wav files are compatible with the pipeline"""
+        # log the total duration and the number of speakers
+        total_duration = sum(w.duration for w in self._wavs_metadata.values())
+        # nspeakers = len(self.speakers or self.utterances)
+        speakers = ('' if not self.speakers
+                    else ' from {} speakers'.format(len(self.speakers)))
+        self.log.info(
+            'get %s utterances%s, total duration: %s',
+            len(self.utterances), speakers,
+            datetime.timedelta(seconds=total_duration))
+
+        # make sure all wavs are mono
+        if not all(w.nchannels == 1 for w in self._wavs_metadata.values()):
+            raise ValueError('all wav files are not mono')
+
+        # check the sample rate (warning if all the wavs are not at the
+        # same sample rate)
+        samplerates = set(w.sample_rate for w in self._wavs_metadata.values())
+        if len(samplerates) > 1:
+            self.log.warning(
+                'several sample rates found in wav files: %s, features '
+                'extraction pipeline will work but this may not be a good '
+                'idea to work on heterogeneous data',
+                ', '.join(str(s) + 'Hz' for s in samplerates))
+
+        # ensure all (tstart, tstop) pairs are valid (numbers and
+        # tstart < tstop)
+        tstamps = [
+            (w.tstart, w.tstop, w.file) for w in self.utterances.values()]
+        for (tstart, tstop, wfile) in tstamps:
+            if tstart is not None and tstart > tstop:
+                raise ValueError(
+                    'timestamps are not in increasing order for {}: '
+                    '{} >= {}'.format(wfile, tstart, tstop))
+
+    @classmethod
+    def get_processor_class(cls, name):
+        """Returns the (post)processor class given its `name`
+
+        This function enables dynamic import of processors classes to
+        avoid a big list of useless imports. Raises a ValueError if
+        the `name` is not valid or the module/class cannot be
+        imported.
+
+        """
+        try:
+            _module, _class = cls._valid_processors[name]
+        except KeyError:
+            raise ValueError('invalid processor "{}"'.format(name))
+        if name == 'pitch_post':
+            name = 'pitch'
+
+        module = 'shennong.features.{}.{}'.format(_module, name)
+        try:
+            module = importlib.import_module(module)
+        except ModuleNotFoundError:  # pragma: nocover
+            raise ValueError('cannot import module "{}"'.format(module))
+
+        try:
+            return module.__dict__[_class]
+        except KeyError:    # pragma: nocover
+            raise ValueError(
+                'cannot find class "{}" in module {}'.format(_class, module))
+
+    @classmethod
+    def get_processor_params(cls, name):
+        """Returns the processors parameters given its `name`
+
+        Get the processors class using :func:`get_processor_class`,
+        instanciate it and returns its parameters with default values
+        as a dict {param: value}.
+
+        """
+        return cls.get_processor_class(name)().get_params()
+
+    @classmethod
+    def get_docstring(cls, processor, param, default):
+        """Returns the docstring of a given processor's parameter"""
+        # extract the raw docstring
+        docstring = getattr(
+            cls.get_processor_class(processor), param).__doc__ or ''
+
+        # postprocess to adapt Python docstring to the YAML output
+        # (also adds default value)
+        docstring = re.sub(r'\n\n', '. ', docstring)
+        docstring = re.sub(r'\n', ' ', docstring)
+        docstring = re.sub(r'`', '', docstring)
+        docstring = re.sub(':func:', '', docstring)
+        docstring += '. Default is {}.'.format(default)
+        docstring = re.sub(r'\.+', '.', docstring)
+        docstring = re.sub(r' +', ' ', docstring).strip()
+
+        return docstring
+
+    def get_audio(self, utterance):
+        utt = self.utterances[utterance]
+        audio = Audio.load(utt.file)
+        if utt.tstart is not None:
+            assert utt.tstop > utt.tstart
+            audio = audio.segment([(utt.tstart, utt.tstop)])[0]
+        return audio
+
+    def get_features_processor(self, utterance):
+        proc = self.get_processor_class(self.features)(
+            **self.config[self.features])
+        try:
+            proc.sample_rate = self._wavs_metadata[utterance].sample_rate
+        except AttributeError:
+            # bottleneck does not support changing sample rate
+            pass
+        return proc
+
+    def get_energy_processor(self, utterance):
+        proc = self.get_processor_class('energy')()
+        proc.frame_length = self.frame_length
+        proc.frame_shift = self.frame_shift
+        proc.sample_rate = self._wavs_metadata[utterance].sample_rate
+        return proc
+
+    def get_vad_processor(self, utterance):
+        return self.get_processor_class('vad')(
+            **self.config['cmvn']['vad'])
+
+    def get_cmvn_processor(self, utterance):
+        if self.config['cmvn']['by_speaker']:
+            speaker = self.utterances[utterance].speaker
+            return self._cmvn_processors[speaker]
+        else:
+            return self._cmvn_processors[utterance]
+
+    def get_pitch_processor(self, utterance):
+        params = {k: v for k, v in self.config['pitch'].items()
+                  if k != 'postprocessing'}
+        params['sample_rate'] = self._wavs_metadata[utterance].sample_rate
+        params['frame_shift'] = self.frame_shift
+        params['frame_length'] = self.frame_length
+        return self.get_processor_class('pitch')(**params)
+
+    def get_pitch_post_processor(self, utterance):
+        return self.get_processor_class('pitch_post')(
+            **self.config['pitch']['postprocessing'])
+
+    def get_delta_processor(self, utterance):
+        return self.get_processor_class('delta')(**self.config['delta'])

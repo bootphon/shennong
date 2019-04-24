@@ -76,6 +76,7 @@ True
 """
 
 import collections
+import functools
 import logging
 import os
 import numpy as np
@@ -206,7 +207,13 @@ class Audio:
             raise ValueError(
                 '{}: cannot read file, is it a wav?'.format(wav_file))
 
+    # we use a memoize cache becaus Audio.load is often called to load
+    # only segments of a file. So the cache avoid to reload again and
+    # again the same file to extract only a chunk of it. A little
+    # maxsize is enough because access to audio chunks are usually
+    # ordered.
     @classmethod
+    @functools.lru_cache(maxsize=2)
     def load(cls, wav_file):
         """Creates an `Audio` instance from a WAV file
 
