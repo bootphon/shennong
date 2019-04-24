@@ -238,12 +238,13 @@ class NumpySerializer(FeaturesSerializer):
 
         # save (and optionally compress) the features
         save = np.savez_compressed if compress is True else np.savez
-        save(open(self.filename, 'wb'), features=data)
+        save(open(self.filename, 'wb'), features=data, allow_pickle=True)
 
     def _load(self):
         self._log.info('loading %s', self.filename)
 
-        data = np.load(open(self.filename, 'rb'))['features'].tolist()
+        data = np.load(
+            open(self.filename, 'rb'), allow_pickle=True)['features'].tolist()
 
         features = self._features_collection()
         for k, v in data.items():
