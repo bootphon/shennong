@@ -168,7 +168,7 @@ def test_check_wavs_bad(wav_file, wav_file_8k, tmpdir, capsys):
         c = pipeline._init_config(pipeline.get_default_config(
             'mfcc', with_cmvn=False))
         u = pipeline._init_utterances(utts)
-        pipeline.ProcessorsFactory(c, u)
+        pipeline._Factory(c, u)
         return u
 
     # build a stereo file and make sure it is not supported by the
@@ -198,14 +198,14 @@ def test_check_wavs_bad(wav_file, wav_file_8k, tmpdir, capsys):
 
 
 def test_processor_bad():
-    get = pipeline.ProcessorsFactory.get_processor_class
+    get = pipeline._Factory.get_processor_class
     with pytest.raises(ValueError) as err:
         get('bad')
-    assert 'invalid processor "' in str(err)
+    assert 'invalid processor "bad"' in str(err)
 
     with pytest.raises(ValueError) as err:
         get(0)
-    assert 'invalid processor "' in str(err)
+    assert 'invalid processor "0"' in str(err)
 
 
 @pytest.mark.parametrize('features', pipeline.valid_features())
@@ -251,19 +251,44 @@ def test_cmvn(utterances_index, by_speaker, with_vad):
 
 
 def test_extract_features_full(wav_file, wav_file_8k, capsys):
-    # difficult case with different sampling rates, speakers and segments
+    # difficult case with parallel jobs, different sampling rates,
+    # speakers and segments
     index = [
         ('u1', wav_file, 's1', 0, 1),
         ('u2', wav_file, 's2', 1, 1.2),
         ('u3', wav_file_8k, 's1', 0, 3)]
     config = pipeline.get_default_config('mfcc')
 
+    # disable VAD because it can alter the cmvn result (far from (0,
+    # 1) when a lot of non-voiced frames)
+    config['cmvn']['with_vad'] = False
+
     feats = pipeline.extract_features(
         config, index, njobs=2, log=utils.get_logger())
 
     # ensure we have the expected log messages
     messages = capsys.readouterr().err
+    assert 'INFO - get 3 utterances from 2 speakers in 2 wavs' in messages
     assert 'WARNING - several sample rates found in wav files' in messages
 
     for utt in ('u1', 'u2', 'u3'):
         assert utt in feats
+
+    # check shape. mfcc*delta + pitch = 13 * 3 + 3 = 42
+    assert feats['u1'].shape == (98, 42)
+    assert feats['u2'].shape == (18, 42)
+    assert feats['u3'].shape == (140, 42)
+
+    # check cmvn
+    assert feats['u2'].data[:, :13].mean() == pytest.approx(0.0, abs=1e-6)
+    assert feats['u2'].data[:, :13].std() == pytest.approx(1.0, abs=1e-6)
+
+    data = np.vstack((feats['u1'].data[:, :13], feats['u3'].data[:, :13]))
+    assert data.mean() == pytest.approx(0.0, abs=1e-6)
+    assert data.std() == pytest.approx(1.0, abs=1e-6)
+    assert np.abs(data.mean()) <= np.abs(feats['u1'].data[:, :13].mean())
+    assert np.abs(data.std() - 1.0) <= np.abs(
+        feats['u1'].data[:, :13].std() - 1.0)
+    assert np.abs(data.mean()) <= np.abs(feats['u3'].data[:, :13].mean())
+    assert np.abs(data.std() - 1.0) <= np.abs(
+        feats['u3'].data[:, :13].std() - 1.0)

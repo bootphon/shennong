@@ -22,7 +22,7 @@ from shennong.utils import get_logger, get_njobs
 
 def valid_features():
     """Returns the list of features that can be extracted by the pipeline"""
-    return ProcessorsFactory._valid_features
+    return _Factory._valid_features
 
 
 def get_default_config(features, to_yaml=False, yaml_commented=True,
@@ -79,7 +79,7 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
     # the input wav file
     config[features] = {
         k: v for k, v in
-        ProcessorsFactory.get_processor_params(features).items()
+        _Factory.get_processor_params(features).items()
         if k not in ('sample_rate', 'htk_compat')}
 
     if with_pitch:
@@ -87,17 +87,17 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
         # the features, and sample rate
         config['pitch'] = {
             k: v for k, v
-            in ProcessorsFactory.get_processor_params('pitch').items()
+            in _Factory.get_processor_params('pitch').items()
             if k not in ('frame_length', 'frame_shift', 'sample_rate')}
         config['pitch']['postprocessing'] = (
-            ProcessorsFactory.get_processor_params('pitch_post'))
+            _Factory.get_processor_params('pitch_post'))
 
     if with_cmvn:
         config['cmvn'] = {'by_speaker': True, 'with_vad': True}
-        config['cmvn']['vad'] = ProcessorsFactory.get_processor_params('vad')
+        config['cmvn']['vad'] = _Factory.get_processor_params('vad')
 
     if with_delta:
-        config['delta'] = ProcessorsFactory.get_processor_params('delta')
+        config['delta'] = _Factory.get_processor_params('delta')
 
     if to_yaml:
         return _get_config_to_yaml(config, comments=yaml_commented)
@@ -241,7 +241,7 @@ def _get_config_to_yaml(config, comments=True):
                     'voice activity has been detected, if false do not '
                     'consider voice activity for normalization')
             else:
-                docstring = ProcessorsFactory.get_docstring(
+                docstring = _Factory.get_docstring(
                     processor, param, default)
 
             offset = 4 if processor in ('vad', 'pitch_post') else 2
@@ -271,7 +271,7 @@ def _init_config(config, log=get_logger()):
     # ensure all the keys in config are known
     unknown_keys = [
         k for k in config.keys()
-        if k not in ProcessorsFactory._valid_processors]
+        if k not in _Factory._valid_processors]
     if unknown_keys:
         raise ValueError(
             'invalid keys in configuration: {}'.format(
@@ -397,9 +397,7 @@ def _init_utterances(utts_index, log=get_logger()):
 
 def _extract_features(config, utterances, njobs=1, log=get_logger()):
     # the factory will instanciate the pipeline components
-    factory = ProcessorsFactory(config, utterances, log=log)
-
-    # pipeline = _init_pipeline(config, utterances, log=log)
+    factory = _Factory(config, utterances, log=log)
 
     # verbosity level for joblib
     verbose = 8
@@ -494,7 +492,7 @@ def _extract_single_pass(utt_name, factory, log=get_logger()):
     return _extract_pass_two(utt_name, factory, features, pitch, log=log)
 
 
-class ProcessorsFactory:
+class _Factory:
     """This class handles the instanciation of processors for the pipeline
 
     Instanciation is the "hard part" because it relies on several
@@ -531,31 +529,32 @@ class ProcessorsFactory:
 
         # store the metadata because we need to access the sample rate
         # for processors instanciation
-        self._wavs_metadata = {
-            k: Audio.scan(v.file) for k, v in utterances.items()}
+        wavs = set(u.file for u in utterances.values())
+        self._wavs_metadata = {w: Audio.scan(w) for w in wavs}
 
         # make sure all the wavs are compatible with the pipeline
         self._check_wavs()
 
-        # the features type to be extracted and framing parameters
+        # the features type to be extracted
         self.features = [
             k for k in self.config.keys() if k in self._valid_features][0]
-        some_utterance = next(iter(self.utterances.keys()))
-        p = self.get_features_processor(some_utterance)
+
+        # get some framing parameters constant for all processors
+        # (retrieve them from a features processor instance)
+        p = self.get_features_processor(next(iter(self.utterances.keys())))
         self.frame_length = p.frame_length
         self.frame_shift = p.frame_shift
-        self.ndims = p.ndims
 
         # if CMVN by speaker, instanciate a CMVN processor by speaker
         # here, else instanciate a processor per utterance
         if 'cmvn' in self.config:
             if self.config['cmvn']['by_speaker']:
                 self._cmvn_processors = {
-                    spk: self.get_processor_class('cmvn')(self.ndims)
+                    spk: self.get_processor_class('cmvn')(p.ndims)
                     for spk in self.speakers}
             else:
                 self._cmvn_processors = {
-                    utt: self.get_processor_class('cmvn')(self.ndims)
+                    utt: self.get_processor_class('cmvn')(p.ndims)
                     for utt in self.utterances}
 
     @property
@@ -603,8 +602,8 @@ class ProcessorsFactory:
         speakers = ('' if not self.speakers
                     else ' from {} speakers'.format(len(self.speakers)))
         self.log.info(
-            'get %s utterances%s, total duration: %s',
-            len(self.utterances), speakers,
+            'get %s utterances%s in %s wavs, total wavs duration: %s',
+            len(self.utterances), speakers, len(self._wavs_metadata),
             datetime.timedelta(seconds=total_duration))
 
         # make sure all wavs are mono
@@ -691,6 +690,7 @@ class ProcessorsFactory:
         return docstring
 
     def get_audio(self, utterance):
+        """Returns the audio data for that `utterance`"""
         utt = self.utterances[utterance]
         audio = Audio.load(utt.file)
         if utt.tstart is not None:
@@ -699,27 +699,33 @@ class ProcessorsFactory:
         return audio
 
     def get_features_processor(self, utterance):
+        """Instanciates and returns a features extraction processor"""
+        wav = self.utterances[utterance].file
         proc = self.get_processor_class(self.features)(
             **self.config[self.features])
         try:
-            proc.sample_rate = self._wavs_metadata[utterance].sample_rate
+            proc.sample_rate = self._wavs_metadata[wav].sample_rate
         except AttributeError:
             # bottleneck does not support changing sample rate
             pass
         return proc
 
     def get_energy_processor(self, utterance):
+        """Instanciates and returns an energy processor"""
+        wav = self.utterances[utterance].file
         proc = self.get_processor_class('energy')()
         proc.frame_length = self.frame_length
         proc.frame_shift = self.frame_shift
-        proc.sample_rate = self._wavs_metadata[utterance].sample_rate
+        proc.sample_rate = self._wavs_metadata[wav].sample_rate
         return proc
 
     def get_vad_processor(self, utterance):
+        """Instanciates and returns a VAD processor"""
         return self.get_processor_class('vad')(
             **self.config['cmvn']['vad'])
 
     def get_cmvn_processor(self, utterance):
+        """Instanciates and returns a CMVN processor"""
         if self.config['cmvn']['by_speaker']:
             speaker = self.utterances[utterance].speaker
             return self._cmvn_processors[speaker]
@@ -727,16 +733,20 @@ class ProcessorsFactory:
             return self._cmvn_processors[utterance]
 
     def get_pitch_processor(self, utterance):
+        """Instanciates and returns a pitch processor"""
+        wav = self.utterances[utterance].file
         params = {k: v for k, v in self.config['pitch'].items()
                   if k != 'postprocessing'}
-        params['sample_rate'] = self._wavs_metadata[utterance].sample_rate
+        params['sample_rate'] = self._wavs_metadata[wav].sample_rate
         params['frame_shift'] = self.frame_shift
         params['frame_length'] = self.frame_length
         return self.get_processor_class('pitch')(**params)
 
     def get_pitch_post_processor(self, utterance):
+        """Instanciates and returns a pitch post-processor"""
         return self.get_processor_class('pitch_post')(
             **self.config['pitch']['postprocessing'])
 
     def get_delta_processor(self, utterance):
+        """Instanciates and returns a delta processor"""
         return self.get_processor_class('delta')(**self.config['delta'])
