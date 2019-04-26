@@ -140,7 +140,7 @@ def array2list(x):
     """Converts numpy arrays in `x` into lists"""
     if isinstance(x, dict):
         return {
-            k: v.tolist() if isinstance(v, np.ndarray) else v
+            k: array2list(v)
             for k, v in x.items()}
     elif isinstance(x, np.ndarray):
         return x.tolist()

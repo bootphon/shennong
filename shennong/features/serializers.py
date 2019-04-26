@@ -269,24 +269,49 @@ class MatlabSerializer(FeaturesSerializer):
     def _load(self):
         self._log.info('loading %s', self.filename)
 
-        data = scipy.io.loadmat(
+        data = MatlabSerializer._check_keys(scipy.io.loadmat(
             self.filename, appendmat=False, squeeze_me=True,
-            mat_dtype=True, struct_as_record=False)
+            mat_dtype=True, struct_as_record=False))
 
         features = self._features_collection()
         for k, v in data.items():
             if k not in ('__header__', '__version__', '__globals__'):
                 features[k] = self._features(
-                    v.data, v.times,
-                    self._load_properties(v.properties),
+                    v['data'],
+                    v['times'],
+                    v['properties'],
                     validate=False)
         return features
 
     @staticmethod
-    def _load_properties(properties):
-        return {
-            k: v for k, v in properties.__dict__.items()
-            if k is not '_fieldnames'}
+    def _check_keys(dict):
+        """Checks if entries in dictionary are mat-objects.
+
+        If yes todict is called to change them to nested dictionaries.
+
+        From https://stackoverflow.com/a/8832212
+
+        """
+        for key in dict:
+            if isinstance(dict[key], scipy.io.matlab.mio5_params.mat_struct):
+                dict[key] = MatlabSerializer._todict(dict[key])
+        return dict
+
+    @staticmethod
+    def _todict(matobj):
+        """Constructs from matobjects nested dictionaries
+
+        From https://stackoverflow.com/a/8832212
+
+        """
+        dict = {}
+        for strg in matobj._fieldnames:
+            elem = matobj.__dict__[strg]
+            if isinstance(elem, scipy.io.matlab.mio5_params.mat_struct):
+                dict[strg] = MatlabSerializer._todict(elem)
+            else:
+                dict[strg] = elem
+        return dict
 
 
 class JsonSerializer(FeaturesSerializer):
