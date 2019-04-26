@@ -86,6 +86,10 @@ class MfccProcessor(MelFeaturesProcessor):
         self._kaldi_processor = kaldi.feat.mfcc.Mfcc
 
     @property
+    def name(self):
+        return 'mfcc'
+
+    @property
     def num_ceps(self):
         """Number of cepstra in MFCC computation (including C0)
 

@@ -522,6 +522,10 @@ class BottleneckProcessor(FeaturesProcessor):
         self.weights = weights
 
     @property
+    def name(self):
+        return 'bottleneck'
+
+    @property
     def weights(self):
         """The name of the pretrained weights used to extract the features
 
@@ -722,4 +726,4 @@ class BottleneckProcessor(FeaturesProcessor):
             np.arange(nn_output.shape[0]) * frame_shift + frame_length)).T
 
         # return the final bottleneck features
-        return Features(nn_output, times, self.get_params())
+        return Features(nn_output, times, self.get_properties())

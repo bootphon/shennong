@@ -65,12 +65,14 @@ References
 
 """
 
+import copy
 import kaldi.feat.pitch
 import kaldi.matrix
 import numpy as np
 
 from shennong.features import Features
 from shennong.features.processor.base import FeaturesProcessor
+from shennong.features.postprocessor.base import FeaturesPostProcessor
 
 
 class PitchProcessor(FeaturesProcessor):
@@ -101,6 +103,10 @@ class PitchProcessor(FeaturesProcessor):
         self.nccf_ballast = nccf_ballast
         self.lowpass_filter_width = lowpass_filter_width
         self.upsample_filter_width = upsample_filter_width
+
+    @property
+    def name(self):
+        return 'pitch'
 
     @property
     def sample_rate(self):
@@ -291,10 +297,10 @@ class PitchProcessor(FeaturesProcessor):
                 self._options, kaldi.matrix.SubVector(signal))).numpy()
 
         return Features(
-            data, self.times(data.shape[0]), properties=self.get_params())
+            data, self.times(data.shape[0]), properties=self.get_properties())
 
 
-class PitchPostProcessor(FeaturesProcessor):
+class PitchPostProcessor(FeaturesPostProcessor):
     """Processes the raw (NCCF, pitch) computed by the PitchProcessor
 
     Turns the raw pitch quantites into usable features. By default it
@@ -332,6 +338,10 @@ class PitchPostProcessor(FeaturesProcessor):
         self.add_normalized_log_pitch = add_normalized_log_pitch
         self.add_delta_pitch = add_delta_pitch
         self.add_raw_log_pitch = add_raw_log_pitch
+
+    @property
+    def name(self):
+        return 'pitch postprocessing'
 
     @property
     def pitch_scale(self):
@@ -475,6 +485,12 @@ class PitchPostProcessor(FeaturesProcessor):
             + self.add_delta_pitch
             + self.add_raw_log_pitch)
 
+    def get_properties(self, features):
+        properties = copy.deepcopy(features.properties)
+        properties['pitch'][self.name] = self.get_params()
+        properties['pipeline'][0]['columns'] = [0, self.ndims - 1]
+        return properties
+
     def process(self, raw_pitch):
         """Post process a raw pitch data as specified by the options
 
@@ -519,4 +535,4 @@ class PitchPostProcessor(FeaturesProcessor):
                 self._options, kaldi.matrix.SubMatrix(raw_pitch.data))).numpy()
 
         return Features(
-            data, raw_pitch.times, properties=self.get_params())
+            data, raw_pitch.times, properties=self.get_properties(raw_pitch))

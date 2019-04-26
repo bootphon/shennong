@@ -43,6 +43,7 @@ References
 
 """
 
+import copy
 import kaldi.feat.functions
 import kaldi.matrix
 
@@ -55,6 +56,10 @@ class DeltaPostProcessor(FeaturesPostProcessor):
         self._options = kaldi.feat.functions.DeltaFeaturesOptions()
         self.order = order
         self.window = window
+
+    @property
+    def name(self):
+        return 'delta'
 
     @property
     def order(self):
@@ -88,6 +93,22 @@ class DeltaPostProcessor(FeaturesPostProcessor):
         raise ValueError(
             'output dimension for delta processor depends on input')
 
+    def get_properties(self, features):
+        ndims = (self.order + 1) * features.ndims
+        properties = copy.deepcopy(features.properties)
+        properties[self.name] = {
+            'order': self.order,
+            'window': self.window}
+
+        if 'pipeline' not in properties:
+            properties['pipeline'] = []
+
+        properties['pipeline'].append({
+            'name': self.name,
+            'columns': [0, ndims - 1]})
+
+        return properties
+
     def process(self, features):
         """Compute deltas on `features` with the specified options
 
@@ -108,4 +129,7 @@ class DeltaPostProcessor(FeaturesPostProcessor):
             kaldi.feat.functions.compute_deltas(
                 self._options, kaldi.matrix.SubMatrix(features.data))).numpy()
 
-        return Features(data, features.times, self.get_params())
+        return Features(
+            data,
+            features.times,
+            self.get_properties(features))

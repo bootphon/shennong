@@ -98,6 +98,10 @@ class PlpProcessor(MelFeaturesProcessor):
         self._kaldi_processor = kaldi.feat.plp.Plp
 
     @property
+    def name(self):
+        return 'plp'
+
+    @property
     def lpc_order(self):
         """Order of LPC analysis in PLP computation"""
         return self._options.lpc_order

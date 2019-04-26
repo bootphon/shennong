@@ -80,6 +80,10 @@ class EnergyProcessor(FramesProcessor):
         self.raw_energy = raw_energy
 
     @property
+    def name(self):
+        return 'energy'
+
+    @property
     def ndims(self):
         return 1
 
@@ -181,4 +185,4 @@ class EnergyProcessor(FramesProcessor):
         if self.raw_energy:
             self.set_params(**old_conf)
 
-        return Features(energy, self.times(nframes), self.get_params())
+        return Features(energy, self.times(nframes), self.get_properties())

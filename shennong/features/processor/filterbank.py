@@ -83,6 +83,10 @@ class FilterbankProcessor(MelFeaturesProcessor):
         self._kaldi_processor = kaldi.feat.fbank.Fbank
 
     @property
+    def name(self):
+        return 'filterbank'
+
+    @property
     def use_energy(self):
         """Add an extra dimension with energy to the filterbank output"""
         return self._options.use_energy

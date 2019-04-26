@@ -345,10 +345,19 @@ class Features:
         if not np.allclose(t1, t2):
             raise ValueError('times are not equal')
 
-        # TODO need a FeaturesParameter class: assign properties per
-        # column
+        # merge properties of the two features
         properties = copy.deepcopy(self.properties)
-        properties.update(other.properties)
+        other_properties = copy.deepcopy(other.properties)
+        properties.update(
+            {k: v for k, v in other_properties.items() if k != 'pipeline'})
+        if 'pipeline' not in properties:
+            properties['pipeline'] = []
+        if 'pipeline' in other_properties:
+            for k in other_properties['pipeline']:
+                properties['pipeline'].append(k)
+                c = properties['pipeline'][-1]['columns']
+                properties['pipeline'][-1]['columns'] = [
+                    c[0] + self.ndims, c[1] + self.ndims]
 
         return Features(np.hstack((d1, d2)), t1, properties=properties)
 

@@ -14,7 +14,7 @@ from shennong.features.processor.mfcc import MfccProcessor
 import shennong.features.serializers as serializers
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture()
 def mfcc_col(mfcc):
     return FeaturesCollection(mfcc=mfcc)
 
@@ -209,6 +209,7 @@ def test_kaldiserializer(mfcc_col, tmpdir, scp):
         assert os.path.isfile(str(tmpdir.join('foo.times.scp')))
 
     mfcc_col2 = FeaturesCollection.load(str(tmpdir.join('foo.ark')))
+
     assert mfcc_col2 == mfcc_col
 
 

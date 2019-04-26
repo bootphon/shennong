@@ -84,7 +84,8 @@ def test_simple(alignments):
     assert feat1.shape == (ali1.tokens.shape[0], len(phn1))
     assert all(feat1.data.sum(axis=1) == 1)
     assert np.array_equal(feat1.times, ali1.times)
-    assert set(feat1.properties.keys()) == set(['token2index', 'tokens'])
+    assert set(feat1.properties['onehot'].keys()) == set(
+        ['token2index', 'tokens'])
 
     # tokens_set used is the one from the whole alignment collection
     feat2 = onehot.OneHotProcessor(tokens=all_tokens).process(ali1)

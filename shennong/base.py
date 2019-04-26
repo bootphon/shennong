@@ -22,7 +22,7 @@ class BaseProcessor(object):
 
     @classmethod
     def _get_param_names(cls):
-        """Get parameter names for the estimator"""
+        """Get parameter names for the processor"""
         # fetch the constructor or the original constructor before
         # deprecation wrapping if any
         init = getattr(cls.__init__, 'deprecated_original', cls.__init__)
@@ -49,7 +49,7 @@ class BaseProcessor(object):
         return sorted([p.name for p in parameters])
 
     def get_params(self, deep=True):
-        """Get parameters for this estimator.
+        """Get parameters for this processor.
 
         Parameters
         ----------

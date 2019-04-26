@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 
+from shennong.features import Features
 from shennong.features.processor.energy import EnergyProcessor
 from shennong.features.postprocessor.vad import VadPostProcessor
 
@@ -66,7 +67,9 @@ def test_mfcc(mfcc):
 
 
 def test_energy(audio, mfcc):
-    # VAD from mfcc or energy is the same
+    # VAD from mfcc or energy is the same excepted properties
     vad1 = VadPostProcessor().process(EnergyProcessor().process(audio))
     vad2 = VadPostProcessor().process(mfcc)
+    vad1 = Features(vad1.data, vad1.times)
+    vad2 = Features(vad2.data, vad2.times)
     assert vad1 == vad2

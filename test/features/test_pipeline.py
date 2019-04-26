@@ -8,6 +8,8 @@ import yaml
 import shennong.features.pipeline as pipeline
 import shennong.utils as utils
 from shennong.audio import Audio
+from shennong.features import FeaturesCollection
+from shennong.features.serializers import supported_extensions
 
 
 @pytest.fixture(scope='session')
@@ -250,7 +252,8 @@ def test_cmvn(utterances_index, by_speaker, with_vad):
     assert feat2.shape[1] == 13
 
 
-def test_extract_features_full(wav_file, wav_file_8k, capsys):
+@pytest.mark.parametrize('ext', supported_extensions().keys())
+def test_extract_features_full(ext, wav_file, wav_file_8k, capsys, tmpdir):
     # difficult case with parallel jobs, different sampling rates,
     # speakers and segments
     index = [
@@ -292,3 +295,9 @@ def test_extract_features_full(wav_file, wav_file_8k, capsys):
     assert np.abs(data.mean()) <= np.abs(feats['u3'].data[:, :13].mean())
     assert np.abs(data.std() - 1.0) <= np.abs(
         feats['u3'].data[:, :13].std() - 1.0)
+
+    # save / load the features
+    filename = str(tmpdir.join('feats' + ext))
+    feats.save(filename)
+    feats2 = FeaturesCollection.load(filename)
+    assert feats2 == feats

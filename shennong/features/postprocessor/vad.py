@@ -86,6 +86,10 @@ class VadPostProcessor(FeaturesPostProcessor):
         self.proportion_threshold = proportion_threshold
 
     @property
+    def name(self):
+        return 'vad'
+
+    @property
     def energy_threshold(self):
         """Constant term in energy threshold for MFCC0 for VAD
 
@@ -182,4 +186,4 @@ class VadPostProcessor(FeaturesPostProcessor):
 
         return Features(
             np.atleast_2d(data.astype(np.uint8)).T,
-            features.times, properties=self.get_params())
+            features.times, properties=self.get_properties(features))

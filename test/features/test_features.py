@@ -101,7 +101,8 @@ def test_concatenate(mfcc):
     mfcc2 = mfcc.concatenate(mfcc)
     assert mfcc2.nframes == mfcc.nframes
     assert mfcc2.ndims == mfcc.ndims * 2
-    assert mfcc2.properties == mfcc.properties
+    assert mfcc2.properties != mfcc.properties
+    assert mfcc2.properties['mfcc'] == mfcc.properties['mfcc']
 
     mfcc2 = Features(mfcc.data, mfcc.times + 1)
     with pytest.raises(ValueError) as err:

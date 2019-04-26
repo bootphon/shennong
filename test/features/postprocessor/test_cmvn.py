@@ -79,7 +79,7 @@ def test_cmvn(mfcc, norm_vars):
     assert np.array_equal(backup, mfcc.data)
     assert 'cmvn' not in mfcc.properties
     assert 'cmvn' in cmvn2.properties
-    assert cmvn2.properties['cmvn'].shape == (2, 14)
+    assert cmvn2.properties['cmvn']['stats'].shape == (2, 14)
 
 
 def test_pre_stats(mfcc):
@@ -149,6 +149,8 @@ def test_skip_dims(mfcc):
 
     cmvn5 = proc.process(mfcc, skip_dims=list(range(mfcc.ndims)))
     del cmvn5.properties['cmvn']
+    del cmvn5.properties['pipeline']
+    del mfcc.properties['pipeline']
     assert cmvn5 == mfcc
 
     for d in ([-1], [-1, 2, 3], [100], [100, -1, 5]):

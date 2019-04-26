@@ -31,6 +31,10 @@ class _OneHotBase(FeaturesProcessor):
         self.tokens = tokens
 
     @property
+    def name(self):
+        return 'onehot'
+
+    @property
     def tokens(self):
         return self._tokens
 
@@ -98,12 +102,16 @@ class OneHotProcessor(_OneHotBase):
         for i, p in enumerate(alignment.tokens):
             data[i, token2index[p]] = 1
 
-        # add the tokens index to the features proerties allows to
-        # reconstruct the tokens sequence from the onehot vectors
-        prop = self.get_params()
-        prop.update({'token2index': token2index})
+        try:
+            properties = self.get_properties()
+        except ValueError:  # tokens not defined
+            self.tokens = token2index.keys()
+            properties = self.get_properties()
+            self.tokens = None
+        properties[self.name].update({'token2index': token2index})
 
-        return Features(data, alignment.times, properties=prop)
+        return Features(
+            data, alignment.times, properties=properties)
 
 
 class FramedOneHotProcessor(_OneHotBase):
@@ -219,10 +227,15 @@ class FramedOneHotProcessor(_OneHotBase):
 
             data[i, token2index[winner]] = 1
 
-        prop = self.get_params()
-        prop.update({'token2index': token2index})
+        try:
+            properties = self.get_properties()
+        except ValueError:  # tokens not defined
+            self.tokens = token2index.keys()
+            properties = self.get_properties()
+            self.tokens = None
+        properties[self.name].update({'token2index': token2index})
 
         return Features(
             data,
             frame_boundaries / self.frame.sample_rate,
-            properties=prop)
+            properties=properties)

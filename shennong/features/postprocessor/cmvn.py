@@ -60,6 +60,10 @@ class CmvnPostProcessor(FeaturesPostProcessor):
             self._cmvn.stats = kaldi.matrix.SubMatrix(stats)
 
     @property
+    def name(self):
+        return 'cmvn'
+
+    @property
     def dim(self):
         """The dimension of features on which to compute CMVN"""
         return self._dim
@@ -94,6 +98,11 @@ class CmvnPostProcessor(FeaturesPostProcessor):
     @property
     def ndims(self):
         return self.dim
+
+    def get_properties(self, features):
+        properties = super().get_properties(features)
+        properties[self.name]['stats'] = self.stats
+        return properties
 
     def accumulate(self, features, weights=None):
         """Accumulates CMVN statistics
@@ -195,9 +204,9 @@ class CmvnPostProcessor(FeaturesPostProcessor):
         data = kaldi.matrix.SubMatrix(features.data)
         cmvn.apply(data, norm_vars=norm_vars, reverse=reverse)
 
-        prop = copy.deepcopy(features.properties)
-        prop['cmvn'] = self.stats
-        return Features(data.numpy(), features.times, properties=prop)
+        return Features(
+            data.numpy(), features.times,
+            properties=self.get_properties(features))
 
 
 def apply_cmvn(feats_collection, by_collection=True, norm_vars=True,

@@ -31,7 +31,7 @@ import kaldi.util.table
 import numpy as np
 import scipy
 
-from shennong.utils import get_logger
+from shennong.utils import get_logger, array2list
 
 
 def supported_extensions():
@@ -259,6 +259,7 @@ class MatlabSerializer(FeaturesSerializer):
 
         # represent the features as dictionaries
         data = {k: v._to_dict() for k, v in features.items()}
+        # print(data['test']['properties'])
 
         # save (and optionally compress) the features
         scipy.io.savemat(
@@ -269,9 +270,10 @@ class MatlabSerializer(FeaturesSerializer):
     def _load(self):
         self._log.info('loading %s', self.filename)
 
-        data = MatlabSerializer._check_keys(scipy.io.loadmat(
-            self.filename, appendmat=False, squeeze_me=True,
-            mat_dtype=True, struct_as_record=False))
+        data = self._check_keys(
+            scipy.io.loadmat(
+                self.filename, appendmat=False, squeeze_me=True,
+                mat_dtype=True, struct_as_record=False))
 
         features = self._features_collection()
         for k, v in data.items():
@@ -279,12 +281,12 @@ class MatlabSerializer(FeaturesSerializer):
                 features[k] = self._features(
                     v['data'],
                     v['times'],
-                    v['properties'],
+                    self._make_list(self._check_keys(v['properties'])),
                     validate=False)
         return features
 
     @staticmethod
-    def _check_keys(dict):
+    def _check_keys(d):
         """Checks if entries in dictionary are mat-objects.
 
         If yes todict is called to change them to nested dictionaries.
@@ -292,10 +294,16 @@ class MatlabSerializer(FeaturesSerializer):
         From https://stackoverflow.com/a/8832212
 
         """
-        for key in dict:
-            if isinstance(dict[key], scipy.io.matlab.mio5_params.mat_struct):
-                dict[key] = MatlabSerializer._todict(dict[key])
-        return dict
+        for key in d:
+            if isinstance(d[key], scipy.io.matlab.mio5_params.mat_struct):
+                d[key] = MatlabSerializer._todict(d[key])
+            elif isinstance(d[key], (list, np.ndarray)):
+                d[key] = [
+                    MatlabSerializer._todict(dd)
+                    # if isinstance(dd, scipy.io.matlab.mio5_params.mat_struct)
+                    # else dd
+                    for dd in d[key]]
+        return d
 
     @staticmethod
     def _todict(matobj):
@@ -304,14 +312,27 @@ class MatlabSerializer(FeaturesSerializer):
         From https://stackoverflow.com/a/8832212
 
         """
-        dict = {}
+        d = {}
         for strg in matobj._fieldnames:
             elem = matobj.__dict__[strg]
             if isinstance(elem, scipy.io.matlab.mio5_params.mat_struct):
-                dict[strg] = MatlabSerializer._todict(elem)
+                d[strg] = MatlabSerializer._todict(elem)
             else:
-                dict[strg] = elem
-        return dict
+                d[strg] = elem
+        return d
+
+    @staticmethod
+    def _make_list(properties):
+        if 'pipeline' in properties:
+            # matlab format collapse a list of a single element into
+            # that element, we need to rebuild that list here
+            if isinstance(properties['pipeline'], list):
+                properties['pipeline'] = [
+                    array2list(p) for p in properties['pipeline']]
+            else:
+                properties['pipeline'] = [
+                    array2list(properties['pipeline'])]
+        return properties
 
 
 class JsonSerializer(FeaturesSerializer):
@@ -435,20 +456,6 @@ class KaldiSerializer(FeaturesSerializer):
 
         properties = json_tricks.loads(open(filename, 'r').read())
 
-        # loading features
-        ark = self._fileroot + '.ark'
-        self._log.info('loading %s', ark)
-
-        # rspecifier = 'ark,scp:' + ark + ',' + scp
-        rspecifier = 'ark:' + ark
-        with kaldi.util.table.SequentialDoubleMatrixReader(
-                rspecifier) as reader:
-            data = {k: v.numpy() for k, v in reader}
-
-        if properties.keys() != data.keys():
-            raise ValueError(
-                'invalid features: items differ in data and properties')
-
         # loading times
         ark = self._fileroot + '.times.ark'
         self._log.info('loading %s', ark)
@@ -464,6 +471,20 @@ class KaldiSerializer(FeaturesSerializer):
         for k, v in times.items():
             if v.shape[0] == 1:
                 times[k] = v.reshape((v.shape[1]))
+
+        # loading features
+        ark = self._fileroot + '.ark'
+        self._log.info('loading %s', ark)
+
+        # rspecifier = 'ark,scp:' + ark + ',' + scp
+        rspecifier = 'ark:' + ark
+        with kaldi.util.table.SequentialDoubleMatrixReader(
+                rspecifier) as reader:
+            data = {k: v.numpy() for k, v in reader}
+
+        if properties.keys() != data.keys():
+            raise ValueError(
+                'invalid features: items differ in data and properties')
 
         if times.keys() != data.keys():
             raise ValueError(

@@ -21,9 +21,21 @@ from shennong.utils import get_logger, get_njobs
 class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
     """Base class of all the features extraction models"""
     @abc.abstractproperty
+    def name(self):  # pragma: nocover
+        """Name of the processor"""
+        pass
+
+    @abc.abstractproperty
     def ndims(self):  # pragma: nocover
         """Dimension of the output features frames"""
         pass
+
+    def get_properties(self):
+        """Return the processors properties as a dictionary"""
+        return {
+            'pipeline': [
+                {'name': self.name, 'columns': [0, self.ndims-1]}],
+            self.name: self.get_params()}
 
     @abc.abstractmethod
     def process(self, signal):
@@ -403,4 +415,4 @@ class MelFeaturesProcessor(FramesProcessor):
                 kaldi.matrix.SubVector(signal), vtln_warp)).numpy()
 
         return Features(
-            data, self.times(data.shape[0]), self.get_params())
+            data, self.times(data.shape[0]), properties=self.get_properties())
