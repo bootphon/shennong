@@ -3,7 +3,7 @@
 PYTHON ?= python
 PYTEST ?= pytest
 
-.PHONY: build doc test
+.PHONY: build develop install doc test xtest clean
 
 
 build:

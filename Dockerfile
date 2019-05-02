@@ -1,19 +1,21 @@
-FROM pykaldi/pykaldi:latest
+FROM continuumio/miniconda3
 
 # Setup a language agnostic locale
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 
-# Install shennong dependencies
-RUN pip --no-cache-dir install \
-        cython \
-        h5py \
-        pytest \
-        pytest-cov \
-        pytest-runner \
-        git+https://github.com/bootphon/h5features.git
-
-# Install shennong
+# Copy shennong sources tree
 WORKDIR /shennong
-COPY . .
-RUN python setup.py install
-RUN python setup.py test
+
+# setup shennong environment
+COPY environment.yml /shennong/environment.yml
+RUN conda env create -n shennong -f environment.yml && \
+        rm -rf /opt/conda/pkgs/*
+
+# install/test shennong
+COPY . /shennong/
+RUN /bin/bash -c "source activate shennong && \
+        python setup.py install && \
+        python setup.py test"
+
+# activate the shennong environment
+ENV PATH=/opt/conda/envs/shennong/bin:$PATH
