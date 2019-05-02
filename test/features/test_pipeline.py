@@ -259,11 +259,11 @@ def test_extract_features_full(ext, wav_file, wav_file_8k, capsys, tmpdir):
     index = [
         ('u1', wav_file, 's1', 0, 1),
         ('u2', wav_file, 's2', 1, 1.2),
-        ('u3', wav_file_8k, 's1', 0, 3)]
+        ('u3', wav_file_8k, 's1', 1, 3)]
     config = pipeline.get_default_config('mfcc')
 
     # disable VAD because it can alter the cmvn result (far from (0,
-    # 1) when a lot of non-voiced frames)
+    # 1) when the signal includes non-voiced frames)
     config['cmvn']['with_vad'] = False
 
     feats = pipeline.extract_features(
@@ -277,10 +277,27 @@ def test_extract_features_full(ext, wav_file, wav_file_8k, capsys, tmpdir):
     for utt in ('u1', 'u2', 'u3'):
         assert utt in feats
 
+    # check properies
+    p1 = feats['u1'].properties
+    p2 = feats['u2'].properties
+    p3 = feats['u3'].properties
+    assert p1['audio']['file'] == wav_file
+    assert p1['audio']['duration'] == 1.0
+    assert p2['audio']['file'] == wav_file
+    assert p2['audio']['duration'] == pytest.approx(0.2)
+    assert p3['audio']['file'] == wav_file_8k
+    assert p3['audio']['duration'] < 0.5  # ask 3s but get duration-tstart
+    assert p1['mfcc'] == p2['mfcc']
+    assert p1['mfcc']['sample_rate'] != p3['mfcc']['sample_rate']
+    assert p1.keys() == {
+        'audio', 'mfcc', 'cmvn', 'pitch', 'delta', 'speaker', 'pipeline'}
+    assert p1.keys() == p2.keys() == p3.keys()
+    assert p1['pipeline'] == p2['pipeline'] == p3['pipeline']
+
     # check shape. mfcc*delta + pitch = 13 * 3 + 3 = 42
     assert feats['u1'].shape == (98, 42)
     assert feats['u2'].shape == (18, 42)
-    assert feats['u3'].shape == (140, 42)
+    assert feats['u3'].shape == (40, 42)
 
     # check cmvn
     assert feats['u2'].data[:, :13].mean() == pytest.approx(0.0, abs=1e-6)

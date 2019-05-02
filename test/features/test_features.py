@@ -162,7 +162,8 @@ def test_partition():
 
     with pytest.raises(ValueError) as err:
         fp = fc.partition({'f1': 'p1', 'f2': 'p1'})
-    assert 'following items are not defined in the index: f3' in str(err)
+    assert ('following items are not defined in the partition index: f3'
+            in str(err))
 
     fp = fc.partition({'f1': 'p1', 'f2': 'p1', 'f3': 'p2'})
     assert sorted(fp.keys()) == ['p1', 'p2']

@@ -365,6 +365,12 @@ def _init_utterances(utts_index, log=get_logger()):
             'duplicates found in utterances index: {}'.format(
                 ', '.join(duplicates)))
 
+    # sort the utterances by wav_file (and then by utt_id), this
+    # is a minor optimization to use the cache system of Audio.load(),
+    # ie this avoids to reload several times the same wav when using
+    # tstart/tstop segments.
+    utts = sorted(utts, key=lambda u: u if index_format == 1 else (u[1], u[0]))
+
     # build the utterances collection as a dict
     # {utt_id: (wav_file, speaker_id, tstart, tstop)}
     utterances = {}
@@ -460,6 +466,25 @@ def _extract_pass_one(utt_name, factory, log=get_logger()):
         pitch = p2.process(p1.process(audio))
     else:
         pitch = None
+
+    # add info on speaker and audio input on the features properties
+    speaker = factory.utterances[utt_name].speaker
+    if speaker:
+        features.properties['speaker'] = speaker
+
+    utterance = factory.utterances[utt_name]
+    features.properties['audio'] = {
+        'file': os.path.abspath(utterance.file),
+        'sample_rate': factory._wavs_metadata[utterance.file].sample_rate}
+    if utterance.tstart is not None:
+        features.properties['audio']['tstart'] = utterance.tstart
+        features.properties['audio']['tstop'] = utterance.tstop
+        features.properties['audio']['duration'] = min(
+            utterance.tstop - utterance.tstart,
+            factory._wavs_metadata[utterance.file].duration - utterance.tstart)
+    else:
+        features.properties['audio']['duration'] = (
+            factory._wavs_metadata[utterance.file].duration)
 
     return utt_name, features, pitch
 

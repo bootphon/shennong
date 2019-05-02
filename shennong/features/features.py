@@ -363,6 +363,8 @@ class Features:
 
 
 class FeaturesCollection(dict):
+    # a tweak inspired by C++ metaprogramming to avoid import loops
+    # with shennong.features.serializers
     _value_type = Features
 
     @classmethod
@@ -465,7 +467,7 @@ class FeaturesCollection(dict):
         undefined_utts = set(self.keys()).difference(index.keys())
         if undefined_utts:
             raise ValueError(
-                'following items are not defined in the index: {}'
+                'following items are not defined in the partition index: {}'
                 .format(', '.join(sorted(undefined_utts))))
 
         reverse_index = collections.defaultdict(list)
