@@ -21,8 +21,8 @@ import shennong
 
 project = 'shennong'
 
-author = 'Mathieu Bernard, Inria'
-copyright = '2018 - {}, '.format(datetime.datetime.now().year) + author
+author = 'Mathieu Bernard'
+copyright = '2018 - {}, Inria'.format(datetime.datetime.now().year)
 
 VERSION = shennong.__version__
 

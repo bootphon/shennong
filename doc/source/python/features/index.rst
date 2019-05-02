@@ -7,6 +7,6 @@ Speech features
    :maxdepth: 3
 
    features
-   serialization
    processor/index
    postprocessor/index
+   pipeline

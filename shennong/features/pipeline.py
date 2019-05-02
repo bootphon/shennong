@@ -1,7 +1,59 @@
-"""Features extraction pipeline
+"""High-level functions for a complete features extraction pipeline
 
-The pipeline takes as input a list of wav files, extracts the features
-and do the postprocessing.
+This module exposes two main functions :func:`get_default_config` that
+generates a configuration for the pipeline given some arguments, and
+:func:`extract_features` which takes as input a configuration and a
+list of utterances, extracts the features, do the postprocessing and
+returns the extracted features as an instance of
+:class:`~shennong.features.features.FeaturesCollection`.
+
+Examples
+--------
+
+>>> from shennong.features.pipeline import get_default_config, extract_features
+
+Generates a configuration for MFCC extraction (including CMVN
+normalization by speaker, delta / delta-delta and pitch). The
+configuration is a dictionary:
+
+>>> config = get_default_config('mfcc')
+>>> config.keys()
+dict_keys(['mfcc', 'pitch', 'cmvn', 'delta'])
+
+Generates the same configuration, but without CMVN and without
+delta. At this point you can change all the parameters you want (here
+we use a hanning windox for frame extraction):
+
+>>> config = get_default_config('mfcc', with_cmvn=False, with_delta=False)
+>>> config['mfcc']['window_type'] = 'hanning'
+
+Generates a list of utterances to extract the features on (here we
+have 2 utterances from the same speaker and same file):
+
+>>> wav = './test/data/test.wav'
+>>> utterances = [('utt1', wav, 'spk1', 0, 1), ('utt2', wav, 'spk1', 1, 1.5)]
+
+Extract the features:
+
+>>> features = extract_features(config, utterances, njobs=1)
+>>> features.keys()
+dict_keys(['utt1', 'utt2'])
+>>> type(features['utt1'])
+<class 'shennong.features.features.Features'>
+>>> features['utt1'].shape
+(98, 16)
+
+The extracted features embed a ``property`` dictionnary with
+information on the input audio, pipeline parameters, etc. The field
+'pipeline' describe as a list the processing steps being executed, as
+well as the columns of the resulting features matrix (here MFCCs are
+on columns 0 to 12 and pitch on columns 13 to 15):
+
+>>> p = features['utt1'].properties
+>>> p.keys()
+dict_keys(['pipeline', 'mfcc', 'speaker', 'audio', 'pitch'])
+>>> p['pipeline']
+[{'name': 'mfcc', 'columns': [0, 12]}, {'name': 'pitch', 'columns': [13, 15]}]
 
 """
 
@@ -21,7 +73,12 @@ from shennong.utils import get_logger, get_njobs
 
 
 def valid_features():
-    """Returns the list of features that can be extracted by the pipeline"""
+    """Returns the list of features that can be extracted by the pipeline.Audio
+
+    This list only includes main features extraction algorithms and
+    excludes postprocessing. See also :func:`get_default_config`.
+
+    """
     return _Factory._valid_features
 
 
@@ -37,7 +94,8 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
     ----------
     features : str
         The features extracted by the pipeline, must be 'mfcc',
-        'filterbank', 'plp' or 'bottleneck'.
+        'filterbank', 'plp' or 'bottleneck'. See also
+        :func:`valid_features`.
     to_yaml : bool, optional
         If False the result configuration is a dict, if True this is a
         YAML formatted string ready to be written to a file. Default
@@ -45,7 +103,7 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
     yaml_commented : bool, optional
         If True add the docstring of each parameter as a comment in
         the YAML string, if False do nothing. This option has an
-        effect only if `to_yaml` is True. Default to True.
+        effect only if ``to_yaml`` is True. Default to True.
     with_pitch : bool, optional
         Configure the pipeline for pitch extraction, default to True
     with_cmvn : bool, optional
@@ -58,14 +116,13 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
     Returns
     -------
     config : dict or str
-        If `to_yaml` is True returns a YAML formatted string ready to
-        be written to a file, else returns a dictionary.
+        If ``to_yaml`` is True returns a YAML formatted string ready
+        to be written to a file, else returns a dictionary.
 
     Raises
     ------
     ValueError
-        If `features` are not 'mfcc', 'filterbank', 'plp' or
-        'bottleneck'.
+        If ``features`` is not in :func:`valid_features`.
 
     """
     # check features are correct
@@ -104,15 +161,26 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
     return config
 
 
-def extract_features(config, utterances_index, njobs=1, log=get_logger()):
+def extract_features(configuration, utterances_index,
+                     njobs=1, log=get_logger()):
     """Speech features extraction pipeline
 
-    Format of each element in `utts_index`:
-    * 1-uple (or str): <wav-file>
-    * 2-uple: <utterance-id> <wav-file>
-    * 3-uple: <utterance-id> <wav-file> <speaker-id>
-    * 4-uple: <utterance-id> <wav-file> <tstart> <tstop>
-    * 5-uple: <utterance-id> <wav-file> <speaker-id> <tstart> <tstop>
+    Given a pipeline ``configuration`` and an ``utterances_index``
+    defining a list of utterances on which to extract features, this
+    function applies the whole pipeline and returns the extracted
+    features as an instance of
+    :class:`~shennong.features.features.FeaturesCollection`. It uses
+    ``njobs`` parallel subprocesses.
+
+    The utterances in the ``utterances_index`` can be defined in one
+    of the following format (the format must be homogoneous across the
+    index, i.e. only one format can be used):
+
+    * 1-uple (or str): ``<wav-file>``
+    * 2-uple: ``<utterance-id> <wav-file>``
+    * 3-uple: ``<utterance-id> <wav-file> <speaker-id>``
+    * 4-uple: ``<utterance-id> <wav-file> <tstart> <tstop>``
+    * 5-uple: ``<utterance-id> <wav-file> <speaker-id> <tstart> <tstop>``
 
     Parameters
     ----------
@@ -125,13 +193,27 @@ def extract_features(config, utterances_index, njobs=1, log=get_logger()):
     njobs : int, optional
         The number to subprocesses to execute in parallel, use a
         single process by default.
+    log : logging.Logger
+        A logger to display messages during pipeline execution
+
+    Returns
+    -------
+    features : :class:`~shennong.features.features.FeaturesCollection`
+       The extracted speech features
+
+    Raises
+    ------
+    ValueError
+        If the ``configuration`` or the ``utterances_index`` are
+        invalid, or if something goes wrong during features
+        extraction.
 
     """
     # intialize the pipeline configuration, the list of wav files to
     # process, instanciate the pipeline processors and make all the
     # checks to ensure all is correct
     njobs = get_njobs(njobs, log=log)
-    config = _init_config(config, log=log)
+    config = _init_config(configuration, log=log)
     utterances = _init_utterances(utterances_index, log=log)
 
     # check the OMP_NUM_THREADS variable for parallel computations
