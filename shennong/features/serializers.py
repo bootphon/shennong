@@ -298,11 +298,7 @@ class MatlabSerializer(FeaturesSerializer):
             if isinstance(d[key], scipy.io.matlab.mio5_params.mat_struct):
                 d[key] = MatlabSerializer._todict(d[key])
             elif isinstance(d[key], (list, np.ndarray)):
-                d[key] = [
-                    MatlabSerializer._todict(dd)
-                    # if isinstance(dd, scipy.io.matlab.mio5_params.mat_struct)
-                    # else dd
-                    for dd in d[key]]
+                d[key] = [MatlabSerializer._todict(dd) for dd in d[key]]
         return d
 
     @staticmethod
