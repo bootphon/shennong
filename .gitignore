@@ -7,3 +7,4 @@ build
 dev/*
 .coverage*
 htmlcov/*
+examples/**/data

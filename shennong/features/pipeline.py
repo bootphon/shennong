@@ -640,6 +640,7 @@ class _Factory:
         self._wavs_metadata = {w: Audio.scan(w) for w in wavs}
 
         # make sure all the wavs are compatible with the pipeline
+        log.info(f'scanning {len(self._utterances)} utterances...')
         self._check_wavs()
 
         # the features type to be extracted
