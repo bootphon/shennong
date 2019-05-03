@@ -18,6 +18,7 @@ do
         score=$abx_dir/${kind}_$(basename $features .h5f).score
         csv=$abx_dir/${kind}_$(basename $features .h5f).csv
         log=$log_dir/${kind}_$(basename $features .h5f).log
+        rm -f $log
 
         sbatch -q all -n 10 -o $log <<EOF
 #!/bin/bash

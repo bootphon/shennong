@@ -10,6 +10,7 @@ do
     for corpus in english xitsonga
     do
         log=$log_dir/${corpus}_$(basename $config .yaml).log
+        rm -f $log
         sbatch -q all -n 10 -o $log <<EOF
 #!/bin/bash
 module load anaconda/3
