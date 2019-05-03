@@ -12,10 +12,11 @@ do
     do
         task=$here/data/${corpus}_$kind.abx
         [ $kind == within ] \
-            && options="-o phone -a context -b talker" \
-                || options="-o phone -a context talker"
+            && options="-o phone -b talker context" \
+                || options="-o phone -a talker -b context"
 
         log=$log_dir/${corpus}_task_$kind.log
+        rm -f $log
         sbatch -q all -n 1 -o $log <<EOF
 #!/bin/bash
 module load anaconda/3
