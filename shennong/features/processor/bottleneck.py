@@ -518,13 +518,14 @@ class BottleneckProcessor(FeaturesProcessor):
     """
     _log = get_logger()
 
-    # lazy load of the weights (do it statically to not load the
-    # weights several times when running multiple instances of the
+    # load of the weights (do it statically to not load the weights
+    # several times when running multiple instances of the
     # BottleneckProcessor)
     _loaded_weights = {}
 
     def __init__(self, weights='BabelMulti'):
         self.weights = weights
+        self._get_weights()
 
     @property
     def name(self):
@@ -590,7 +591,7 @@ class BottleneckProcessor(FeaturesProcessor):
 
     def _get_weights(self):
         if self.weights not in self._loaded_weights:
-            # lazy load the weights if not already loaded
+            # load the weights if not already loaded
             available_weights = self.available_weights()
             weights_file = available_weights[self.weights]
             self._log.info('loading %s', os.path.basename(weights_file))
