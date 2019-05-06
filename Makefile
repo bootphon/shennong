@@ -26,4 +26,7 @@ xtest: build
 
 clean:
 	$(PYTHON) setup.py clean
-	rm -rf .eggs .pytest_cache doc/build test/__pycache__
+	find . -name __pycache__ -exec rm -rf {} +
+	rm -rf .eggs *.egg-info
+	rm -rf .coverage* htmlcov
+	rm -rf build doc/build
