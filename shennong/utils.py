@@ -71,6 +71,13 @@ def get_logger(name=None, level='info',
         'warning': logging.WARNING,
         'error': logging.ERROR}
 
+    formatter = logging.Formatter(formatter)
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(formatter)
+
+    _logger.handlers = []
+    _logger.addHandler(handler)
+
     _logger.name = name
     try:
         _logger.setLevel(levels[level])
@@ -79,12 +86,6 @@ def get_logger(name=None, level='info',
             'invalid logging level "{}", must be in {}'.format(
                 level, ', '.join(levels.keys())))
 
-    formatter = logging.Formatter(formatter)
-    handler = logging.StreamHandler(sys.stderr)
-    handler.setFormatter(formatter)
-
-    _logger.handlers = []
-    _logger.addHandler(handler)
     return _logger
 
 

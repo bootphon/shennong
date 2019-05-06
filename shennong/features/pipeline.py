@@ -1,3 +1,5 @@
+# coding: utf-8
+
 """High-level functions for a complete features extraction pipeline
 
 This module exposes two main functions :func:`get_default_config` that
@@ -487,8 +489,10 @@ def _extract_features(config, utterances, njobs=1, log=get_logger()):
     # the manager will instanciate the pipeline components
     manager = _Manager(config, utterances, log=log)
 
-    # verbosity level for joblib
-    verbose = 8
+    # verbosity level for joblib (no joblib verbosity on debug level
+    # (level <= 10) because each step is already detailed in inner
+    # loops
+    verbose = 5 if log.getEffectiveLevel() > 10 else 0
 
     # cmvn : two passes. 1st with features pitch and cmvn
     # accumulation, 2nd with cmvn application and delta
@@ -520,6 +524,8 @@ def _extract_features(config, utterances, njobs=1, log=get_logger()):
 
 
 def _extract_pass_one(utt_name, manager, log=get_logger()):
+    log.debug('%s processing', utt_name)
+
     # load audio signal of the utterance
     audio = manager.get_audio(utt_name)
 
@@ -566,11 +572,15 @@ def _extract_pass_one(utt_name, manager, log=get_logger()):
         features.properties['audio']['duration'] = (
             manager._wavs_metadata[utterance.file].duration)
 
+    log.debug('%s processing done', utt_name)
+
     return utt_name, features, pitch
 
 
 def _extract_pass_two(utt_name, manager, features, pitch,
                       tolerance=2, log=get_logger()):
+    log.debug('%s post-processing ', utt_name)
+
     # apply cmvn
     if 'cmvn' in manager.config:
         features = manager.get_cmvn_processor(utt_name).process(features)
@@ -587,8 +597,8 @@ def _extract_pass_two(utt_name, manager, features, pitch,
         features._log = log
         features = features.concatenate(pitch, tolerance=tolerance)
 
-    # TODO clean properties (with reference to wav, speaker, all
-    # pipeline, etc...)
+    log.debug('%s post-processing done', utt_name)
+
     return utt_name, features
 
 
