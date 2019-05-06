@@ -48,7 +48,8 @@ def test_weights(weights):
     # required entries
     proc = BottleneckProcessor(weights=weights)
     assert proc.weights == weights
-    assert list(proc._weights_data.keys()) == [
+    w = proc._get_weights()
+    assert list(w.keys()) == [
         'bn_std', 'input_mean', 'b2', 'b5',
         'input_std', 'W5', 'W7', 'W6', 'b6', 'b7', 'W3', 'W2',
         'context', 'b3', 'bn_mean', 'W1', 'b1']
