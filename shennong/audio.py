@@ -113,6 +113,10 @@ class Audio:
     """
     _log = logging.getLogger()
 
+    _metawav = collections.namedtuple(
+        '_metawav', 'nchannels sample_rate nsamples duration')
+    """A structure to store wavs metadata, see :meth:`Audio.scan`"""
+
     def __init__(self, data, sample_rate, validate=True):
         self._data = data
         self._sample_rate = sample_rate
@@ -197,8 +201,7 @@ class Audio:
         cls._log.debug('scanning %s', wav_file)
         try:
             with wave.open(wav_file, 'r') as fwav:
-                return collections.namedtuple(
-                    '_metawav', 'nchannels sample_rate nsamples duration')(
+                return cls._metawav(
                         fwav.getnchannels(),
                         fwav.getframerate(),
                         fwav.getnframes(),

@@ -492,7 +492,7 @@ def _extract_features(config, utterances, njobs=1, log=get_logger()):
     # verbosity level for joblib (no joblib verbosity on debug level
     # (level <= 10) because each step is already detailed in inner
     # loops
-    verbose = 5 if log.getEffectiveLevel() > 10 else 0
+    verbose = 8 if log.getEffectiveLevel() > 10 else 0
 
     # cmvn : two passes. 1st with features pitch and cmvn
     # accumulation, 2nd with cmvn application and delta
@@ -811,6 +811,21 @@ class _Manager:
         if utt.tstart is not None:
             assert utt.tstop > utt.tstart
             audio = audio.segment([(utt.tstart, utt.tstop)])[0]
+
+        if self.features == 'bottleneck':
+            # resample here the signal (this avoid bugs if one part of
+            # the pipeline on 8k and the other on 16k), then update
+            # the metadata for the wav to be used by the rest of the
+            # pipeline
+            self.log.info(
+                'resampling audio from %dHz@%db to %dHz@%db',
+                audio.sample_rate, audio.dtype.itemsize * 8, 8000, 16)
+
+            audio = audio.resample(8000).astype(np.int16)
+            self._wavs_metadata[self.utterances[utterance].file] = (
+                Audio._metawav(
+                    audio.nchannels, audio.sample_rate,
+                    audio.nsamples, audio.duration))
         return audio
 
     def get_features_processor(self, utterance):

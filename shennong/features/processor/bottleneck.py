@@ -678,7 +678,7 @@ class BottleneckProcessor(FeaturesProcessor):
             signal.dtype is not np.dtype(np.int16))
 
         if need_resample:
-            self._log.debug(
+            self._log.info(
                 'resampling audio from %dHz@%db to %dHz@%db',
                 signal.sample_rate, signal.dtype.itemsize * 8, 8000, 16)
             signal = signal.resample(8000).astype(np.int16)
