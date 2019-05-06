@@ -2,6 +2,7 @@
 
 import collections
 import inspect
+import logging
 
 
 class BaseProcessor(object):
@@ -17,6 +18,8 @@ class BaseProcessor(object):
     from :class:`sklearn.base.BaseEstimator`
 
     """
+    _log = logging.getLogger()
+
     def __repr__(self):
         return self.__class__.__name__
 

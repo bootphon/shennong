@@ -3,14 +3,15 @@
 
 import collections
 import copy
+import logging
 import numpy as np
 
 from shennong.features.serializers import get_serializer
-from shennong.utils import dict_equal, get_logger
+from shennong.utils import dict_equal
 
 
 class Features:
-    _log = get_logger()
+    _log = logging.getLogger()
 
     def __init__(self, data, times, properties={}, validate=True):
         self._data = data

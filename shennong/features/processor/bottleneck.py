@@ -106,7 +106,6 @@ import scipy as sp
 import scipy.linalg as spl
 import scipy.fftpack
 
-from shennong.utils import get_logger
 from shennong.features import Features
 from shennong.features.processor.base import FeaturesProcessor
 
@@ -516,8 +515,6 @@ class BottleneckProcessor(FeaturesProcessor):
         correctly installed on your system)
 
     """
-    _log = get_logger()
-
     # load of the weights (do it statically to not load the weights
     # several times when running multiple instances of the
     # BottleneckProcessor)
