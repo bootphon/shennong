@@ -592,8 +592,11 @@ class BottleneckProcessor(FeaturesProcessor):
             available_weights = self.available_weights()
             weights_file = available_weights[self.weights]
             self._log.info('loading %s', os.path.basename(weights_file))
-            self._loaded_weights[self.weights] = {k: v for k, v in np.load(
-                available_weights[self.weights]).items()}
+            # explicitely load all the data once, instead of have file
+            # descriptors
+            with np.load(available_weights[self.weights]) as w:
+                self._loaded_weights[self.weights] = {
+                    k: v for k, v in w.items()}
 
         return self._loaded_weights[self.weights]
 
