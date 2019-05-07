@@ -1,3 +1,5 @@
+# coding: utf-8
+
 """High-level functions for a complete features extraction pipeline
 
 This module exposes two main functions :func:`get_default_config` that
@@ -79,7 +81,7 @@ def valid_features():
     excludes postprocessing. See also :func:`get_default_config`.
 
     """
-    return _Factory._valid_features
+    return _Manager._valid_features
 
 
 def get_default_config(features, to_yaml=False, yaml_commented=True,
@@ -136,7 +138,7 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
     # the input wav file
     config[features] = {
         k: v for k, v in
-        _Factory.get_processor_params(features).items()
+        _Manager.get_processor_params(features).items()
         if k not in ('sample_rate', 'htk_compat')}
 
     if with_pitch:
@@ -144,17 +146,17 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
         # the features, and sample rate
         config['pitch'] = {
             k: v for k, v
-            in _Factory.get_processor_params('pitch').items()
+            in _Manager.get_processor_params('pitch').items()
             if k not in ('frame_length', 'frame_shift', 'sample_rate')}
         config['pitch']['postprocessing'] = (
-            _Factory.get_processor_params('pitch_post'))
+            _Manager.get_processor_params('pitch_post'))
 
     if with_cmvn:
         config['cmvn'] = {'by_speaker': True, 'with_vad': True}
-        config['cmvn']['vad'] = _Factory.get_processor_params('vad')
+        config['cmvn']['vad'] = _Manager.get_processor_params('vad')
 
     if with_delta:
-        config['delta'] = _Factory.get_processor_params('delta')
+        config['delta'] = _Manager.get_processor_params('delta')
 
     if to_yaml:
         return _get_config_to_yaml(config, comments=yaml_commented)
@@ -323,7 +325,7 @@ def _get_config_to_yaml(config, comments=True):
                     'voice activity has been detected, if false do not '
                     'consider voice activity for normalization')
             else:
-                docstring = _Factory.get_docstring(
+                docstring = _Manager.get_docstring(
                     processor, param, default)
 
             offset = 4 if processor in ('vad', 'pitch_post') else 2
@@ -353,7 +355,7 @@ def _init_config(config, log=get_logger()):
     # ensure all the keys in config are known
     unknown_keys = [
         k for k in config.keys()
-        if k not in _Factory._valid_processors]
+        if k not in _Manager._valid_processors]
     if unknown_keys:
         raise ValueError(
             'invalid keys in configuration: {}'.format(
@@ -484,11 +486,13 @@ def _init_utterances(utts_index, log=get_logger()):
 
 
 def _extract_features(config, utterances, njobs=1, log=get_logger()):
-    # the factory will instanciate the pipeline components
-    factory = _Factory(config, utterances, log=log)
+    # the manager will instanciate the pipeline components
+    manager = _Manager(config, utterances, log=log)
 
-    # verbosity level for joblib
-    verbose = 8
+    # verbosity level for joblib (no joblib verbosity on debug level
+    # (level <= 10) because each step is already detailed in inner
+    # loops
+    verbose = 8 if log.getEffectiveLevel() > 10 else 0
 
     # cmvn : two passes. 1st with features pitch and cmvn
     # accumulation, 2nd with cmvn application and delta
@@ -498,14 +502,14 @@ def _extract_features(config, utterances, njobs=1, log=get_logger()):
             'features extraction, pass 1', log,
             n_jobs=njobs, verbose=verbose, prefer='threads')(
                 joblib.delayed(_extract_pass_one)(
-                    utterance, factory, log=log) for utterance in utterances)
+                    utterance, manager, log=log) for utterance in utterances)
 
         # apply cmvn and extract deltas
         features = FeaturesCollection(**{k: v for k, v in _Parallel(
             'features extraction, pass 2', log,
             n_jobs=njobs, verbose=verbose, prefer='threads')(
                 joblib.delayed(_extract_pass_two)(
-                    utterance, factory, features, pitch, log=log)
+                    utterance, manager, features, pitch, log=log)
                 for utterance, features, pitch in pass_one)})
 
     # no cmvn: single pass
@@ -514,72 +518,76 @@ def _extract_features(config, utterances, njobs=1, log=get_logger()):
             'features extraction', log,
             n_jobs=njobs, verbose=verbose, prefer='threads')(
                 joblib.delayed(_extract_single_pass)(
-                    utterance, factory, log=log) for utterance in utterances)})
+                    utterance, manager, log=log) for utterance in utterances)})
 
-    # TODO log a message with structure of the output features
-    # (labels on columns)
     return features
 
 
-def _extract_pass_one(utt_name, factory, log=get_logger()):
+def _extract_pass_one(utt_name, manager, log=get_logger()):
+    log.debug('%s processing', utt_name)
+
     # load audio signal of the utterance
-    audio = factory.get_audio(utt_name)
+    audio = manager.get_audio(utt_name)
 
     # main features extraction
-    features = factory.get_features_processor(utt_name).process(audio)
+    features = manager.get_features_processor(utt_name).process(audio)
 
     # cmvn accumulation
-    if 'cmvn' in factory.config:
+    if 'cmvn' in manager.config:
         # weight CMVN by voice activity detection (null weights on
         # non-voiced frames)
-        if factory.config['cmvn']['with_vad']:
-            energy = factory.get_energy_processor(utt_name).process(audio)
-            vad = factory.get_vad_processor(utt_name).process(energy)
+        if manager.config['cmvn']['with_vad']:
+            energy = manager.get_energy_processor(utt_name).process(audio)
+            vad = manager.get_vad_processor(utt_name).process(energy)
             vad = vad.data.reshape((vad.shape[0], ))  # reshape as 1d array
         else:
             vad = None
 
-        factory.get_cmvn_processor(utt_name).accumulate(features, weights=vad)
+        manager.get_cmvn_processor(utt_name).accumulate(features, weights=vad)
 
     # pitch extraction
-    if 'pitch' in factory.config:
-        p1 = factory.get_pitch_processor(utt_name)
-        p2 = factory.get_pitch_post_processor(utt_name)
+    if 'pitch' in manager.config:
+        p1 = manager.get_pitch_processor(utt_name)
+        p2 = manager.get_pitch_post_processor(utt_name)
         pitch = p2.process(p1.process(audio))
     else:
         pitch = None
 
     # add info on speaker and audio input on the features properties
-    speaker = factory.utterances[utt_name].speaker
+    speaker = manager.utterances[utt_name].speaker
     if speaker:
         features.properties['speaker'] = speaker
 
-    utterance = factory.utterances[utt_name]
+    utterance = manager.utterances[utt_name]
     features.properties['audio'] = {
         'file': os.path.abspath(utterance.file),
-        'sample_rate': factory._wavs_metadata[utterance.file].sample_rate}
+        'sample_rate': manager._wavs_metadata[utterance.file].sample_rate}
     if utterance.tstart is not None:
         features.properties['audio']['tstart'] = utterance.tstart
         features.properties['audio']['tstop'] = utterance.tstop
         features.properties['audio']['duration'] = min(
             utterance.tstop - utterance.tstart,
-            factory._wavs_metadata[utterance.file].duration - utterance.tstart)
+            manager._wavs_metadata[utterance.file].duration - utterance.tstart)
     else:
         features.properties['audio']['duration'] = (
-            factory._wavs_metadata[utterance.file].duration)
+            manager._wavs_metadata[utterance.file].duration)
+
+    log.debug('%s processing done', utt_name)
 
     return utt_name, features, pitch
 
 
-def _extract_pass_two(utt_name, factory, features, pitch,
+def _extract_pass_two(utt_name, manager, features, pitch,
                       tolerance=2, log=get_logger()):
+    log.debug('%s post-processing ', utt_name)
+
     # apply cmvn
-    if 'cmvn' in factory.config:
-        features = factory.get_cmvn_processor(utt_name).process(features)
+    if 'cmvn' in manager.config:
+        features = manager.get_cmvn_processor(utt_name).process(features)
 
     # apply delta
-    if 'delta' in factory.config:
-        features = factory.get_delta_processor(utt_name).process(features)
+    if 'delta' in manager.config:
+        features = manager.get_delta_processor(utt_name).process(features)
 
     # concatenate the pitch features to the main ones. because of
     # downsampling in pitch processing the resulting number of frames
@@ -589,17 +597,17 @@ def _extract_pass_two(utt_name, factory, features, pitch,
         features._log = log
         features = features.concatenate(pitch, tolerance=tolerance)
 
-    # TODO clean properties (with reference to wav, speaker, all
-    # pipeline, etc...)
+    log.debug('%s post-processing done', utt_name)
+
     return utt_name, features
 
 
-def _extract_single_pass(utt_name, factory, log=get_logger()):
-    _, features, pitch = _extract_pass_one(utt_name, factory, log=log)
-    return _extract_pass_two(utt_name, factory, features, pitch, log=log)
+def _extract_single_pass(utt_name, manager, log=get_logger()):
+    _, features, pitch = _extract_pass_one(utt_name, manager, log=log)
+    return _extract_pass_two(utt_name, manager, features, pitch, log=log)
 
 
-class _Factory:
+class _Manager:
     """This class handles the instanciation of processors for the pipeline
 
     Instanciation is the "hard part" because it relies on several
@@ -804,6 +812,21 @@ class _Factory:
         if utt.tstart is not None:
             assert utt.tstop > utt.tstart
             audio = audio.segment([(utt.tstart, utt.tstop)])[0]
+
+        if self.features == 'bottleneck':
+            # resample here the signal (this avoid bugs if one part of
+            # the pipeline on 8k and the other on 16k), then update
+            # the metadata for the wav to be used by the rest of the
+            # pipeline
+            self.log.debug(
+                'resampling audio from %dHz@%db to %dHz@%db',
+                audio.sample_rate, audio.dtype.itemsize * 8, 8000, 16)
+
+            audio = audio.resample(8000).astype(np.int16)
+            self._wavs_metadata[self.utterances[utterance].file] = (
+                Audio._metawav(
+                    audio.nchannels, audio.sample_rate,
+                    audio.nsamples, audio.duration))
         return audio
 
     def get_features_processor(self, utterance):
@@ -811,6 +834,7 @@ class _Factory:
         wav = self.utterances[utterance].file
         proc = self.get_processor_class(self.features)(
             **self.config[self.features])
+        proc._log = self.log
         try:
             proc.sample_rate = self._wavs_metadata[wav].sample_rate
         except AttributeError:

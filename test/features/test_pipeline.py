@@ -170,7 +170,7 @@ def test_check_wavs_bad(wav_file, wav_file_8k, tmpdir, capsys):
         c = pipeline._init_config(pipeline.get_default_config(
             'mfcc', with_cmvn=False))
         u = pipeline._init_utterances(utts)
-        pipeline._Factory(c, u)
+        pipeline._Manager(c, u)
         return u
 
     # build a stereo file and make sure it is not supported by the
@@ -200,7 +200,7 @@ def test_check_wavs_bad(wav_file, wav_file_8k, tmpdir, capsys):
 
 
 def test_processor_bad():
-    get = pipeline._Factory.get_processor_class
+    get = pipeline._Manager.get_processor_class
     with pytest.raises(ValueError) as err:
         get('bad')
     assert 'invalid processor "bad"' in str(err)

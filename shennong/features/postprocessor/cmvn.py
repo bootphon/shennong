@@ -13,7 +13,6 @@ References
 
 """
 
-import copy
 import numpy as np
 import kaldi.matrix
 import kaldi.transform.cmvn

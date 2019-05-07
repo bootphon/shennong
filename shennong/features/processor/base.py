@@ -15,7 +15,7 @@ import numpy as np
 
 from shennong.base import BaseProcessor
 from shennong.features import Features, FeaturesCollection
-from shennong.utils import get_logger, get_njobs
+from shennong.utils import get_njobs
 
 
 class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
@@ -82,7 +82,7 @@ class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
 
         """
         # checks the number of background jobs
-        njobs = get_njobs(njobs, log=get_logger(self.__class__.__module__))
+        njobs = get_njobs(njobs, log=self._log)
 
         def _process_one(name, signal):
             return name, self.process(signal)

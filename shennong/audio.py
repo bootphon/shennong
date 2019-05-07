@@ -111,7 +111,11 @@ class Audio:
         :meth:`is_valid`)
 
     """
-    _log = get_logger(__name__)
+    _log = logging.getLogger()
+
+    _metawav = collections.namedtuple(
+        '_metawav', 'nchannels sample_rate nsamples duration')
+    """A structure to store wavs metadata, see :meth:`Audio.scan`"""
 
     def __init__(self, data, sample_rate, validate=True):
         self._data = data
@@ -197,8 +201,7 @@ class Audio:
         cls._log.debug('scanning %s', wav_file)
         try:
             with wave.open(wav_file, 'r') as fwav:
-                return collections.namedtuple(
-                    '_metawav', 'nchannels sample_rate nsamples duration')(
+                return cls._metawav(
                         fwav.getnchannels(),
                         fwav.getframerate(),
                         fwav.getnframes(),
@@ -352,6 +355,10 @@ class Audio:
         tfm = sox.Transformer()
         tfm.rate(sample_rate, quality='h')
 
+        level = self._log.getEffectiveLevel()
+        if level < logging.INFO:
+            self._log.setLevel(logging.INFO)
+
         # sox works directly with audio files so we need to write it
         # to disk and load it back after resampling
         with tempfile.TemporaryDirectory() as tmp:
@@ -359,7 +366,10 @@ class Audio:
             dest = os.path.join(tmp, 'dest.wav')
             self.save(orig)
             tfm.build(orig, dest)
-            return Audio.load(dest)
+            resampled = Audio.load(dest)
+
+        self._log.setLevel(level)
+        return resampled
 
     def _resample_scipy(self, sample_rate):
         """Resample the audio signal to the given `sample_rate` using scipy"""

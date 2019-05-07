@@ -106,7 +106,6 @@ import scipy as sp
 import scipy.linalg as spl
 import scipy.fftpack
 
-from shennong.utils import get_logger
 from shennong.features import Features
 from shennong.features.processor.base import FeaturesProcessor
 
@@ -516,10 +515,14 @@ class BottleneckProcessor(FeaturesProcessor):
         correctly installed on your system)
 
     """
-    _log = get_logger(__name__)
+    # load of the weights (do it statically to not load the weights
+    # several times when running multiple instances of the
+    # BottleneckProcessor)
+    _loaded_weights = {}
 
     def __init__(self, weights='BabelMulti'):
         self.weights = weights
+        self._get_weights()
 
     @property
     def name(self):
@@ -536,16 +539,12 @@ class BottleneckProcessor(FeaturesProcessor):
 
     @weights.setter
     def weights(self, value):
-        _available_weights = self.available_weights()
-        try:
-            weights_file = _available_weights[value]
-            self._log.debug('loading %s', os.path.basename(weights_file))
-            self._weights_data = np.load(_available_weights[value])
-            self._weights = value
-        except KeyError:
+        available_weights = self.available_weights()
+        if value not in available_weights:
             raise ValueError(
                 'invalid weights "{}", choose in "{}"'.format(
-                    value, ', '.join(sorted(_available_weights.keys()))))
+                    value, ', '.join(sorted(available_weights.keys()))))
+        self._weights = value
 
     @property
     def ndims(self):
@@ -586,6 +585,20 @@ class BottleneckProcessor(FeaturesProcessor):
 
         """
         return 0.01
+
+    def _get_weights(self):
+        if self.weights not in self._loaded_weights:
+            # load the weights if not already loaded
+            available_weights = self.available_weights()
+            weights_file = available_weights[self.weights]
+            self._log.info('loading %s', os.path.basename(weights_file))
+            # explicitely load all the data once, instead of have file
+            # descriptors
+            with np.load(available_weights[self.weights]) as w:
+                self._loaded_weights[self.weights] = {
+                    k: v for k, v in w.items()}
+
+        return self._loaded_weights[self.weights]
 
     @classmethod
     def available_weights(cls):
@@ -715,10 +728,10 @@ class BottleneckProcessor(FeaturesProcessor):
                     np.repeat(fea[[-1]], right_ctx, axis=0)]
 
         # compute the network output from mel features
-        left_ctx_bn1 = right_ctx_bn1 = self._weights_data['context']
+        left_ctx_bn1 = right_ctx_bn1 = self._get_weights()['context']
         nn_input = _preprocess_nn_input(fea, left_ctx_bn1, right_ctx_bn1)
         nn_output = np.vstack(_create_nn_extract_st_BN(
-            nn_input, self._weights_data, 2)[0])
+            nn_input, self._get_weights(), 2)[0])
 
         # compute the timestamps for each output frame
         times = (1.0 / 8000) * np.vstack((
