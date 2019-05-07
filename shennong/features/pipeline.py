@@ -817,7 +817,7 @@ class _Manager:
             # the pipeline on 8k and the other on 16k), then update
             # the metadata for the wav to be used by the rest of the
             # pipeline
-            self.log.info(
+            self.log.debug(
                 'resampling audio from %dHz@%db to %dHz@%db',
                 audio.sample_rate, audio.dtype.itemsize * 8, 8000, 16)
 
