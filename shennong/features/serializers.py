@@ -361,17 +361,18 @@ class H5featuresSerializer(FeaturesSerializer):
               compression='lzf', chunk_size='auto'):
         self._log.info('writing %s', self.filename)
 
-        data = h5features.Data(
-            list(features.keys()),
-            [f.times for f in features.values()],
-            [f.data for f in features.values()],
-            properties=[f.properties for f in features.values()])
-
-        h5features.Writer(
-            self.filename,
-            mode='w',
-            chunk_size=chunk_size,
-            compression=compression).write(data, groupname=groupname)
+        # we safely use append mode as we are sure at this point the
+        # file does not exist (from FeaturesSerializer.save)
+        with h5features.Writer(
+                self.filename, mode='a', chunk_size=chunk_size,
+                compression=compression) as writer:
+            # append the feature in the file one by one (this avoid to
+            # duplicate the whole collection in memory, which can
+            # cause MemoryError on big datasets).
+            for k, v in features.items():
+                data = h5features.Data(
+                    [k], [v.times], [v.data], properties=[v.properties])
+                writer.write(data, groupname=groupname, append=True)
 
     def _load(self, groupname='features'):
         self._log.info('loading %s', self.filename)
