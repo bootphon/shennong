@@ -8,6 +8,8 @@ mkdir -p $log_dir
 
 abx_dir=$data_dir/abx
 mkdir -p $abx_dir
+rm -f $abx_dir/final_score.txt
+touch $abx_dir/final_score.txt
 
 njobs=4
 
@@ -20,7 +22,6 @@ do
         distance=$abx_dir/${kind}_$(basename $features .h5f).dist
         score=$abx_dir/${kind}_$(basename $features .h5f).score
         csv=$abx_dir/${kind}_$(basename $features .h5f).csv
-        average=$abx_dir/${kind}_$(basename $features .h5f).average
 
         log=$log_dir/${kind}_$(basename $features .h5f).log
         rm -f $log
@@ -40,7 +41,8 @@ source activate abx
 abx-distance -j $njobs -n 1 $features $task $distance || exit 1
 abx-score $task $distance $score || exit 1
 abx-analyze $score $task $csv || exit 1
-$here/scripts/abx_average.py $score $kind $average
+average=$($here/scripts/abx_average.py $csv $kind || exit 1)
+echo "$(basename $csv .csv | tr -s '_' ' ') $average >> $abx_dir/final_score.txt
 EOF
     done
 done

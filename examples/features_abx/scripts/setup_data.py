@@ -118,7 +118,7 @@ def generate_configurations(conf_directory):
             with_cmvn=False, with_delta=False, with_pitch=False)
         open(conf, 'w').write(yaml)
 
-        conf = os.path.join(conf_directory, f'{features}_no_cmvn.yaml')
+        conf = os.path.join(conf_directory, f'{features}_nocmvn.yaml')
         yaml = pipeline.get_default_config(
             features, to_yaml=True, yaml_commented=False,
             with_cmvn=False, with_delta=True, with_pitch=True)
