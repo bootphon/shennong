@@ -44,9 +44,8 @@ def setup_data(data_directory, buckeye_directory, xitsonga_directory):
         raise ValueError(f'directory does not exists: {xitsonga_directory}')
 
     # create the data directory
-    if os.path.exists(data_directory):
-        raise ValueError(f'directory already exists: {data_directory}')
-    os.makedirs(data_directory)
+    if not os.path.exists(data_directory):
+        os.makedirs(data_directory)
 
     # create symlinks to speech corpora
     log.info('symlinking corpora directory...')
