@@ -191,7 +191,7 @@ def test_heterogeneous(mfcc, serializer, tmpdir):
     if serializer is serializers.H5featuresSerializer:
         with pytest.raises(IOError) as err:
             h.save(mfcc_col)
-        assert 'features must be homogeneous' in str(err)
+        assert 'data is not appendable to the group' in str(err)
     else:
         h.save(mfcc_col)
         mfcc2 = h.load()
