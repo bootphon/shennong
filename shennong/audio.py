@@ -371,9 +371,10 @@ class Audio:
             self.save(orig)
             try:
                 tfm.build(orig, dest)
-            except sox.SoxError as err:  # pragma: nocover
-                # this may be raised in case of memory allocation
-                # error by sox
+            except sox.SoxError as err:  # pragma: nocover this may be
+                # raised in case of memory allocation error by sox (do
+                # not forward the SoxError exception as the error has
+                # already being logged as an error message)
                 raise ValueError('sox failed to resample audio') from None
             resampled = Audio.load(dest)
 
