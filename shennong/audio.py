@@ -329,7 +329,8 @@ class Audio:
         Raises
         ------
         ValueError
-            If the `backend` is not 'sox' or 'scipy'
+            If the `backend` is not 'sox' or 'scipy', or if the
+            resampling failed
 
         """
         if backend not in ('sox', 'scipy'):
@@ -341,10 +342,13 @@ class Audio:
         else:
             return self._resample_scipy(sample_rate)
 
-    @staticmethod
-    def _sox_found():
+    @classmethod
+    def _sox_found(cls):
         """Returns True if sox is installed on the system, False otherwise"""
-        return not sox.NO_SOX
+        if sox.NO_SOX:  # pragma: nocover
+            cls._log.warning('sox not found, install it for faster resampling')
+            return False
+        return True
 
     def _resample_sox(self, sample_rate):
         """Resample the audio signal to the given `sample_rate` using sox"""
@@ -365,7 +369,12 @@ class Audio:
             orig = os.path.join(tmp, 'orig.wav')
             dest = os.path.join(tmp, 'dest.wav')
             self.save(orig)
-            tfm.build(orig, dest)
+            try:
+                tfm.build(orig, dest)
+            except sox.SoxError as err:  # pragma: nocover
+                # this may be raised in case of memory allocation
+                # error by sox
+                raise ValueError('sox failed to resample audio') from None
             resampled = Audio.load(dest)
 
         self._log.setLevel(level)
