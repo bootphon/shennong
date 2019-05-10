@@ -16,3 +16,8 @@ suite.
   package](https://speech.fit.vutbr.cz/software/but-phonexia-bottleneck-feature-extractor)
   on `test.8k.wav`, it is used to test replicability of the bottleneck
   features implementation in `shennong`.
+
+* `test.rastaplp.npy` contains features extracted from the original
+  [rastapy package](https://github.com/mystlee/rasta_py) on
+  `test.wav`, it is used to test the replicability of the RASTA-PLP
+  implmementation in `shennong`.

@@ -1,4 +1,4 @@
-"""Test of the module shennong.features.mfcc"""
+"""Test of the module shennong.features.processor.mfcc"""
 
 import tempfile
 import numpy as np

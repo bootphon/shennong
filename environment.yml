@@ -9,6 +9,7 @@ dependencies:
   - h5py
   - ipython
   - joblib
+  - librosa
   - numpy
   - pip
   - pykaldi

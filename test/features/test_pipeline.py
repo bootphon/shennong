@@ -217,14 +217,14 @@ def test_extract_features(utterances_index, features):
     feats = pipeline.extract_features(config, utterances_index)
     feat1 = feats[utterances_index[0][0]]
     assert feat1.is_valid()
-    assert feat1.shape[0] == 140
+    assert feat1.shape[0] == 139 if features == 'rastaplp' else 140
 
     config = pipeline.get_default_config(
         features, with_cmvn=False, with_pitch=True)
     feats = pipeline.extract_features(config, utterances_index)
     feat2 = feats[utterances_index[0][0]]
     assert feat2.is_valid()
-    assert feat2.shape[0] == 140
+    assert feat2.shape[0] == 139 if features == 'rastaplp' else 140
     assert feat2.shape[1] == feat1.shape[1] + 3
 
     utterances_index = [('u1', utterances_index[0][1], 0, 1)]
@@ -233,7 +233,7 @@ def test_extract_features(utterances_index, features):
     feats = pipeline.extract_features(config, utterances_index)
     feat3 = feats[utterances_index[0][0]]
     assert feat3.is_valid()
-    assert feat3.shape[0] == 98
+    assert feat3.shape[0] == 97 if features == 'rastaplp' else 98
     assert feat3.shape[1] == feat1.shape[1]
 
 

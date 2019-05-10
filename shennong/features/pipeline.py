@@ -615,7 +615,7 @@ class _Manager:
     etc...). All this mechanics is abstracted by this class.
 
     """
-    _valid_features = ['mfcc', 'plp', 'filterbank', 'bottleneck']
+    _valid_features = ['mfcc', 'plp', 'filterbank', 'bottleneck', 'rastaplp']
     """The main features available in shennong, excluding post-processing"""
 
     _valid_processors = {
@@ -626,6 +626,7 @@ class _Manager:
         'pitch': ('processor', 'PitchProcessor'),
         'pitch_post': ('processor', 'PitchPostProcessor'),
         'plp': ('processor', 'PlpProcessor'),
+        'rastaplp': ('processor', 'RastaPlpProcessor'),
         'cmvn': ('postprocessor', 'CmvnPostProcessor'),
         'delta': ('postprocessor', 'DeltaPostProcessor'),
         'vad': ('postprocessor', 'VadPostProcessor')}

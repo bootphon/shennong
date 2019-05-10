@@ -9,6 +9,7 @@ This section documents various utility functions that are used by the
 .. toctree::
    :maxdepth: 3
 
-   base
    frames_windows
+   alignment
+   base
    misc

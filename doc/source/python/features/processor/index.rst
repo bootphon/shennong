@@ -12,6 +12,7 @@ The available speech features processors are:
    filterbank
    plp
    bottleneck
+   rastaplp
    onehot
    pitch
    energy

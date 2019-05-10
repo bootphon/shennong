@@ -13,6 +13,5 @@ Python API reference
    :maxdepth: 3
 
    audio
-   alignment
    features/index
    miscellaneous/index
