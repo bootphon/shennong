@@ -11,7 +11,11 @@ data_dir=$here/data
 log_dir=$data_dir/log
 mkdir -p $log_dir
 
+# number of parallel jobs for features extraction
 njobs=10
+
+# cluster partition to schedule the jobs on
+partition=all
 
 echo "step 1: setup $data_dir"
 
@@ -44,7 +48,7 @@ do
 #!/bin/bash
 #SBATCH --job-name=${corpus}_${kind}
 #SBATCH --output=$log
-#SBATCH --partition=all
+#SBATCH --partition=$partition
 #SBATCH --ntasks=1
 
 module load anaconda/3
@@ -68,7 +72,7 @@ do
 #!/bin/bash
 #SBATCH --job-name=$(basename $config |cut -d_ -f1)
 #SBATCH --output=$log
-#SBATCH --partition=all
+#SBATCH --partition=$partition
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=$njobs
 
