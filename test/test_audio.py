@@ -75,8 +75,24 @@ def test_equal(audio):
     assert audio != audio2
 
 
+def test_shape():
+    # it was a bug when audio data is shaped (n, 1): must be reshaped
+    # as (n,). The bug appens when converting audio data to pykaldi
+    # vector.
+    d1 = np.random.random((100,))
+    assert d1.shape == (100,)
+
+    d2 = np.random.random((100, 1))
+    assert d2.shape == (100, 1)
+
+    for d in (d1, d2):
+        a = Audio(d, 10)
+        assert a.shape == (100,)
+
+
 def test_channels_mono(audio):
     assert audio.nchannels == 1
+    assert audio.shape == (audio.nsamples,)
     assert audio.channel(0) == audio
     with pytest.raises(ValueError):
         audio.channel(1)
@@ -86,15 +102,18 @@ def test_channels_stereo():
     data = np.random.random((1000, 2))
     audio2 = Audio(data, sample_rate=16000)
     assert audio2.nchannels == 2
+    assert audio2.shape == (1000, 2)
 
     audio1 = audio2.channel(0)
     assert audio1.nchannels == 1
+    assert audio1.shape == (1000,)
     assert all(np.equal(audio1.data, audio2.data[:, 0]))
     assert not all(np.equal(audio1.data, audio2.data[:, 1]))
     assert audio1.duration == audio2.duration
 
     audio1 = audio2.channel(1)
     assert audio1.nchannels == 1
+    assert audio1.shape == (1000,)
     assert all(np.equal(audio1.data, audio2.data[:, 1]))
     assert not all(np.equal(audio1.data, audio2.data[:, 0]))
 
@@ -113,7 +132,7 @@ def test_isvalid(audio):
     assert not audio2.is_valid()
     with pytest.raises(ValueError) as err:
         Audio(audio.data.astype(np.float32),
-                  audio.sample_rate, validate=True)
+              audio.sample_rate, validate=True)
         'invalid audio data' in err
 
     # smooth cast from int16 to float32

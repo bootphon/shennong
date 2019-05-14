@@ -87,8 +87,6 @@ import tempfile
 import warnings
 import wave
 
-from shennong.utils import get_logger
-
 
 class Audio:
     """Create an audio signal with the given `data` and `sample_rate`
@@ -118,8 +116,11 @@ class Audio:
     """A structure to store wavs metadata, see :meth:`Audio.scan`"""
 
     def __init__(self, data, sample_rate, validate=True):
-        self._data = data
         self._sample_rate = sample_rate
+
+        # force shape (n, 1) to be (n,)
+        self._data = (
+            data[:, 0] if data.ndim > 1 and data.shape[1] == 1 else data)
 
         if validate and not self.is_valid():
             raise ValueError(
@@ -156,6 +157,11 @@ class Audio:
     def nsamples(self):
         """The number of samples in the signal"""
         return self.data.shape[0]
+
+    @property
+    def shape(self):
+        """Return the shape of the underlying data"""
+        return self.data.shape
 
     @property
     def dtype(self):
@@ -210,9 +216,9 @@ class Audio:
             raise ValueError(
                 '{}: cannot read file, is it a wav?'.format(wav_file))
 
-    # we use a memoize cache becaus Audio.load is often called to load
-    # only segments of a file. So the cache avoid to reload again and
-    # again the same file to extract only a chunk of it. A little
+    # we use a memoize cache because Audio.load is often called to
+    # load only segments of a file. So the cache avoid to reload again
+    # and again the same file to extract only a chunk of it. A little
     # maxsize is enough because access to audio chunks are usually
     # ordered.
     @classmethod
@@ -371,10 +377,11 @@ class Audio:
             self.save(orig)
             try:
                 tfm.build(orig, dest)
-            except sox.SoxError as err:  # pragma: nocover this may be
-                # raised in case of memory allocation error by sox (do
-                # not forward the SoxError exception as the error has
-                # already being logged as an error message)
+            except sox.SoxError:  # pragma: nocover
+                # this may be raised in case of memory allocation
+                # error by sox (do not forward the SoxError exception
+                # as the error has already being logged as an error
+                # message)
                 raise ValueError('sox failed to resample audio') from None
             resampled = Audio.load(dest)
 

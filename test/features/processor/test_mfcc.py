@@ -60,6 +60,12 @@ def test_dither(audio):
     assert f1 == f2 == f3
 
 
+def test_from_badshape(audio):
+    p = MfccProcessor()
+    audio = Audio(audio.data.reshape((audio.nsamples, 1)), audio.sample_rate)
+    assert p.process(audio).shape == (140, 13)
+
+
 @pytest.mark.parametrize('num_ceps', [0, 1, 5, 13, 23, 25])
 def test_num_ceps(audio, num_ceps):
     proc = MfccProcessor(num_ceps=num_ceps)
