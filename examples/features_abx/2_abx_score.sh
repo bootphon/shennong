@@ -1,6 +1,8 @@
 #!/bin/bash
-# compute the ABX scores from features and tasks prepared in
-# the script `1_setup_features.sh`
+# compute the ABX scores from features and tasks prepared in the
+# script `1_setup_features.sh`. abx-distance seems not to support
+# parallel read of the task file, so we schedule a single (sequential)
+# job for each task file (i.e. corpus / task_type combination).
 
 here=$(readlink -f $(dirname $0))
 data_dir=$here/data
