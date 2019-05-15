@@ -115,7 +115,8 @@ def test_listfiles(data_path, abspath, realpath, recursive):
     f = utils.list_files_with_extension
     wavs = f(data_path, '.wav',
              abspath=abspath, realpath=realpath, recursive=recursive)
-    assert [os.path.basename(w) for w in wavs] == ['test.8k.wav', 'test.wav']
+    assert [os.path.basename(w) for w in wavs] == [
+        'test.8k.wav', 'test.float32.wav', 'test.wav']
 
 
 def test_catch_exceptions(capsys):

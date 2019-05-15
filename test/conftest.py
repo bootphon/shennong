@@ -42,6 +42,11 @@ def wav_file_8k(data_path):
 
 
 @pytest.fixture(scope='session')
+def wav_file_float32(data_path):
+    return os.path.join(data_path, 'test.float32.wav')
+
+
+@pytest.fixture(scope='session')
 def audio_8k(wav_file_8k):
     return Audio.load(wav_file_8k)
 

@@ -205,6 +205,42 @@ class Audio:
             raise ValueError('{}: file not found'.format(wav_file))
 
         cls._log.debug('scanning %s', wav_file)
+
+        try:
+            return cls._scan_wave(wav_file)
+        except ValueError as err:  # wav may contain floating points samples
+            if cls._sox_found():
+                return cls._scan_sox(wav_file)
+            else:  # pragma: nocover
+                raise err
+
+    @classmethod
+    def _scan_sox(cls, wav_file):
+        """Scan the `wav_file` using soxi
+
+        Support for floating point formats, but the implementation if
+        less efficient than :meth:`_scan_wave` (use one call to soxi
+        per info value)
+
+        """
+        try:
+            info = sox.file_info.info(wav_file)
+            return cls._metawav(
+                info['channels'],
+                info['sample_rate'],
+                info['num_samples'],
+                info['duration'])
+        except sox.SoxiError:
+            raise ValueError(
+                '{}: cannot read file, is it a wav?'.format(wav_file))
+
+    @classmethod
+    def _scan_wave(cls, wav_file):
+        """Scan the `wav_file` using soxi
+
+        Support only for integer formats but efficient implementation.
+
+        """
         try:
             with wave.open(wav_file, 'r') as fwav:
                 return cls._metawav(
@@ -441,7 +477,7 @@ class Audio:
         # boundaries
         dmin = np.amin(self.data)
         dmax = np.amax(self.data)
-        if dmin <= emin or dmax >= emax:
+        if dmin < emin or dmax > emax:
             self._log.warning(
                 'invalid audio for type %s: boundaries must be in (%s, %s) '
                 'but are (%s, %s)', self.dtype, emin, emax, dmin, dmax)

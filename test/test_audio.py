@@ -59,6 +59,22 @@ def test_save(tmpdir, audio):
     audio2 = Audio.load(p)
     assert audio == audio2
 
+    # test with float32 wav
+    signal = np.zeros((1000,), dtype=np.float32)
+    signal[10] = 1.0
+    signal[20] = -1.0
+    p = str(tmpdir.join('test2.wav'))
+    audio = Audio(signal, 1000)
+    audio.save(p)
+    meta = Audio.scan(p)
+    assert meta.nsamples == 1000
+    assert meta.nchannels == 1
+
+    audio2 = Audio.load(p)
+    assert audio2 == audio
+    assert audio2.data.min() == -1.0
+    assert audio2.data.max() == 1.0
+
 
 def test_equal(audio):
     assert audio == audio

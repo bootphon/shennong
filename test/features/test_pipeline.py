@@ -253,12 +253,13 @@ def test_cmvn(utterances_index, by_speaker, with_vad):
 
 
 @pytest.mark.parametrize('ext', supported_extensions().keys())
-def test_extract_features_full(ext, wav_file, wav_file_8k, capsys, tmpdir):
+def test_extract_features_full(ext, wav_file, wav_file_8k, wav_file_float32,
+                               capsys, tmpdir):
     # difficult case with parallel jobs, different sampling rates,
     # speakers and segments
     index = [
         ('u1', wav_file, 's1', 0, 1),
-        ('u2', wav_file, 's2', 1, 1.2),
+        ('u2', wav_file_float32, 's2', 1, 1.2),
         ('u3', wav_file_8k, 's1', 1, 3)]
     config = pipeline.get_default_config('mfcc')
 
@@ -271,7 +272,7 @@ def test_extract_features_full(ext, wav_file, wav_file_8k, capsys, tmpdir):
 
     # ensure we have the expected log messages
     messages = capsys.readouterr().err
-    assert 'INFO - get 3 utterances from 2 speakers in 2 wavs' in messages
+    assert 'INFO - get 3 utterances from 2 speakers in 3 wavs' in messages
     assert 'WARNING - several sample rates found in wav files' in messages
 
     for utt in ('u1', 'u2', 'u3'):
@@ -283,7 +284,7 @@ def test_extract_features_full(ext, wav_file, wav_file_8k, capsys, tmpdir):
     p3 = feats['u3'].properties
     assert p1['audio']['file'] == wav_file
     assert p1['audio']['duration'] == 1.0
-    assert p2['audio']['file'] == wav_file
+    assert p2['audio']['file'] == wav_file_float32
     assert p2['audio']['duration'] == pytest.approx(0.2)
     assert p3['audio']['file'] == wav_file_8k
     assert p3['audio']['duration'] < 0.5  # ask 3s but get duration-tstart
