@@ -580,7 +580,7 @@ class RastaPlpProcessor(FramesProcessor):
     def order(self):
         """Order of the PLP model
 
-        Must be an integer in [0, 12], 0 means no PLP.
+        Must be an integer in [0, 12], 0 means no PLP
 
         """
         return self._order
@@ -659,7 +659,12 @@ class RastaPlpProcessor(FramesProcessor):
                 'processor and signal mismatch in sample rates: '
                 '{} != {}'.format(self.sample_rate, signal.sample_rate))
 
+        # force the signal to be int16
+        signal = signal.astype(np.int16)
+
+        # extract the features
         data = self._rastaplp(signal)
+
         return Features(
             data.T, self.times(data.T.shape[0]),
             properties=self.get_properties())

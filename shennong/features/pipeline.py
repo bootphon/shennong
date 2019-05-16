@@ -801,9 +801,10 @@ class _Manager:
         docstring = re.sub(':func:', '', docstring)
         docstring += '. Default is {}.'.format(default)
         docstring = re.sub(r'\.+', '.', docstring)
-        docstring = re.sub(r' +', ' ', docstring).strip()
+        docstring = re.sub(r' +', ' ', docstring)
+        docstring = re.sub(r'\. \.', '.', docstring)
 
-        return docstring
+        return docstring.strip()
 
     def get_audio(self, utterance):
         """Returns the audio data for that `utterance`"""
