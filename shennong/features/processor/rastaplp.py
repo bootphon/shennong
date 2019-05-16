@@ -18,7 +18,7 @@ Compute RASTA-PLP features on some speech signal:
 >>> processor = RastaPlpProcessor()
 >>> features = processor.process(audio)
 >>> features.shape
-(139, 9)
+(140, 9)
 
 References
 ----------
@@ -36,67 +36,13 @@ References
 
 """
 
-import librosa
-import logging
+import kaldi.feat.window
+import kaldi.matrix
 import numpy as np
-import scipy.fftpack
 import scipy.signal
 
 from shennong.features import Features
-from shennong.features.processor.base import FeaturesProcessor
-
-
-def _rastaplp(audio, win_time=0.040, hop_time=0.020,
-              dorasta=True, modelorder=8, log=logging.getLogger()):
-    # compute power spectrum
-    p_spectrum, _ = _powspec(audio, win_time, hop_time)
-
-    # group to critical bands
-    aspectrum = _audspec(p_spectrum, audio.sample_rate)
-    nbands = aspectrum.shape[0]
-
-    if dorasta:
-        # log domain
-        nl_aspectrum = np.log(aspectrum)
-        # rasta filtering
-        ras_nl_aspectrum = _rastafilt(nl_aspectrum)
-        # inverse log
-        aspectrum = np.exp(ras_nl_aspectrum)
-
-    postspectrum, _ = _postaud(aspectrum, audio.sample_rate / 2)
-
-    lpcas = _dolpc(postspectrum, modelorder)
-    cepstra = _lpc2cep(lpcas, modelorder + 1)
-
-    if modelorder > 0:
-        lpcas = _dolpc(postspectrum, modelorder)
-        cepstra = _lpc2cep(lpcas, modelorder + 1)
-        spectra, F, M = _lpc2spec(lpcas, nbands)
-    else:
-        spectra = postspectrum
-        cepstra, _ = _spec2cep(spectra)
-
-    cepstra = _lifter(cepstra, 0.6, log=log)
-    return cepstra
-
-
-def _powspec(audio, window_time=0.040, hop_time=0.020, dither=1):
-    win_length = int(np.round(window_time * audio.sample_rate))
-    hop_length = int(np.round(hop_time * audio.sample_rate))
-    fft_length = int(2 ** np.ceil(np.log2(window_time * audio.sample_rate)))
-
-    X = librosa.stft(
-        audio.data * 2**15, n_fft=fft_length,
-        hop_length=hop_length, win_length=win_length,
-        window='hann', center=False)
-
-    pow_X = np.abs(X) ** 2
-    if dither:
-        pow_X += win_length
-
-    e = np.log(np.sum(pow_X, axis=0))
-
-    return pow_X, e
+from shennong.features.processor.base import FramesProcessor
 
 
 def _audspec(p_spectrum, fs=16000, nfilts=0, fbtype='bark',
@@ -473,7 +419,6 @@ def _levinson(r, order=None, allow_singularity=False):
 
 def _lpc2cep(a, nout):
     nin, ncol = a.shape
-    order = nin - 1
 
     cep = np.zeros((nout, ncol))
     cep[0, :] = -np.log(a[0, :])
@@ -572,14 +517,14 @@ def _spec2cep(spec, ncep=13, dcttype=2):
     return cep, dctm
 
 
-def _lifter(x, lift=0.6, inverse=False, log=logging.getLogger()):
+def _lifter(x, log, lift=0.6, inverse=False):
     ncep = x.shape[0]
 
     if lift == 0:  # pragma: nocover
         return x
 
     if lift < 0:  # pragma: nocover
-        logging.warning(
+        log.warning(
             'HTK liftering does not support yet; default liftering')
         lift = 0.6
 
@@ -593,11 +538,24 @@ def _lifter(x, lift=0.6, inverse=False, log=logging.getLogger()):
     return y
 
 
-class RastaPlpProcessor(FeaturesProcessor):
-    def __init__(self, frame_shift=0.01, frame_length=0.025,
-                 do_rasta=True, order=8):
-        self.frame_shift = frame_shift
-        self.frame_length = frame_length
+class RastaPlpProcessor(FramesProcessor):
+    def __init__(self, sample_rate=16000, do_rasta=True, order=8,
+                 frame_shift=0.01, frame_length=0.025, dither=1.0,
+                 preemph_coeff=0.97, remove_dc_offset=True,
+                 window_type='povey', round_to_power_of_two=True,
+                 blackman_coeff=0.42, snip_edges=True):
+        super().__init__(
+            sample_rate=sample_rate,
+            frame_shift=frame_shift,
+            frame_length=frame_length,
+            dither=dither,
+            preemph_coeff=preemph_coeff,
+            remove_dc_offset=remove_dc_offset,
+            window_type=window_type,
+            round_to_power_of_two=round_to_power_of_two,
+            blackman_coeff=blackman_coeff,
+            snip_edges=snip_edges)
+
         self.do_rasta = do_rasta
         self.order = order
 
@@ -608,24 +566,6 @@ class RastaPlpProcessor(FeaturesProcessor):
     @property
     def ndims(self):
         return 13 if self.order == 0 else self.order + 1
-
-    @property
-    def frame_shift(self):
-        """Frame shift in seconds"""
-        return self._frame_shift
-
-    @frame_shift.setter
-    def frame_shift(self, value):
-        self._frame_shift = float(value)
-
-    @property
-    def frame_length(self):
-        """Frame length in seconds"""
-        return self._frame_length
-
-    @frame_length.setter
-    def frame_length(self, value):
-        self._frame_length = float(value)
 
     @property
     def do_rasta(self):
@@ -651,18 +591,75 @@ class RastaPlpProcessor(FeaturesProcessor):
             raise ValueError('order must be an integer in [0, 12]')
         self._order = value
 
-    def times(self, nframes):
-        """Returns the times label for the rows given by :func:`process`"""
-        return np.vstack((
-            np.arange(nframes) * self.frame_shift,
-            np.arange(nframes) * self.frame_shift + self.frame_length)).T
+    def _power_spectrum(self, signal):
+        num_frames = kaldi.feat.window.num_frames(
+            signal.nsamples, self._frame_options)
+        window_size = self._frame_options.padded_window_size()
+
+        # preallocate the FFT matrix
+        fft_matrix = np.empty(
+            (1 + window_size // 2, num_frames),
+            dtype=np.complex64, order='F')
+
+        window = kaldi.matrix.Vector(window_size)
+        window_function = kaldi.feat.window.FeatureWindowFunction.from_options(
+            self._frame_options)
+        for i in range(num_frames):
+            # extract the window with Kaldi
+            kaldi.feat.window.extract_window(
+                0, kaldi.matrix.SubVector(signal.data),
+                i, self._frame_options, window_function, window)
+
+            # compute the FFT with numpy
+            fft_matrix[:, i] = np.fft.rfft(window.numpy(), axis=0)
+
+        return np.abs(fft_matrix) ** 2
+
+    def _rastaplp(self, signal):
+        # compute power spectrum
+        pow_spectrum = self._power_spectrum(signal)
+
+        # group to critical bands
+        aspectrum = _audspec(pow_spectrum, signal.sample_rate)
+        nbands = aspectrum.shape[0]
+
+        if self.do_rasta:
+            # log domain
+            nl_aspectrum = np.log(aspectrum)
+            # rasta filtering
+            ras_nl_aspectrum = _rastafilt(nl_aspectrum)
+            # inverse log
+            aspectrum = np.exp(ras_nl_aspectrum)
+
+        postspectrum, _ = _postaud(aspectrum, signal.sample_rate / 2)
+
+        lpcas = _dolpc(postspectrum, self.order)
+        cepstra = _lpc2cep(lpcas, self.order + 1)
+
+        if self.order > 0:
+            lpcas = _dolpc(postspectrum, self.order)
+            cepstra = _lpc2cep(lpcas, self.order + 1)
+            spectra, F, M = _lpc2spec(lpcas, nbands)
+        else:
+            spectra = postspectrum
+            cepstra, _ = _spec2cep(spectra)
+
+        cepstra = _lifter(cepstra, self._log, 0.6)
+        return cepstra
 
     def process(self, signal):
-        data = _rastaplp(
-            signal.astype(np.float32),
-            self.frame_length, self.frame_shift,
-            dorasta=self.do_rasta, modelorder=self.order, log=self._log)
+        # ensure the signal is correct
+        if signal.nchannels != 1:
+            raise ValueError(
+                'signal must have one dimension, but it has {}'
+                .format(signal.nchannels))
 
+        if self.sample_rate != signal.sample_rate:
+            raise ValueError(
+                'processor and signal mismatch in sample rates: '
+                '{} != {}'.format(self.sample_rate, signal.sample_rate))
+
+        data = self._rastaplp(signal)
         return Features(
             data.T, self.times(data.T.shape[0]),
             properties=self.get_properties())

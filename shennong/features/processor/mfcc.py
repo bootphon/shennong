@@ -38,7 +38,6 @@ References
 """
 
 import kaldi.feat.mfcc
-import kaldi.matrix
 
 from shennong.features.processor.base import MelFeaturesProcessor
 
