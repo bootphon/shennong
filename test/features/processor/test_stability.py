@@ -10,6 +10,8 @@ from shennong.features.processor.onehot import (
     OneHotProcessor, FramedOneHotProcessor)
 from shennong.features.processor.pitch import PitchProcessor
 from shennong.features.processor.plp import PlpProcessor
+from shennong.features.processor.rastaplp import RastaPlpProcessor
+from shennong.features.processor.spectrogram import SpectrogramProcessor
 
 
 PROCESSORS = [
@@ -20,7 +22,9 @@ PROCESSORS = [
     BottleneckProcessor,
     OneHotProcessor,
     FramedOneHotProcessor,
-    PitchProcessor]
+    PitchProcessor,
+    SpectrogramProcessor,
+    RastaPlpProcessor]
 
 
 # here we computes the same features two times and ensure we obtain the

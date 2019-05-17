@@ -245,7 +245,7 @@ def _dolpc(x, modelorder=8):
     for i in range(nbands - 1):
         R[i + nbands - 1, :] = x[nbands - (i + 1), :]
 
-    r = scipy.fftpack.ifft(R.T).real.T
+    r = pyfftw.interfaces.scipy_fftpack.ifft(R.T).real.T
     r = r[0:nbands, :]
 
     y = np.ones((nframes, modelorder + 1))
@@ -268,6 +268,8 @@ def _dolpc(x, modelorder=8):
     return y
 
 
+# TODO optimize: this is the most inefficient function in the
+# processor, takes about half of the compute time
 def _levinson(r, order=None, allow_singularity=False):
     r"""Levinson-Durbin recursion.
 
