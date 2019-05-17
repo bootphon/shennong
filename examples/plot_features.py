@@ -6,10 +6,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from shennong.audio import Audio
-from shennong.features.filterbank import FilterbankProcessor
-from shennong.features.mfcc import MfccProcessor
-from shennong.features.plp import PlpProcessor
-from shennong.features.bottleneck import BottleneckProcessor
+from shennong.features.processor.filterbank import FilterbankProcessor
+from shennong.features.processor.mfcc import MfccProcessor
+from shennong.features.processor.plp import PlpProcessor
+from shennong.features.processor.rastaplp import RastaPlpProcessor
+from shennong.features.processor.bottleneck import BottleneckProcessor
+from shennong.features.processor.spectrogram import SpectrogramProcessor
 
 
 def main():
@@ -22,9 +24,11 @@ def main():
 
     # initialize features processors
     processors = {
+        'spectrogram': SpectrogramProcessor(sample_rate=audio.sample_rate),
+        'filterbank': FilterbankProcessor(sample_rate=audio.sample_rate),
         'mfcc': MfccProcessor(sample_rate=audio.sample_rate),
         'plp': PlpProcessor(sample_rate=audio.sample_rate),
-        'filterbank': FilterbankProcessor(sample_rate=audio.sample_rate),
+        'rastaplp': RastaPlpProcessor(sample_rate=audio.sample_rate),
         'bottleneck': BottleneckProcessor(weights='BabelMulti')}
 
     # compute the features for all processors
