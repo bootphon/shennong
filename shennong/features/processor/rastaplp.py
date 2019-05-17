@@ -39,6 +39,7 @@ References
 import kaldi.feat.window
 import kaldi.matrix
 import numpy as np
+import pyfftw
 import scipy.signal
 
 from shennong.features import Features
@@ -559,6 +560,9 @@ class RastaPlpProcessor(FramesProcessor):
         self.do_rasta = do_rasta
         self.order = order
 
+        # enable FFTW cache to speedup succesive calls to fft function
+        pyfftw.interfaces.cache.enable()
+
     @property
     def name(self):
         return 'rasta-plp'
@@ -591,29 +595,47 @@ class RastaPlpProcessor(FramesProcessor):
             raise ValueError('order must be an integer in [0, 12]')
         self._order = value
 
-    def _power_spectrum(self, signal):
+    @staticmethod
+    def _fft(data, axis=0):
+        return pyfftw.interfaces.numpy_fft.rfft(
+            data, axis=axis,
+            overwrite_input=True,
+            planner_effort='FFTW_PATIENT')
+
+    def _power_spectrum(self, signal, block_size=64):
         num_frames = kaldi.feat.window.num_frames(
             signal.nsamples, self._frame_options)
         window_size = self._frame_options.padded_window_size()
-
-        # preallocate the FFT matrix
-        fft_matrix = np.empty(
-            (1 + window_size // 2, num_frames),
-            dtype=np.complex64, order='F')
-
-        window = kaldi.matrix.Vector(window_size)
         window_function = kaldi.feat.window.FeatureWindowFunction.from_options(
             self._frame_options)
-        for i in range(num_frames):
-            # extract the window with Kaldi
-            kaldi.feat.window.extract_window(
-                0, kaldi.matrix.SubVector(signal.data),
-                i, self._frame_options, window_function, window)
 
-            # compute the FFT with numpy
-            fft_matrix[:, i] = np.fft.rfft(window.numpy(), axis=0)
+        # convert the audio input to a Kaldi vector view
+        kaldi_signal = kaldi.matrix.SubVector(signal.data)
 
-        return np.abs(fft_matrix) ** 2
+        # preallocate the power spectrum matrix
+        power_spectrum = np.empty(
+            (1 + window_size // 2, num_frames), dtype=np.complex)
+
+        # preallocate frames buffer
+        single_frame = kaldi.matrix.Vector(window_size)
+        buffer_frames = pyfftw.empty_aligned(
+            (window_size, block_size), dtype=np.float32)
+
+        for min_frame in range(0, num_frames, block_size):
+            max_frame = min(min_frame + block_size, num_frames)
+
+            for i in range(min_frame, max_frame):
+                # extract the frame i with Kaldi (result goes in single_frame)
+                kaldi.feat.window.extract_window(
+                    0, kaldi_signal, i, self._frame_options,
+                    window_function, single_frame)
+                buffer_frames[:, i - min_frame] = single_frame.numpy()
+
+            # compute the power spectrum per block
+            power_spectrum[:, min_frame:max_frame] = self._fft(
+                buffer_frames[:, :max_frame - min_frame], axis=0)
+
+        return np.abs(power_spectrum) ** 2
 
     def _rastaplp(self, signal):
         # compute power spectrum

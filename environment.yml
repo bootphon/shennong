@@ -5,6 +5,7 @@ channels:
 dependencies:
   - python=3.7
   - cython
+  - fftw
   - flake8
   - h5py
   - ipython
@@ -26,4 +27,5 @@ dependencies:
       - h5features>=1.3.2
       - json-tricks
       - ninja
+      - pyfftw
       - sox  # sox python wrapper

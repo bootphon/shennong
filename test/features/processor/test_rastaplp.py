@@ -1,8 +1,6 @@
 """Test of the shennong.features.processor.rastaplp module"""
 
-import copy
 import numpy as np
-import os
 import pytest
 
 from shennong.audio import Audio
@@ -28,7 +26,7 @@ def test_params():
     assert 'must be an integer in [0, 12]' in str(err)
 
 
-def test_bas_signal():
+def test_bad_signal():
     signal = Audio(np.random.random((10, 2)), 50)
     proc = RastaPlpProcessor(sample_rate=signal.sample_rate)
     with pytest.raises(ValueError) as err:
