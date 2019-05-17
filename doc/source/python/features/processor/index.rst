@@ -8,11 +8,12 @@ The available speech features processors are:
 .. toctree::
    :maxdepth: 2
 
-   mfcc
+   spectrogram
    filterbank
+   mfcc
    plp
-   bottleneck
    rastaplp
+   bottleneck
    onehot
    pitch
    energy
