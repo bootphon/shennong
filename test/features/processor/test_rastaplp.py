@@ -58,3 +58,4 @@ def test_order(order):
     proc.dither = 0
     feats2 = proc.process(signal)
     assert feats1.is_close(feats2)
+    assert feats1.dtype == np.float32

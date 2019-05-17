@@ -688,5 +688,6 @@ class RastaPlpProcessor(FramesProcessor):
         data = self._rastaplp(signal)
 
         return Features(
-            data.T, self.times(data.T.shape[0]),
+            data.T.astype(np.float32),
+            self.times(data.T.shape[0]),
             properties=self.get_properties())
