@@ -35,27 +35,26 @@ def test_bad_signal():
 
 
 @pytest.mark.parametrize('order', [0, 1, 2, 5, 10, 12])
-def test_order(order):
-    signal = Audio(np.random.random((1000,)), 5000)
-
+def test_order(order, audio):
     with pytest.raises(ValueError) as err:
         proc = RastaPlpProcessor(
-            order=order, sample_rate=signal.sample_rate + 1)
-        proc.process(signal)
+            order=order, sample_rate=audio.sample_rate + 1)
+        proc.process(audio)
     assert 'mismatch in sample rates' in str(err)
 
     proc = RastaPlpProcessor(
-        order=order, sample_rate=signal.sample_rate, dither=0)
+        order=order, sample_rate=audio.sample_rate, dither=0)
 
-    feats1 = proc.process(signal)
+    feats1 = proc.process(audio)
     assert feats1.shape[1] == proc.ndims
     if order != 0:
         assert feats1.shape[1] == order + 1
 
     proc = RastaPlpProcessor()
     proc.order = order
-    proc.sample_rate = signal.sample_rate
+    proc.sample_rate = audio.sample_rate
     proc.dither = 0
-    feats2 = proc.process(signal)
+    feats2 = proc.process(audio)
     assert feats1.is_close(feats2)
     assert feats1.dtype == np.float32
+    assert np.all(np.isfinite(feats1.data))

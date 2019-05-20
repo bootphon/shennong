@@ -524,16 +524,17 @@ def _extract_features(config, utterances, njobs=1, log=get_logger()):
 
 
 def _extract_pass_one(utt_name, manager, log=get_logger()):
-    log.debug('%s processing', utt_name)
-
     # load audio signal of the utterance
+    log.debug('%s: load audio', utt_name)
     audio = manager.get_audio(utt_name)
 
     # main features extraction
+    log.debug('%s: extract %s', utt_name, manager.features)
     features = manager.get_features_processor(utt_name).process(audio)
 
     # cmvn accumulation
     if 'cmvn' in manager.config:
+        log.debug('%s: accumulate cmvn', utt_name)
         # weight CMVN by voice activity detection (null weights on
         # non-voiced frames)
         if manager.config['cmvn']['with_vad']:
@@ -547,6 +548,7 @@ def _extract_pass_one(utt_name, manager, log=get_logger()):
 
     # pitch extraction
     if 'pitch' in manager.config:
+        log.debug('%s: extract pitch', utt_name)
         p1 = manager.get_pitch_processor(utt_name)
         p2 = manager.get_pitch_post_processor(utt_name)
         pitch = p2.process(p1.process(audio))
@@ -572,21 +574,19 @@ def _extract_pass_one(utt_name, manager, log=get_logger()):
         features.properties['audio']['duration'] = (
             manager._wavs_metadata[utterance.file].duration)
 
-    log.debug('%s processing done', utt_name)
-
     return utt_name, features, pitch
 
 
 def _extract_pass_two(utt_name, manager, features, pitch,
                       tolerance=2, log=get_logger()):
-    log.debug('%s post-processing ', utt_name)
-
     # apply cmvn
     if 'cmvn' in manager.config:
+        log.debug('%s: apply cmvn', utt_name)
         features = manager.get_cmvn_processor(utt_name).process(features)
 
     # apply delta
     if 'delta' in manager.config:
+        log.debug('%s: apply delta', utt_name)
         features = manager.get_delta_processor(utt_name).process(features)
 
     # concatenate the pitch features to the main ones. because of
@@ -594,10 +594,9 @@ def _extract_pass_two(utt_name, manager, features, pitch,
     # can differ (the same tolerance is applied in Kaldi, see
     # the paste-feats binary)
     if pitch:
+        log.debug('%s: concatenate pitch', utt_name)
         features._log = log
         features = features.concatenate(pitch, tolerance=tolerance)
-
-    log.debug('%s post-processing done', utt_name)
 
     return utt_name, features
 

@@ -218,6 +218,7 @@ def test_extract_features(utterances_index, features):
     feat1 = feats[utterances_index[0][0]]
     assert feat1.is_valid()
     assert feat1.shape[0] == 140
+    assert feat1.dtype == np.float32
 
     config = pipeline.get_default_config(
         features, with_cmvn=False, with_pitch=True)
@@ -277,6 +278,7 @@ def test_extract_features_full(ext, wav_file, wav_file_8k, wav_file_float32,
 
     for utt in ('u1', 'u2', 'u3'):
         assert utt in feats
+        assert feats[utt].dtype == np.float32
 
     # check properies
     p1 = feats['u1'].properties

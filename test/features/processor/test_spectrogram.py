@@ -24,3 +24,4 @@ def test_simple(audio):
     proc = SpectrogramProcessor(sample_rate=audio.sample_rate)
     feats = proc.process(audio)
     assert feats.shape == (140, 257)
+    assert feats.shape[1] == proc.ndims

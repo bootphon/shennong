@@ -68,7 +68,7 @@ class SpectrogramProcessor(FramesProcessor):
 
     @property
     def ndims(self):
-        return self._frame_options.padded_window_size()
+        return int(self._frame_options.padded_window_size() / 2 + 1)
 
     @property
     def energy_floor(self):
