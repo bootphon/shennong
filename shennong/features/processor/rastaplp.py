@@ -648,8 +648,8 @@ class RastaPlpProcessor(FramesProcessor):
         nbands = aspectrum.shape[0]
 
         if self.do_rasta:
-            # log domain
-            nl_aspectrum = np.log(aspectrum)
+            # log domain, add an epsilon in case of log(0)
+            nl_aspectrum = np.log(aspectrum + 1e-8)
             # rasta filtering
             ras_nl_aspectrum = _rastafilt(nl_aspectrum)
             # inverse log
