@@ -3,7 +3,7 @@ channels:
   - pykaldi
   - conda-forge
 dependencies:
-  - python=3.7
+  - python>=3.6
   - cython
   - flake8
   - h5py
