@@ -46,7 +46,7 @@ do
 
         sbatch <<EOF
 #!/bin/bash
-#SBATCH --job-name=${corpus}_${kind}
+#SBATCH --job-name=setup
 #SBATCH --output=$log
 #SBATCH --partition=$partition
 #SBATCH --ntasks=1
@@ -70,7 +70,7 @@ do
 
         sbatch <<EOF
 #!/bin/bash
-#SBATCH --job-name=$(basename $config |cut -d_ -f1)
+#SBATCH --job-name=setup
 #SBATCH --output=$log
 #SBATCH --partition=$partition
 #SBATCH --ntasks=1
@@ -86,5 +86,16 @@ EOF
     done
 done
 
+# schedule the next step
+
+sbatch <<EOF
+#!/bin/bash
+#SBATCH --job-name=setup
+#SBATCH --output=$log_dir/singleton_setup.log
+#SBATCH --dependency=singleton
+
+$here/2_abx_score.sh
+
+EOF
 
 exit 0

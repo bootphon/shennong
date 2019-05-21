@@ -16,10 +16,11 @@ Considered features and tasks
 
 * The considered features extraction algorithms are:
 
+  - *spectrogram*
+  - *filterbanks*
   - *MFCC*
   - *PLP*
   - *RASTA PLP*
-  - *mel filterbanks*
   - *bottleneck*
 
 * Each is tested with 3 distinct parameters sets:
@@ -33,8 +34,9 @@ Considered features and tasks
   [ZRC2015 track1](https://zerospeech.com/2015/track_1.html), namely a
   phone discrimination task within and across speakers.
 
-* This gives us 2 corpora * 2 tasks * 5 features * 3 parameters sets =
-  60 scores.
+* This gives us 2 corpora * 2 tasks * 6 features * 3 parameters sets =
+  72 scores.
+
 
 Recipe
 ------

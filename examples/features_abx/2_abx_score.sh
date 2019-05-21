@@ -37,4 +37,18 @@ EOF
     done
 done
 
+# schedule the next step
+
+sbatch <<EOF
+#!/bin/bash
+#SBATCH --job-name=abx
+#SBATCH --output=$log_dir/singleton_abx.log
+#SBATCH --dependency=singleton
+
+module load anaconda/3
+source activate shennong-dev
+$here/3_publish_results.py $data_dir -j $njobs
+
+EOF
+
 exit 0
