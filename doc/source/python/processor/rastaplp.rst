@@ -1,7 +1,7 @@
 .. _features.rastaplp:
 
-RASTA-PLP features
-~~~~~~~~~~~~~~~~~~
+RASTA-PLP
+~~~~~~~~~
 
 .. automodule:: shennong.features.processor.rastaplp
     :members:

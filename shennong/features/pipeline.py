@@ -23,11 +23,21 @@ configuration is a dictionary:
 dict_keys(['mfcc', 'pitch', 'cmvn', 'delta'])
 
 Generates the same configuration, but without CMVN and without
-delta. At this point you can change all the parameters you want (here
-we use a hanning windox for frame extraction):
+delta:
 
 >>> config = get_default_config('mfcc', with_cmvn=False, with_delta=False)
->>> config['mfcc']['window_type'] = 'hanning'
+>>> config.keys()
+dict_keys(['mfcc', 'pitch'])
+
+The returned configuration is intialized with default parameters. This
+is suitable for most usages, but you change them if you want. Here we
+are using a blackman windox for frame extraction, and we are changing
+the min/max F0 frequency for pitch extraction:
+
+>>> config['mfcc']['window_type'] = 'blackman'
+>>> config['mfcc']['blackman_coeff'] = 0.42
+>>> config['pitch']['min_f0'] = 25
+>>> config['pitch']['max_f0'] = 400
 
 Generates a list of utterances to extract the features on (here we
 have 2 utterances from the same speaker and same file):

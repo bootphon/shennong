@@ -4,14 +4,15 @@
 Installation
 ============
 
-This installation process is documented for Linux Ubuntu, but it can
-be adapted to other Linux/MacOS distributions easilly.
+* This installation process is documented for Linux Ubuntu, but it can
+  be adapted to other Linux/MacOS distributions easilly.
 
+* Shennong is developed for Python3 and is **not compatible with
+  Python2**.
 
-.. note::
-
-   ``shennong`` is developed for Python3 and is *not* compatible with
-   Python2.
+* Windows users can install shennong in a `Windows subsystem for Linux
+  <https://docs.microsoft.com/en-us/windows/wsl/about>`_ or within a
+  docker container as documented :ref:`below <install_docker>`.
 
 .. note::
 
@@ -31,10 +32,16 @@ distribution <https://www.anaconda.com>`_.
 
 * Install `conda <https://conda.io/miniconda.html>`_ on your machine,
 
-* Create a ``shennong`` Python virtual environment with conda::
+* Setup a Python virtual environment with the dependencies:
 
-    conda env create --name shennong -f environment.yml
-    conda activate shennong
+  * Create a fresh ``shennong`` Python virtual environment::
+
+      conda env create --name shennong -f environment.yml
+      conda activate shennong
+
+  * **Or**, if you need to work in an existing environment, update it::
+
+      conda env update --name MYENV -f environment
 
 * Then install the ``shennong`` package::
 
@@ -72,6 +79,8 @@ latest version available.
     make install
     make test
 
+
+.. _install_docker:
 
 Use in a Docker container
 -------------------------

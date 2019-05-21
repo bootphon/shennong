@@ -1,7 +1,7 @@
 .. _features.bottleneck:
 
-Bottleneck features
-~~~~~~~~~~~~~~~~~~~
+Bottleneck
+~~~~~~~~~~
 
 .. automodule:: shennong.features.processor.bottleneck
     :members:

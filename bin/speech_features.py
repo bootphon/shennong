@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Speech features extraction pipeline from raw wav files
 
-The general extraction pipeline is as follow:
+The general extraction pipeline is as follow::
 
      <input-config>     |--> features --> CMVN --> delta -->|
          and         -->|                                   |--> <output-file>
@@ -15,14 +15,14 @@ Features extraction basically involves three steps:
 
 1. Configure an extraction pipeline. For exemple this defines a full
    pipeline for MFCCs extraction (with CMVN, but without delta nor
-   pitch) and writes it to the file 'config.yaml':
+   pitch) and writes it to the file ``config.yaml``::
 
      speech-features config mfcc --no-pitch --no-delta -o config.yaml
 
 2. Define a list of wav files on which to extract features (along with
    optional speakers or utterances identification), for exemple you
-   can write a 'utts_index.txt' file with the following content (see
-   below for details on the format)
+   can write a ``utts_index.txt`` file with the following content (see
+   below for details on the format)::
 
      utterance1 /path/to/wav1.wav speaker1
      utterance2 /path/to/wav2.wav speaker1
@@ -30,7 +30,7 @@ Features extraction basically involves three steps:
 
 3. Apply the configured pipeline on the defined wavs index. For
    exemple this computes the features using 4 parallel subprocesses
-   and save them to a file in the numpy .npz format:
+   and save them to a file in the numpy ``.npz`` format::
 
      speech-features extract --njobs 4 config.yaml utts_index.txt features.npz
 
@@ -38,46 +38,46 @@ Features extraction basically involves three steps:
 Definition of `<input-config>`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The <input-config> is a configuration file in YAML format defining all
-the parameters of the extraction pipeline, including main features
-extraction (mfcc, plp, filterbank or bottleneck features) and
-post-processing (CMVN, delta and pitch extraction).
+The ``<input-config>`` is a configuration file in YAML format defining
+all the parameters of the extraction pipeline, including main features
+extraction (spectrogram, mfcc, plp, rastaplp, filterbank or bottleneck
+features) and post-processing (CMVN, delta and pitch extraction).
 
 You can generate a configuration template using 'speech-features
 config'. It will write a YAML file with default parameters that you
-can edit. See 'speeech-features config --help' for description of the
+can edit. See ``speech-features config --help`` for description of the
 available options.
 
 
 Definition of `<input-utts-index>`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The <input-utts-index> is a text file indexing the utterances on which
-to apply the extraction pipeline. Each line of the file defines a
-single utterance (or speech fragment). It can have one of the
+The ``<input-utts-index>`` is a text file indexing the utterances on
+which to apply the extraction pipeline. Each line of the file defines
+a single utterance (or speech fragment). It can have one of the
 following formats:
 
-1. <wav-file>
+1. ``<wav-file>``
 
     The simplest format, with a wav file per line. Each wav is
     considered as a single uterance. Each wav file must be unique.
 
-2. <utterance-id> <wav-file>
+2. ``<utterance-id> <wav-file>``
 
     Give a name to each utterance, utterance ids must be unique.
 
-3. <utterance-id> <wav-file> <speaker-id>
+3. ``<utterance-id> <wav-file> <speaker-id>``
 
     Specify a speaker for each utterance. This is required if you are
     using CMVN normalization per speaker.
 
-4. <utterance-id> <wav-file> <tstart> <tstop>
+4. ``<utterance-id> <wav-file> <tstart> <tstop>``
 
     Each wav contains several utterances, the utterance boudanries are
     defined by the start and stop timestamps within the wav file
     (given in seconds).
 
-5. <utterance-id> <wav-file> <speaker-id> <tstart> <tstop>
+5. ``<utterance-id> <wav-file> <speaker-id> <tstart> <tstop>``
 
     Combination of 3 and 4. Several utterances per wav, with speakers
     identification.
@@ -86,25 +86,27 @@ following formats:
 Definition of `<output-file>`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The <output-file> will store the extracted features. The underlying
+The ``<output-file>`` will store the extracted features. The underlying
 format is a dictionnary of utterances. Each utterance's features are
-stored as a matrix [nframes * ndims], along with timestamps and
+stored as a matrix `[nframes * ndims]`, along with timestamps and
 metadata.
 
 Several file formats are supported, the format is guessed by the file
 extension specified in command line:
 
-File format  Extension Use case
------------  --------- --------------------------------
-h5features   .h5f      First choice, fast and efficient
-numpy        .npz      Second choice, standard numpy format
-pickle       .pkl      Very fast, standard Python format
-matlab       .mat      Compatibility with Matlab
-kaldi        .ark      Compatibility with Kaldi
-JSON         .json     Very slow, for manual introspection only
+  ===========  ========= ========================================
+  File format  Extension Use case
+  ===========  ========= ========================================
+  h5features   .h5f      First choice, fast and efficient
+  numpy        .npz      Second choice, standard numpy format
+  pickle       .pkl      Very fast, standard Python format
+  matlab       .mat      Compatibility with Matlab
+  kaldi        .ark      Compatibility with Kaldi
+  JSON         .json     Very slow, for manual introspection only
+  ===========  ========= ========================================
 
 More info on file formats are available on the online documentation,
-at https://coml.lscp.ens.fr/shennong/python/features/serialization.html.
+at https://coml.lscp.ens.fr/shennong/python/features.html#save-load-features.
 
 """
 
@@ -265,9 +267,10 @@ def main():
         'speech-features is part of the shennong library\n'
         'see full documentation at https://coml.lscp.ens.fr/shennong')
 
-    description = (__doc__ +
-                   'Command line arguments\n' +
-                   '~~~~~~~~~~~~~~~~~~~~~~\n')
+    description = (
+        __doc__.replace('::', ':').replace('``', '\'') +
+        'Command line arguments\n' +
+        '~~~~~~~~~~~~~~~~~~~~~~\n')
 
     parser = argparse.ArgumentParser(
         description=description,

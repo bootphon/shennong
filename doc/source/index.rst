@@ -2,7 +2,7 @@ Shennong's documentation
 ========================
 
 .. image:: https://api.travis-ci.org/bootphon/shennong.svg?branch=master
-    :target: https://travis-ci.org/bootphon/shennong
+  :target: https://travis-ci.org/bootphon/shennong
 .. image:: https://codecov.io/gh/bootphon/shennong/branch/master/graph/badge.svg
   :target: https://codecov.io/gh/bootphon/shennong
 
@@ -11,9 +11,8 @@ Shennong's documentation
 
 * It provides both a **Python API** and a **command line interface**.
 
-* It aims to provide three blocks of processing, inspired by the tasks
-  and results of the `Zero Resource Speech challenges
-  <http://www.zerospeech.com/>`_:
+* It aims to provide three blocks of processing, inspired by the `Zero
+  Resource Speech challenges <http://www.zerospeech.com/>`_:
 
   * Speech features extraction,
   * Subword modeling,
@@ -36,6 +35,8 @@ Shennong's documentation
    :caption: Contents
 
    installation
+   intro_features
+   cli
    python/index
 
 

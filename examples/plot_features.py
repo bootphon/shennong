@@ -35,17 +35,25 @@ def main():
     features = {k: v.process(audio) for k, v in processors.items()}
 
     # plot the audio signal and the resulting features
-    fig, axes = plt.subplots(nrows=len(processors)+1)
+    fig, axes = plt.subplots(
+        nrows=len(processors)+1,
+        gridspec_kw={'top': 0.95, 'bottom': 0.05, 'hspace': 0},
+        subplot_kw={'xticks': [], 'yticks': []})
     time = np.arange(0.0, audio.nsamples) / audio.sample_rate
-    axes[0].plot(time, audio.data)
-    axes[0].set_title('audio')
+    axes[0].plot(time, audio.astype(np.float32).data)
     axes[0].set_xlim(0.0, audio.duration)
+    axes[0].text(
+        0.02, 0.8, 'audio',
+        bbox={'boxstyle': 'round', 'alpha': 0.5, 'color': 'white'},
+        transform=axes[0].transAxes)
 
     for n, (k, v) in enumerate(features.items(), start=1):
         axes[n].imshow(v.data.T, aspect='auto')
-        axes[n].set_title(k)
+        axes[n].text(
+            0.02, 0.8, k,
+            bbox={'boxstyle': 'round', 'alpha': 0.5, 'color': 'white'},
+            transform=axes[n].transAxes)
 
-    fig.suptitle(wav_file)
     plt.show()
 
 

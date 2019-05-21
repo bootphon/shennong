@@ -10,8 +10,11 @@ Python API reference
      import shennong
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 2
 
    audio
-   features/index
+   processor/index
+   postprocessor/index
+   pipeline
+   features
    miscellaneous/index
