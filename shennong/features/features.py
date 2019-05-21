@@ -277,6 +277,11 @@ class Features:
         if not all(n == index[n] for n in range(self.nframes)):
             raise ValueError('times is not sorted in increasing order')
 
+        # check all values in array are finit (not infinity nor nan)
+        if not np.all(np.isfinite(self.data)):
+            raise ValueError(
+                'data contains non-finite numbers (nan of infinity)')
+
     def concatenate(self, other, tolerance=0):
         """Returns the concatenation of this features with `other`
 

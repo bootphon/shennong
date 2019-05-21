@@ -39,7 +39,7 @@ References
 import kaldi.feat.window
 import kaldi.matrix
 import numpy as np
-import pyfftw
+import scipy.fftpack
 import scipy.signal
 
 from shennong.features import Features
@@ -245,23 +245,18 @@ def _dolpc(x, modelorder=8):
     for i in range(nbands - 1):
         R[i + nbands - 1, :] = x[nbands - (i + 1), :]
 
-    r = pyfftw.interfaces.scipy_fftpack.ifft(R.T).real.T
+    r = scipy.fftpack.ifft(R.T).real.T
     r = r[0:nbands, :]
 
     y = np.ones((nframes, modelorder + 1))
     e = np.zeros((nframes, 1))
 
-    if modelorder == 0:
-        for i in range(nframes):
-            _, e_tmp, _ = _levinson(
-                r[:, i], modelorder, allow_singularity=True)
-            e[i, 0] = e_tmp
-    else:
-        for i in range(nframes):
-            y_tmp, e_tmp, _ = _levinson(
-                r[:, i], modelorder, allow_singularity=True)
+    for i in range(nframes):
+        y_tmp, e_tmp, _ = _levinson(
+            r[:, i], modelorder, allow_singularity=True)
+        if modelorder != 0:
             y[i, 1:modelorder + 1] = y_tmp
-            e[i, 0] = e_tmp
+        e[i, 0] = e_tmp
 
     y = y.T / (np.tile(e.T, (modelorder + 1, 1)) + 1e-8)
 
@@ -269,7 +264,10 @@ def _dolpc(x, modelorder=8):
 
 
 # TODO optimize: this is the most inefficient function in the
-# processor, takes about half of the compute time
+# processor, takes about half of the compute time. Complexity is
+# o(N**2 + N). See scipy.linalg.solve_toeplitz: can be
+# solve_toeplitz((r[:-1], r.conj()[:-1]), -r[1:]) but the function does
+# not return prediction error...
 def _levinson(r, order=None, allow_singularity=False):
     r"""Levinson-Durbin recursion.
 
@@ -562,9 +560,6 @@ class RastaPlpProcessor(FramesProcessor):
         self.do_rasta = do_rasta
         self.order = order
 
-        # enable FFTW cache to speedup succesive calls to fft function
-        pyfftw.interfaces.cache.enable()
-
     @property
     def name(self):
         return 'rasta-plp'
@@ -597,13 +592,6 @@ class RastaPlpProcessor(FramesProcessor):
             raise ValueError('order must be an integer in [0, 12]')
         self._order = value
 
-    @staticmethod
-    def _fft(data, axis=0):
-        return pyfftw.interfaces.numpy_fft.rfft(
-            data, axis=axis,
-            overwrite_input=True,
-            planner_effort='FFTW_PATIENT')
-
     def _power_spectrum(self, signal, block_size=64):
         num_frames = kaldi.feat.window.num_frames(
             signal.nsamples, self._frame_options)
@@ -620,8 +608,7 @@ class RastaPlpProcessor(FramesProcessor):
 
         # preallocate frames buffer
         single_frame = kaldi.matrix.Vector(window_size)
-        buffer_frames = pyfftw.empty_aligned(
-            (window_size, block_size), dtype=np.float32)
+        buffer_frames = np.empty((window_size, block_size), dtype=np.float32)
 
         for min_frame in range(0, num_frames, block_size):
             max_frame = min(min_frame + block_size, num_frames)
@@ -634,7 +621,7 @@ class RastaPlpProcessor(FramesProcessor):
                 buffer_frames[:, i - min_frame] = single_frame.numpy()
 
             # compute the power spectrum per block
-            power_spectrum[:, min_frame:max_frame] = self._fft(
+            power_spectrum[:, min_frame:max_frame] = np.fft.rfft(
                 buffer_frames[:, :max_frame - min_frame], axis=0)
 
         return np.abs(power_spectrum) ** 2

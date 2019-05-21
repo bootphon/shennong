@@ -29,6 +29,12 @@ def test_init_bad():
         Features(np.asarray([[0], [0]]), np.random.random((2, 2, 2)))
     assert 'times dimension must be 1 or 2' in str(err)
 
+    with pytest.raises(ValueError) as err:
+        data = np.random.random((12, 2))
+        data[2, 1] = np.nan
+        Features(data, np.ones((12,)))
+    assert 'data contains non-finite numbers' in str(err)
+
 
 def test_tofrom_dict(mfcc):
     a = mfcc._to_dict()
