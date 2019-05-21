@@ -12,7 +12,7 @@ from shennong.features.processor.bottleneck import (
 
 @pytest.mark.parametrize('weights', ['BabelMulti', 'FisherMono', 'FisherTri'])
 def test_params(weights):
-    p = {'weights': weights}
+    p = {'weights': weights, 'dither': 0.1}
     assert BottleneckProcessor(**p).get_params() == p
 
     b = BottleneckProcessor()
@@ -75,11 +75,9 @@ def test_process(capsys, audio, mfcc, weights):
         '118' if audio._sox_found() else '121') in captured
 
 
-# may fail to have approx arrays (because of random signal
-# dithering), so we authorize 20 successive runs
-@pytest.mark.flaky(reruns=20)
 def test_compare_original(audio_8k, bottleneck_original):
-    feat = BottleneckProcessor(weights='BabelMulti').process(audio_8k)
+    feat = BottleneckProcessor(
+        weights='BabelMulti', dither=0).process(audio_8k)
     assert bottleneck_original.shape == feat.shape
     assert bottleneck_original == pytest.approx(feat.data, abs=2e-2)
 

@@ -520,13 +520,23 @@ class BottleneckProcessor(FeaturesProcessor):
     # BottleneckProcessor)
     _loaded_weights = {}
 
-    def __init__(self, weights='BabelMulti'):
+    def __init__(self, weights='BabelMulti', dither=0.1):
         self.weights = weights
+        self.dither = dither
         self._get_weights()
 
     @property
     def name(self):
         return 'bottleneck'
+
+    @property
+    def dither(self):
+        """Amount of dithering"""
+        return self._dither
+
+    @dither.setter
+    def dither(self, value):
+        self._dither = float(value)
 
     @property
     def weights(self):
@@ -712,7 +722,7 @@ class BottleneckProcessor(FeaturesProcessor):
                         voiced_frames, len(vad))
 
         # from audio signal to mel filterbank
-        signal = _add_dither(signal, 0.1)
+        signal = _add_dither(signal, self.dither)
         window = np.hamming(frame_length)
         fbank_mx = _mel_fbank_mx(
             window.size, 8000, numchans=24, lofreq=64.0, hifreq=3800.0)

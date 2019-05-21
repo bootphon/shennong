@@ -27,10 +27,6 @@ PROCESSORS = [
     RastaPlpProcessor]
 
 
-# here we computes the same features two times and ensure we obtain the
-# same results, allowing reruns because bottleneck has a dither we
-# cannot disable.
-@pytest.mark.flaky(reruns=20)
 @pytest.mark.parametrize(
     'processor, same', [(p, s) for p in PROCESSORS for s in (True, False)])
 def test_stable(processor, same, audio, alignments):
@@ -50,9 +46,4 @@ def test_stable(processor, same, audio, alignments):
 
     f1 = p1.process(audio)
     f2 = p2.process(audio)
-
-    if processor is BottleneckProcessor:
-        # bottleneck processor adds a little dither we cannot disable
-        assert f1.is_close(f2, rtol=5e-1, atol=5e-1)
-    else:
-        assert f1 == f2
+    assert f1 == f2

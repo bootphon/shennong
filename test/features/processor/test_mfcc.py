@@ -97,15 +97,18 @@ def test_num_bins(audio, num_bins):
             proc.process(audio)
 
 
-@pytest.mark.flaky(reruns=20)
 def test_htk_compat(audio):
-    p1 = MfccProcessor(use_energy=True, htk_compat=False).process(audio)
-    p2 = MfccProcessor(use_energy=True, htk_compat=True).process(audio)
-    assert p1.data[:, 0] == pytest.approx(p2.data[:, -1], rel=1e-2)
+    p1 = MfccProcessor(
+        use_energy=True, htk_compat=False, dither=0).process(audio)
+    p2 = MfccProcessor(
+        use_energy=True, htk_compat=True, dither=0).process(audio)
+    assert p1.data[:, 0] == pytest.approx(p2.data[:, -1])
 
-    p1 = MfccProcessor(use_energy=False, htk_compat=False).process(audio)
-    p2 = MfccProcessor(use_energy=False, htk_compat=True).process(audio)
-    assert p1.data[:, 0] * 2**0.5 == pytest.approx(p2.data[:, -1], rel=1e-1)
+    p1 = MfccProcessor(
+        use_energy=False, htk_compat=False, dither=0).process(audio)
+    p2 = MfccProcessor(
+        use_energy=False, htk_compat=True, dither=0).process(audio)
+    assert p1.data[:, 0] * 2**0.5 == pytest.approx(p2.data[:, -1])
 
 
 def test_output(audio):

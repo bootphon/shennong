@@ -181,7 +181,6 @@ def test_apply_baddim(features_collection):
     assert 'must have consistent dimensions' in str(err)
 
 
-@pytest.mark.flaky(reruns=20)
 def test_apply_cmvn_bycollection(features_collection):
     cmvns = apply_cmvn(features_collection, by_collection=True)
     cmvns = np.concatenate([f.data for f in cmvns.values()], axis=0)
@@ -209,7 +208,6 @@ def test_apply_cmvn_skipdims(features_collection, skip_dims):
             assert feats.data[:, :2].var(axis=0) != pytest.approx(1, abs=1e-5)
 
 
-@pytest.mark.flaky(reruns=10)
 def test_apply_cmvn_byfeatures(features_collection):
     cmvns = apply_cmvn(features_collection, by_collection=False)
     for feat in cmvns.values():

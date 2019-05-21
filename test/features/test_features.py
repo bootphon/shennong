@@ -193,8 +193,6 @@ def test_1d_times_sorted():
     assert feats.is_valid()
 
 
-# in case (very unlikely) the random times array is sorted
-@pytest.mark.flaky(reruns=10)
 def test_2d_times_unsorted():
     with pytest.raises(ValueError) as err:
         Features(np.random.random((10, 3)), np.random.random((10, 2)))
