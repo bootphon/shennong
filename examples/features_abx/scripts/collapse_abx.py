@@ -13,7 +13,6 @@ import joblib
 import numpy as np
 import os
 import pandas
-import tabulate
 
 
 Entry = collections.namedtuple(
@@ -48,27 +47,16 @@ def compute_scores(csv_files, scores_file, njobs=1):
         task = name[0]
         score = average(pandas.read_csv(csv, sep='\t'), task)
         return Entry(
-            corpus=name[1], task=name[0], features=name[2],
-            params=name[3], score=score)
+            corpus=name[1],
+            task=name[0],
+            features=name[2],
+            params=name[3],
+            score=score)
 
     entries = joblib.Parallel(n_jobs=njobs, verbose=10)(
         joblib.delayed(_compute_score)(csv) for csv in csv_files)
 
     return entries
-
-
-def make_table(entries):
-    def _get_entry(features, params):
-        return [e for e in entries
-                if e.features == features and e.params == params][0].score
-
-    header = ['features', 'only', 'nocmvn', 'full']
-    columns = header[1:]
-    rows = sorted({e.features for e in entries})
-    table = [[row] + [
-        _get_entry(row, column) for column in columns] for row in rows]
-    return tabulate.tabulate(
-        table, header, tablefmt='rst', numalign='right', floatfmt='.1f')
 
 
 def main():
@@ -91,21 +79,6 @@ def main():
         for e in sorted(entries):
             fout.write('{} {} {} {} {}\n'.format(
                 e.corpus, e.task, e.features, e.params, e.score))
-    # # reload an already computed scores file
-    # entries = [Entry._make(line.strip().split(' '))
-    #            for line in open(scores_file, 'r')]
-
-    # generates result tables from the scores (one table per corpus /
-    # task combination)
-    tables_dir = os.path.join(args.data_dir, 'tables')
-    if not os.path.isdir(tables_dir):
-        os.makedirs(tables_dir)
-    for corpus in ('english', 'xitsonga'):
-        for task in ('within', 'across'):
-            table_entries = [
-                e for e in entries if e.corpus == corpus and e.task == task]
-            tfile = os.path.join(tables_dir, f'{corpus}_{task}.rst')
-            open(tfile, 'w').write(make_table(table_entries) + '\n')
 
 
 if __name__ == '__main__':
