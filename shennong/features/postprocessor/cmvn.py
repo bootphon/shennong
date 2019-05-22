@@ -1,10 +1,55 @@
-"""Computes cepstral mean variance normalization (CMVN)
+"""Cepstral mean variance normalization (CMVN) on speech features
 
-The :class:`CmvnProcessor` class is used for accumulating CMVN
+The :class:`CmvnPostProcessor` class is used for accumulating CMVN
 statistics and applying CMVN on features using accumulated
 statistics. Uses the Kaldi implementation (see [kaldi-cmvn]_):
 
-    :class:`Features` --> CmvnProcessor --> :class:`Features`
+    :class:`Features` --> CmvnPostProcessor --> :class:`Features`
+
+Examples
+--------
+
+Compute MFCC features:
+
+>>> import numpy as np
+>>> from shennong.audio import Audio
+>>> from shennong.features.processor.mfcc import MfccProcessor
+>>> from shennong.features.postprocessor.cmvn import CmvnPostProcessor
+>>> audio = Audio.load('./test/data/test.wav')
+>>> mfcc = MfccProcessor(sample_rate=audio.sample_rate).process(audio)
+
+Accumulate CMVN statistics and normalize the features (in real life
+you want to accumulate statistics over several features, for example
+on all features belonging to one speaker, so as to obtain a
+normalization per speaker):
+
+>>> processor = CmvnPostProcessor(mfcc.ndims)
+>>> processor.accumulate(mfcc)
+>>> cmvn = processor.process(mfcc)
+
+The normalized features have a zero mean and unitary variance:
+
+>>> np.all(np.isclose(cmvn.data.mean(axis=0), np.zeros(cmvn.ndims), atol=1e-6))
+True
+>>> np.all(np.isclose(cmvn.data.var(axis=0), np.ones(cmvn.ndims), atol=1e-6))
+True
+
+This module also provides a high-level method for applying CMVN to a
+whole :class:`~shennong.features.features.FeaturesCollection` at once:
+
+>>> from shennong.features import FeaturesCollection
+>>> from shennong.features.postprocessor.cmvn import apply_cmvn
+>>> feats = FeaturesCollection(utt1=mfcc)
+>>> cmvns = apply_cmvn(feats)
+
+As above, the features has zero mean and unitary variance
+
+>>> cmvn = cmvns['utt1']
+>>> np.all(np.isclose(cmvn.data.mean(axis=0), np.zeros(cmvn.ndims), atol=1e-6))
+True
+>>> np.all(np.isclose(cmvn.data.var(axis=0), np.ones(cmvn.ndims), atol=1e-6))
+True
+
 
 References
 ----------

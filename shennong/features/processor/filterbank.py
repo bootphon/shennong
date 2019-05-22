@@ -3,7 +3,8 @@
 Extract mel-filterbank features from an audio signal. Use the Kaldi
 implementation (see [kaldi-fbank]_).
 
-    :class:`Audio` ---> FilterbankProcessor ---> :class:`Features`
+    :class:`~shennong.audio.Audio` ---> FilterbankProcessor \
+    ---> :class:`~shennong.features.features.Features`
 
 
 Examples

@@ -15,10 +15,18 @@ Compute RASTA-PLP features on some speech signal:
 >>> from shennong.audio import Audio
 >>> from shennong.features.processor.rastaplp import RastaPlpProcessor
 >>> audio = Audio.load('./test/data/test.wav')
->>> processor = RastaPlpProcessor()
+>>> processor = RastaPlpProcessor(order=8)
 >>> features = processor.process(audio)
 >>> features.shape
 (140, 9)
+
+The output dimension depends on the PLP ``order`` parameter:
+
+>>> processor.order = 10
+>>> features = processor.process(audio)
+>>> features.shape
+(140, 11)
+
 
 References
 ----------

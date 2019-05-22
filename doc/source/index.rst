@@ -23,7 +23,7 @@ Shennong's documentation
    The package is still in development phase (current version is
    |version|):
 
-    * Release *0.1* will include the *features* block,
+    * Release *0.1* includes the *features* block,
     * Release 0.2 will include the *subword modeling* block,
     * Release *0.3* will include the *term discovery* block,
     * Further versions will include complete recipes, replication of

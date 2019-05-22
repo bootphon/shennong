@@ -6,7 +6,8 @@ Extract PLP (Perceptual Linear Predictive analysis of speech) from an
 audio signal. Uses the Kaldi implementation (see [Hermansky1990]_ and
 [kaldi-plp]_).
 
-    :class:`Audio` ---> PlpProcessor ---> :class:`Features`
+    :class:`~shennong.audio.Audio` ---> PlpProcessor \
+    ---> :class:`~shennong.features.features.Features`
 
 Examples
 --------
@@ -25,7 +26,7 @@ specified at construction, or after:
 >>> processor.compress_factor = 1/3
 
 Compute the PLP features with the specified options, the output is an
-instance of `Features`:
+instance of :class:`~shennong.features.features.Features`:
 
 >>> plp = processor.process(audio)
 >>> type(plp)
@@ -187,10 +188,8 @@ class PlpProcessor(MelFeaturesProcessor):
 
         Put energy or C0 last.
 
-        Warnings
-        --------
-        Not sufficient to get HTK compatible features (need to change
-        other parameters)
+        Warning: Not sufficient to get HTK compatible features (need
+        to change other parameters)
 
         """
         return self._options.htk_compat

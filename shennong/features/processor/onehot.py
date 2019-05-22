@@ -1,7 +1,12 @@
 """One hot encoding of time-aligned tokens
 
+
+    :class:`~shennong.alignment.Alignment` ---> {Framed}OneHotProcessor \
+    ---> :class:`~shennong.features.features.Features`
+
+
 One hot features are built from a time alignement of the spoken
-tokenmes. They come in two flavours:
+tokens. They come in two flavours:
 
 * :class:`OneHotProcessor` simply encode tokens in an alignment into
   on hot vectors
@@ -9,9 +14,29 @@ tokenmes. They come in two flavours:
 * :class:`FramedOneHotProcessor` includes the alignment into windowed
   frames before doing the one hot encoding
 
+Examples
+--------
 
-    :class:`~shennong.alignment.Alignment` ---> {Framed}OneHotProcessor \
-    ---> :class:`~shennong.features.features.Features`
+Create a fake alignment:
+
+>>> import numpy as np
+>>> from shennong.alignment import Alignment
+>>> alignment = Alignment(np.asarray([[0, 1], [1, 2]]), np.asarray(['a', 'b']))
+>>> alignment
+0 1 a
+1 2 b
+
+Extract onehot vectors from it:
+
+>>> from shennong.features.processor.onehot import OneHotProcessor
+>>> processor = OneHotProcessor()
+>>> onehot = processor.process(alignment)
+>>> onehot.times
+array([[0, 1],
+       [1, 2]])
+>>> onehot.data
+array([[ True, False],
+       [False,  True]])
 
 """
 

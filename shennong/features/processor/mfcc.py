@@ -3,7 +3,8 @@
 Extract MFCC (Mel Frequency Cepstral Coeficients) from an audio
 signal. Uses the Kaldi implementation (see [kaldi-mfcc]_):
 
-    :class:`Audio` ---> MfccProcessor ---> :class:`Features`
+    :class:`~shennong.audio.Audio` ---> MfccProcessor \
+    ---> :class:`~shennong.features.features.Features`
 
 Examples
 --------
@@ -22,7 +23,7 @@ specified at construction, or after:
 >>> processor.use_energy = False  # use C0 instead
 
 Compute the MFCC features with the specified options, the output is an
-instance of `Features`:
+instance of :class:`~shennong.features.features.Features`:
 
 >>> mfcc = processor.process(audio)
 >>> type(mfcc)

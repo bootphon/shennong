@@ -35,7 +35,7 @@ Implemented models
   Voice Activity Detection              from Kaldi_
   ===================================== ==============
 
-* Here is an illustration of the features (no post-processing)
+* Here is an illustration of the features (without post-processing)
   computed on the example wav file provided as
   ``shennong/test/data/test.wav``, this picture can be reproduced
   using the example script ``shennong/examples/plot_features.py``:
@@ -68,19 +68,19 @@ Setup
 
 * The considered features extraction algorithms are:
 
-  * spectrogram
+  * bottleneck
   * filterbanks
   * MFCC
   * PLP
   * RASTA PLP
-  * bottleneck
+  * spectrogram
 
 * Each is tested with 3 distinct parameters sets:
 
-  * only: just the raw features
-  * nocmvn: raw features with delta, delta-delta and pitch
-  * full raw features with CMVN normalization by speaker, with
-    delta, delta-delta and pitch
+  * **only**: just the raw features,
+  * **nocmvn**: raw features with delta, delta-delta and pitch,
+  * **full**: raw features with CMVN normalization by speaker, with
+    delta, delta-delta and pitch.
 
 * The considered ABX tasks are the same as in the `ZRC2015 track1
   <https://zerospeech.com/2015/track_1.html>`_, namely a phone

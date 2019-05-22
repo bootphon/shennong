@@ -17,11 +17,11 @@ of the following types (with the corresponding min and max):
     np.float64 -1.0        +1.0
     ========== =========== ===========
 
-When loading an audio file with :func:`Audio.load`, those min/max
-are expected to be respected. When creating an `Audio` instance
-from a raw data array, the `validate` parameter in the class
-constructor and the method :func:`Audio.is_valid` make sure the
-data type and min/max are respected.
+When loading an audio file with :func:`Audio.load`, those min/max are
+expected to be respected. When creating an :class:`Audio` instance
+from a raw data array, the ``validate`` parameter in the class
+constructor and the method :func:`Audio.is_valid` make sure the data
+type and min/max are respected.
 
 Examples
 --------
@@ -53,9 +53,11 @@ Resample the signal to 8 kHz and convert it to 16 bits integers:
 True
 >>> audio2.dtype
 dtype('int16')
+>>> audio2.is_valid()
+True
 
-Save the `Audio` instance as a wav file, load an existing wav
-file as an `Audio` instance:
+Save the :class:`Audio` instance as a wav file, load an existing wav
+file as an :class:`Audio` instance:
 
 >>> audio.save('stereo.wav')
 >>> audio3 = Audio.load('stereo.wav')
@@ -64,7 +66,7 @@ True
 >>> os.remove('stereo.wav')
 
 Extract mono signal from a stereo one (`left` and `right` are
-instances of Audio as well):
+instances of :class:`Audio` as well):
 
 >>> left = audio.channel(0)
 >>> right = audio.channel(1)

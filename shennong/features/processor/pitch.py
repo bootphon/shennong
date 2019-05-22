@@ -1,16 +1,16 @@
 """Provides classes to extract pitch from an audio (speech) signal
 
-This modules provides the classes PitchProcessor and
-PitchPostProcessor which respectively computes the pitch from raw
-speech and turns it into suitable features: it produces pitch and
+This modules provides the classes :class:`PitchProcessor` and
+:class:`PitchPostProcessor` which respectively computes the pitch from
+raw speech and turns it into suitable features: it produces pitch and
 probability-of-voicing estimates for use as features in automatic
 speech recognition systems
 
 Uses the Kaldi implementation of pitch extraction and postprocessing
 (see [Ghahremani2014]_ and [kaldi-pitch]_).
 
-    :class:`Audio` ---> PitchProcessor ---> PitchPostProcessor \
-    ---> :class:`Features`
+    :class:`~shennong.audio.Audio` ---> PitchProcessor \
+    ---> PitchPostProcessor ---> :class:`~shennong.features.features.Features`
 
 Examples
 --------
@@ -37,7 +37,7 @@ Options can also being passed as a dictionnary:
 >>> processor = PitchProcessor(**options)
 
 Compute the pitch with the specified options, the output is an
-instance of `Features`:
+instance of :class:`~shennong.features.features.Features`:
 
 >>> pitch = processor.process(audio)
 >>> type(pitch)

@@ -3,7 +3,8 @@
 Extract spectrogram (log of the power spectrum) from an audio
 signal. Uses the Kaldi implementation (see [kaldi-spec]_):
 
-    :class:`Audio` ---> SpectrogramProcessor ---> :class:`Features`
+    :class:`~shennong.audio.Audio` ---> SpectrogramProcessor \
+    ---> :class:`~shennong.features.features.Features`
 
 Examples
 --------

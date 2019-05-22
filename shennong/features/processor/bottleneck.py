@@ -41,13 +41,15 @@
 ###############################################################################
 """Extraction of bottleneck features from a speech signal
 
-    :class:`Audio` --> BottleneckProcessor --> :class:`Features`
+    :class:`~shennong.audio.Audio` ---> BottleneckProcessor \
+    ---> :class:`~shennong.features.features.Features`
 
-This module provides the class BottleneckProcessor which computes
-stacked bottleneck features from audio signals (see [Silnova2018]_ and
-[Fer2017]_). This is an adpatation of the original code released on
-[bottleneck-site]_. Features are extracted from one of the three
-provided pre-trained neural networks:
+This module provides the class
+:class:`~shennong.features.processor.bottleneck.BottleneckProcessor`
+which computes stacked bottleneck features from audio signals (see
+[Silnova2018]_ and [Fer2017]_). This is an adpatation of the original
+code released on [bottleneck-site]_. Features are extracted from one
+of the three provided pre-trained neural networks:
 
 * *FisherMono*: Trained on Fisher English (parts 1 and 2 datasets,
   about 2000 hours of clean telephone speech) with 120 phoneme states
@@ -531,7 +533,11 @@ class BottleneckProcessor(FeaturesProcessor):
 
     @property
     def dither(self):
-        """Amount of dithering"""
+        """Amount of dithering
+
+        0.0 means no dither
+
+        """
         return self._dither
 
     @dither.setter
