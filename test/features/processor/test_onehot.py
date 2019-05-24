@@ -153,3 +153,4 @@ def test_sample_rate():
 
     feats = onehot.FramedOneHotProcessor(sample_rate=1000).process(ali)
     assert feats.nframes == frames.Frames(sample_rate=1000).nframes(2000)
+    assert feats.dtype == bool

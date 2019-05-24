@@ -80,18 +80,8 @@ trap "rm -rf $tmp_dir" EXIT
 
 echo "step 1: setup $data_dir"
 
-cat > $tmp_dir/step1.sh <<EOF
-#!/bin/bash
-#SBATCH --job-name=step1
-#SBATCH --output=$log_dir/step1.log
-#SBATCH --partition=$partition
-#SBATCH --ntasks=1
-
-$activate_shennong
+eval $activate_shennong
 $here/scripts/setup_data.py $data_dir $buckeye_dir $xitsonga_dir || exit 1
-EOF
-
-pid=$(sbatch $tmp_dir/step1.sh | cut -d' ' -f4)
 
 
 # prepare the dependency for step 3
@@ -121,14 +111,13 @@ do
 #SBATCH --output=$log
 #SBATCH --partition=$partition
 #SBATCH --ntasks=1
-#SBATCH --dependency=afterok:$pid
 
 $activate_abx
 abx-task $item $task $options || exit 1
 EOF
 
-        pid2=$(sbatch $tmp_dir/step2.sh | cut -d' ' -f4)
-        dependency=${dependency}:$pid2
+        pid=$(sbatch $tmp_dir/step2.sh | cut -d' ' -f4)
+        dependency=${dependency}:$pid
     done
 done
 
@@ -149,7 +138,6 @@ do
 #SBATCH --partition=$partition
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=$njobs
-#SBATCH --dependency=afterok:$pid
 
 $activate_shennong
 export OMP_NUM_THREADS=1
@@ -157,8 +145,8 @@ export OMP_NUM_THREADS=1
 $here/scripts/extract_features.py $data_dir $config $corpus --njobs $njobs || exit 1
 EOF
 
-        pid2=$(sbatch $tmp_dir/step2.sh | cut -d' ' -f4)
-        dependency=${dependency}:$pid2
+        pid=$(sbatch $tmp_dir/step2.sh | cut -d' ' -f4)
+        dependency=${dependency}:$pid
     done
 done
 
