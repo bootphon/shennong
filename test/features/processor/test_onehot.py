@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from shennong import alignment
-from shennong.features import window
+from shennong.features import window, frames
 from shennong.features.processor import onehot, mfcc
 
 
@@ -141,3 +141,15 @@ def test_window(alignments, window):
     feat = onehot.FramedOneHotProcessor(window_type=window).process(ali)
     assert all(feat.data.sum(axis=1) != 0)
     assert feat.shape == (68, ntokens)
+
+
+def test_sample_rate():
+    ali = alignment.Alignment(
+        np.asarray([[0, 1], [1, 2]]), np.asarray(['a', 'b']))
+
+    with pytest.raises(ValueError) as err:
+        onehot.FramedOneHotProcessor(sample_rate=2).process(ali)
+    assert 'sample rate too low' in str(err)
+
+    feats = onehot.FramedOneHotProcessor(sample_rate=1000).process(ali)
+    assert feats.nframes == frames.Frames(sample_rate=1000).nframes(2000)

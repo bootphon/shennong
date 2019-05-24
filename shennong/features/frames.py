@@ -124,7 +124,16 @@ class Frames(BaseProcessor):
         nframes : int
             The number of frames extracted from `nsamples`
 
+        Raises
+        ------
+        ValueError
+            If ``samples_per_shift == 0``, meaning the sample rate is
+            to low w.r.t the frame shift.
+
         """
+        if self.samples_per_shift == 0:
+            raise ValueError('cannot compute nframes: sample rate too low')
+
         return int(kaldi.feat.window.num_frames(
             nsamples, self._options, flush=True))
 
