@@ -26,4 +26,3 @@ dependencies:
       - h5features>=1.3.2
       - json-tricks
       - ninja
-      - sox  # sox python wrapper

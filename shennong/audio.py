@@ -82,9 +82,11 @@ import functools
 import logging
 import os
 import numpy as np
+import re
 import scipy.signal
 import scipy.io.wavfile
-import sox
+import shlex
+import subprocess
 import tempfile
 import warnings
 import wave
@@ -220,21 +222,32 @@ class Audio:
     def _scan_sox(cls, wav_file):
         """Scan the `wav_file` using soxi
 
-        Support for floating point formats, but the implementation if
-        less efficient than :meth:`_scan_wave` (use one call to soxi
-        per info value)
+        Support for floating point formats, but relies on external
+        `soxi` program.
 
         """
         try:
-            info = sox.file_info.info(wav_file)
-            return cls._metawav(
-                info['channels'],
-                info['sample_rate'],
-                info['num_samples'],
-                info['duration'])
-        except sox.SoxiError:
+            soxi = subprocess.run(
+                ['soxi',  wav_file], check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                universal_newlines=True).stdout.split('\n')
+
+            nchannels = int(
+                re.search(r'Channels\s+:\s([0-9]+)', soxi[2]).group(1))
+            sample_rate = float(
+                re.search(r'Rate\s+:\s([0-9]+)', soxi[3]).group(1))
+            nsamples = int(
+                re.search(r'Duration.*?=\s([0-9]+)', soxi[5]).group(1))
+            duration = nsamples / sample_rate
+
+            return cls._metawav(nchannels, sample_rate, nsamples, duration)
+        except subprocess.CalledProcessError:
             raise ValueError(
-                '{}: cannot read file, is it a wav?'.format(wav_file))
+                f'cannot read file {wav_file}: is it a wav?') from None
+        except TypeError:  # pragma: nocover
+            raise ValueError(
+                f'cannot read file {wav_file}: failed to parse data') from None
 
     @classmethod
     def _scan_wave(cls, wav_file):
@@ -389,42 +402,30 @@ class Audio:
     @classmethod
     def _sox_found(cls):
         """Returns True if sox is installed on the system, False otherwise"""
-        if sox.NO_SOX:  # pragma: nocover
+        if not len(os.popen('sox -h').readlines()):  # pragma: nocover
             cls._log.warning('sox not found, install it for faster resampling')
             return False
         return True
 
     def _resample_sox(self, sample_rate):
         """Resample the audio signal to the given `sample_rate` using sox"""
-        # inhibate some useless messages from pysox
-        sox.logger.setLevel(logging.WARNING)
-
-        # setup the resampling processor
-        tfm = sox.Transformer()
-        tfm.rate(sample_rate, quality='h')
-
-        level = self._log.getEffectiveLevel()
-        if level < logging.INFO:
-            self._log.setLevel(logging.INFO)
-
         # sox works directly with audio files so we need to write it
         # to disk and load it back after resampling
         with tempfile.TemporaryDirectory() as tmp:
             orig = os.path.join(tmp, 'orig.wav')
             dest = os.path.join(tmp, 'dest.wav')
             self.save(orig)
-            try:
-                tfm.build(orig, dest)
-            except sox.SoxError:  # pragma: nocover
-                # this may be raised in case of memory allocation
-                # error by sox (do not forward the SoxError exception
-                # as the error has already being logged as an error
-                # message)
-                raise ValueError('sox failed to resample audio') from None
-            resampled = Audio.load(dest)
 
-        self._log.setLevel(level)
-        return resampled
+            command = shlex.split(
+                f'sox -D -V2 {orig} {dest} rate -h {sample_rate}')
+
+            try:
+                subprocess.run(command, check=True)
+            except subprocess.CalledProcessError:  # pragma: nocover
+                raise ValueError(
+                    f'sox failed to resample audio') from None
+
+            return Audio.load(dest)
 
     def _resample_scipy(self, sample_rate):
         """Resample the audio signal to the given `sample_rate` using scipy"""
