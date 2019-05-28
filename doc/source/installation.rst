@@ -4,15 +4,10 @@
 Installation
 ============
 
-* This installation process is documented for Linux Ubuntu, but it can
-  be adapted to other Linux/MacOS distributions easilly.
+.. note::
 
-* Shennong is developed for Python3 and is **not compatible with
-  Python2**.
-
-* Windows users can install shennong in a `Windows subsystem for Linux
-  <https://docs.microsoft.com/en-us/windows/wsl/about>`_ or within a
-  docker container as documented :ref:`below <install_docker>`.
+   Shennong is developed for Python3 and is **not compatible with
+   Python2**.
 
 .. note::
 
@@ -24,34 +19,35 @@ Installation
      cd ./shennong
 
 
-Installation with conda
------------------------
+Installation on Linux
+---------------------
 
 The recommended installation procedure is using the `Anaconda Python
 distribution <https://www.anaconda.com>`_.
 
 * Install `conda <https://conda.io/miniconda.html>`_ on your machine,
 
-* Setup a Python virtual environment with the dependencies:
+* Install ``shennong`` in a new virtual environment::
 
-  * Create a fresh ``shennong`` Python virtual environment::
-
-      conda env create --name shennong -f environment.yml
-      conda activate shennong
-
-  * **Or**, if you need to work in an existing environment, update it::
-
-      conda env update --name MYENV -f environment
-
-* Then install the ``shennong`` package::
-
+    conda env create --name shennong -f environment.yml
+    conda activate shennong
     make install
-
-* Finally make sure the installation is correct by executing the tests
-  (this executes all the unit tests stored in the ``test/`` folder)::
-
     make test
 
+* **Or**, if you need to work in an existing environment, add
+  ``shennong`` in it::
+
+    conda env update --name $MYENV -f environment.yml
+    conda activate $MYENV
+    make install
+    make test
+
+* To upgrade your installation to the latest version available use::
+
+    git pull origin master
+    conda env update --name shennong -f environment.yml
+    make install
+    make test
 
 .. note::
 
@@ -60,24 +56,40 @@ distribution <https://www.anaconda.com>`_.
      conda activate shennong
 
 
-Installation upgrade
---------------------
+Installation on MacOS
+---------------------
 
-This documents how to upgrade your ``shennong`` installation to the
-latest version available.
+As `pykaldi <https://github.com/pykaldi/pykaldi>`_ does not provide a
+conda image for macos, you must install it manually.
 
-* Update the ``shennong`` code::
+* Install `conda <https://conda.io/miniconda.html>`_ on your machine,
 
-    git pull origin master
+* Install ``shennong`` dependencies (pykaldi excepted) in a virtual environment::
 
-* Update the dependencies::
+    sed 'd/pykaldi/' environment.yml > environment.macos.yml
+    conda env create --name shennong -f environment.macos.yml
+    conda activate shennong
 
-    conda env update --name shennong -f environment.yml
+* Install ``pykaldi`` from source following `those instructions
+  <https://github.com/pykaldi/pykaldi#from-source>`_,
 
-* Reinstall and test it::
+* Finally install ``shennong``::
 
     make install
     make test
+
+
+Installation on Windows
+-----------------------
+
+* As `pykaldi <https://github.com/pykaldi/pykaldi>`_ is **not yet
+  officially supported on Windows** we do not provide installation
+  instructions.
+
+* Windows users can instead install shennong in a `Windows subsystem
+  for Linux <https://docs.microsoft.com/en-us/windows/wsl/about>`_ or
+  within a docker container as documented :ref:`below
+  <install_docker>`.
 
 
 .. _install_docker:
@@ -96,7 +108,7 @@ You can use ``shennong`` from within `docker
 
     [sudo] docker run -it shennong /bin/bash
 
-* Open a jupyter notebook as follow::
+* Or you can open a jupyter notebook as follow::
 
     [sudo] docker run -p 9000:9000 shennong \
         jupyter notebook --no-browser --ip=0.0.0.0 --port=9000 --allow-root

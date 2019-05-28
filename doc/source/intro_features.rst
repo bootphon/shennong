@@ -6,6 +6,11 @@ Introduction to speech features
 Implemented models
 ------------------
 
+.. note::
+
+  All the models implemented from Kaldi are using `pykaldi
+  <https://github.com/pykaldi/pykaldi>`_, see [Can2018]_.
+
 * The following features extraction models are implemented in
   ``shennong``, the detailed documentation is available :ref:`here
   <features.processor>`:
@@ -54,46 +59,42 @@ using the same datasets and setup. The recipe to replicate this
 experiment is available at ``shennong/examples/features_abx``.
 
 
-Setup
-~~~~~
+* Setup:
 
-* Two languages are tested:
+  * Two languages are tested:
 
-  * English (`Buckeye corpus <https://buckeyecorpus.osu.edu/>`_, 12
-    speakers for a duration of 10:34:44)
+    * English (`Buckeye corpus <https://buckeyecorpus.osu.edu/>`_, 12
+      speakers for a duration of 10:34:44)
 
-  * Xitsonga (`NCHLT corpus
-    <http://rma.nwu.ac.za/index.php/nchlt-speech-corpus-ts.html>`_, 24
-    speakers for a duration of 4:24:37)
+    * Xitsonga (`NCHLT corpus
+      <http://rma.nwu.ac.za/index.php/nchlt-speech-corpus-ts.html>`_,
+      24 speakers for a duration of 4:24:37)
 
-* The considered features extraction algorithms are:
+  * The considered features extraction algorithms are:
 
-  * bottleneck
-  * filterbanks
-  * MFCC
-  * PLP
-  * RASTA PLP
-  * spectrogram
+    * bottleneck
+    * filterbanks
+    * MFCC
+    * PLP
+    * RASTA PLP
+    * spectrogram
 
-* Each is tested with 3 distinct parameters sets:
+  * Each is tested with 3 distinct parameters sets:
 
-  * **only**: just the raw features,
-  * **nocmvn**: raw features with delta, delta-delta and pitch,
-  * **full**: raw features with CMVN normalization by speaker, with
-    delta, delta-delta and pitch.
+    * **only**: just the raw features,
+    * **nocmvn**: raw features with delta, delta-delta and pitch,
+    * **full**: raw features with CMVN normalization by speaker, with
+      delta, delta-delta and pitch.
 
-* The considered ABX tasks are the same as in the `ZRC2015 track1
-  <https://zerospeech.com/2015/track_1.html>`_, namely a phone
-  discrimination task within and across speakers.
+  * The considered ABX tasks are the same as in the `ZRC2015 track1
+    <https://zerospeech.com/2015/track_1.html>`_, namely a phone
+    discrimination task within and across speakers.
 
-* This gives us 2 corpora * 2 tasks * 6 features * 3 parameters sets =
-  72 scores.
+  * This gives us 2 corpora * 2 tasks * 6 features * 3 parameters sets
+    = 72 scores.
 
 
-Results
-~~~~~~~
-
-* English:
+* Results on English:
 
   +-------------+------------------------+-------------------------+
   |             |       across           |         within          |
@@ -113,7 +114,7 @@ Results
   | spectrogram |  30.3 |  27.9   | 29.7 |  16.7  |   15.2 |  20.2 |
   +-------------+-------+---------+------+--------+--------+-------+
 
-* Xitsonga:
+* Results on Xitsonga:
 
   +-------------+------------------------+-------------------------+
   |             |       across           |         within          |
@@ -134,7 +135,8 @@ Results
   +-------------+-------+---------+------+--------+--------+-------+
 
 * Comparison with the `ZRC2015 baseline
-  <https://zerospeech.com/2015/results.html>`_ (on MFCC only):
+  <https://zerospeech.com/2015/results.html>`_ (on MFCC only), see
+  [Versteegh2015]_:
 
   +---------------+-----------------+-----------------+
   |               |     English     |      Xitsonga   |
@@ -153,3 +155,16 @@ Results
 .. _rastapy: https://github.com/mystlee/rasta_py
 .. _labrosa: https://labrosa.ee.columbia.edu/matlab/rastamat/
 .. _BUTspeech: https://speech.fit.vutbr.cz/software/but-phonexia-bottleneck-feature-extractor
+
+
+---------------------------------------------
+
+.. [Versteegh2015] *The zero resource speech challenge 2015*, Maarten
+   Versteegh, Roland Thiollière, Thomas Schatz, Xuan-Nga Cao, Xavier
+   Anguera, Aren Jansen, and Emmanuel Dupoux. In
+   INTERSPEECH-2015. 2015.
+
+.. [Can2018] *PyKaldi: A Python Wrapper for Kaldi*, Dogan Can and
+   Victor R. Martinez and Pavlos Papadopoulos and
+   Shrikanth S. Narayanan, in IEEE International Conference on
+   Acoustics Speech and Signal Processing (ICASSP), 2018.
