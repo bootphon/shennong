@@ -21,7 +21,6 @@ dependencies:
   - sox  # sox binary
   - sphinx
   - sphinx_rtd_theme
-  - tabulate
   - pip:
       - h5features>=1.3.2
       - json-tricks
