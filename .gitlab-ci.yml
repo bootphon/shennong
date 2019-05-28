@@ -1,18 +1,24 @@
-before_script:
-  # load the requested modules on oberon
-  - module load anaconda/3
-
-shennong-build:
-  stage: build
+# test on linux
+shennong-linux:
+  stage: test
   script:
+    - module load anaconda/3
     - conda activate shennong-ci
     - conda env update -n shennong-ci -f environment.yml
     - python setup.py install
+    - python setup.py test
 
-shennong-test:
+# test on macos
+shennong-osx:
+  tags:
+    - macos
   stage: test
   script:
-    - conda activate shennong-ci
+    - conda activate shennong
+    - sed '/pykaldi/d' environment.yml > environment.macos.yml
+    - conda env update -n shennong -f environment.macos.yml
+    - rm -f environment.macos.yml
+    - python setup.py install
     - python setup.py test
 
 # documentation is available on https://coml.lscp.ens.fr/shennong
@@ -22,6 +28,7 @@ shennong-doc:
     refs:
       - master
   script:
+    - module load anaconda/3
     - module load texlive/2018
     - conda activate shennong-ci
     - sphinx-build doc/source doc/build
@@ -34,6 +41,7 @@ shennong-deploy:
     refs:
       - master
   script:
+    - module load anaconda/3
     - cd /shared/apps/shennong
     - git pull origin master
     - conda env update -n shennong -f environment.yml
