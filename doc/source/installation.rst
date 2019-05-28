@@ -62,19 +62,31 @@ Installation on MacOS
 As `pykaldi <https://github.com/pykaldi/pykaldi>`_ does not provide a
 conda image for macos, you must install it manually.
 
-* Install `conda <https://conda.io/miniconda.html>`_ on your machine,
+* Install `conda <https://conda.io/miniconda.html>`_ and `brew
+  <https://brew.sh/>`_ on your machine,
 
-* Install ``shennong`` dependencies (pykaldi excepted) in a virtual environment::
+* Install ``pykaldi`` and ``shennong`` in a virtual environment::
 
-    sed 'd/pykaldi/' environment.yml > environment.macos.yml
+    # install shennong dependencies (all excepted pykaldi)
+    sed '/pykaldi/d' environment.yml > environment.macos.yml
     conda env create --name shennong -f environment.macos.yml
     conda activate shennong
 
-* Install ``pykaldi`` from source following `those instructions
-  <https://github.com/pykaldi/pykaldi#from-source>`_,
+    # install pykaldi (see https://github.com/pykaldi/pykaldi#from-source)
+    git clone https://github.com/pykaldi/pykaldi.git
+    cd pykaldi
+    brew install automake cmake git graphviz libtool pkg-config wget
+    pip install --upgrade pip setuptools numpy pyparsing ninja
+    cd tools
+    ./check_dependencies.sh
+    ./install_protobuf.sh
+    ./install_clif.sh
+    ./install_kaldi.sh
+    cd ..
+    python setup.py install
+    cd ..
 
-* Finally install ``shennong``::
-
+    # install shennong
     make install
     make test
 
@@ -94,8 +106,8 @@ Installation on Windows
 
 .. _install_docker:
 
-Use in a Docker container
--------------------------
+Installation on Docker
+----------------------
 
 You can use ``shennong`` from within `docker
 <https://docs.docker.com>`_ using the provided ``Dockerfile``.
@@ -121,7 +133,6 @@ Look for more advanced usage on the official `Docker documentation
 
 Build the documentation
 -----------------------
-
 
 To build the documentation under the ``doc/build`` folder, follow
 those steps.

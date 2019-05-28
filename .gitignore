@@ -1,11 +1,15 @@
+*~
 **/__pycache__
 .pytest_cache
 .eggs
 *.egg-info
-doc/build
-build
+doc/build/*
+build/*
 dev/*
+dist/*
 .coverage*
 htmlcov/*
 examples/**/data
 examples/**/log
+environment.macos.yml
+pykaldi/*

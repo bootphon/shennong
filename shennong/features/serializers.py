@@ -429,9 +429,10 @@ class KaldiSerializer(FeaturesSerializer):
             for k, v in features.items():
                 # in case times are 1d, we force them to 2d so they
                 # can be wrote as kaldi matrices (we do the reverse
-                # 2d->1d on loading)
+                # 2d->1d on loading). We are copying the array to
+                # avoid a bug on macos.
                 writer[k] = kaldi.matrix.DoubleSubMatrix(
-                    np.atleast_2d(v.times))
+                    np.atleast_2d(v.times).copy())
 
         # writing properties. As we are writing double arrays, we need
         # to track the original dtype of features in the properties,
