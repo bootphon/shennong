@@ -67,27 +67,27 @@ buckeye_dir=$(readlink -f $buckeye_dir)
 xitsonga_dir=$(readlink -f $xitsonga_dir)
 
 # the directory where to find secondary scripts
-here=$(readlink -f $(dirname $0))
+scripts=$(readlink -f $(dirname $0))/scripts
 
 # where to store log files
 log_dir=$data_dir/log
 mkdir -p $log_dir
 
-# create a temp directory, erased at exit
-tmp_dir=$(mktemp -d)
-trap "rm -rf $tmp_dir" EXIT
-
 
 echo "step 1: setup $data_dir"
 
 eval $activate_shennong
-$here/scripts/setup_data.py $data_dir $buckeye_dir $xitsonga_dir || exit 1
+$scripts/setup_data.py $data_dir $buckeye_dir $xitsonga_dir || exit 1
 
+
+echo "step 2: setup abx tasks"
+
+# create a temp file to store the script, erased at exit
+step2=$(mktemp)
+trap "rm -f $step2" EXIT
 
 # prepare the dependency for step 3
 dependency=afterok
-
-echo "step 2: setup abx tasks"
 
 for corpus in english xitsonga
 do
@@ -105,7 +105,7 @@ do
         log=$log_dir/${corpus}_task_$kind.log
         rm -f $log
 
-        cat > $tmp_dir/step2.sh <<EOF
+        cat > $step2 <<EOF
 #!/bin/bash
 #SBATCH --job-name=setup
 #SBATCH --output=$log
@@ -116,7 +116,7 @@ $activate_abx
 abx-task $item $task $options || exit 1
 EOF
 
-        pid=$(sbatch $tmp_dir/step2.sh | cut -d' ' -f4)
+        pid=$(sbatch $step2 | cut -d' ' -f4)
         dependency=${dependency}:$pid
     done
 done
@@ -131,7 +131,7 @@ do
         log=$log_dir/${corpus}_$(basename $config .yaml).log
         rm -f $log
 
-        cat > $tmp_dir/step2.sh <<EOF
+        cat > $step2 <<EOF
 #!/bin/bash
 #SBATCH --job-name=setup
 #SBATCH --output=$log
@@ -142,10 +142,10 @@ do
 $activate_shennong
 export OMP_NUM_THREADS=1
 
-$here/scripts/extract_features.py $data_dir $config $corpus --njobs $njobs || exit 1
+$scripts/extract_features.py $data_dir $config $corpus --njobs $njobs || exit 1
 EOF
 
-        pid=$(sbatch $tmp_dir/step2.sh | cut -d' ' -f4)
+        pid=$(sbatch $step2 | cut -d' ' -f4)
         dependency=${dependency}:$pid
     done
 done
@@ -170,7 +170,7 @@ do
 #SBATCH --dependency=$dependency
 
 $activate_abx
-$here/scripts/abx_score.sh $data_dir $corpus $task_type $njobs || exit 1
+$scripts/abx_score.sh $data_dir $corpus $task_type $njobs || exit 1
 EOF
     done
 done
@@ -183,7 +183,7 @@ sbatch <<EOF
 #SBATCH --dependency=singleton
 
 $activate_abx
-$here/scripts/collapse_abx.py $data_dir -j $njobs
+$scripts/collapse_abx.py $data_dir -j $njobs
 EOF
 
 exit 0
