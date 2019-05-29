@@ -1,28 +1,39 @@
-# test on linux
-shennong-linux:
-  stage: test
+build-linux:
+  stage: build
   script:
     - module load anaconda/3
     - conda activate shennong-ci
     - conda env update -n shennong-ci -f environment.yml
     - python setup.py install
+
+test-linux:
+  stage: test
+  script:
+    - module load anaconda/3
+    - conda activate shennong-ci
     - python setup.py test
 
-# test on macos
-shennong-osx:
+build-osx:
   tags:
     - macos
-  stage: test
+  stage: build
   script:
     - conda activate shennong
     - sed '/pykaldi/d' environment.yml > environment.macos.yml
     - conda env update -n shennong -f environment.macos.yml
     - rm -f environment.macos.yml
     - python setup.py install
+
+test-osx:
+  tags:
+    - macos
+  stage: test
+  script:
+    - conda activate shennong
     - python setup.py test
 
 # documentation is available on https://coml.lscp.ens.fr/shennong
-shennong-doc:
+documentation:
   stage: deploy
   only:
     refs:
@@ -35,7 +46,7 @@ shennong-doc:
     - scp -r doc/build/* coml.lscp.ens.fr:/var/www/html/shennong
 
 # shennong package is available on oberon with "conda activate shennong"
-shennong-deploy:
+deploy-oberon:
   stage: deploy
   only:
     refs:
@@ -48,3 +59,18 @@ shennong-deploy:
     - conda activate shennong
     - python setup.py install
     - python setup.py test
+
+# shennong package available on conda with "conda install -c coml
+# shennong". Build and upload the package only on new git tags or
+# manual triggers.
+deploy-conda:
+  stage: deploy
+  only:
+    - tags
+    - triggers
+  script:
+    - module load anaconda/3
+    - conda activate shennong-ci
+    - cd .conda
+    - conda build -c coml --user coml --token $CONDA_TOKEN --skip-existing .
+    - conda build purge

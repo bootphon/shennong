@@ -9,23 +9,36 @@ Installation
    Shennong is developed for Python3 and is **not compatible with
    Python2**.
 
-.. note::
-
-   In this section you are supposed to have cloned the `shennong
-   repository <https://github.com/bootphon/shennong>`_ and be located
-   at its root directory::
-
-     git clone https://github.com/bootphon/shennong.git
-     cd ./shennong
-
 
 Installation on Linux
 ---------------------
 
-The recommended installation procedure is using the `Anaconda Python
-distribution <https://www.anaconda.com>`_.
+
+Installation from conda
+~~~~~~~~~~~~~~~~~~~~~~~
+
+This is the recommended installation procedure, compatible with python
+3.6 and 3.7.
 
 * Install `conda <https://conda.io/miniconda.html>`_ on your machine,
+
+* Install ``shennong`` from its `conda package
+  <https://anaconda.org/coml/shennong>`_::
+
+    conda install -c coml shennong
+
+
+Installation from sources
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Install `conda <https://conda.io/miniconda.html>`_ on your machine,
+
+* Cloned the `shennong repository
+  <https://github.com/bootphon/shennong>`_ and move at its root
+  directory::
+
+     git clone https://github.com/bootphon/shennong.git
+     cd ./shennong
 
 * Install ``shennong`` in a new virtual environment::
 
@@ -60,10 +73,17 @@ Installation on MacOS
 ---------------------
 
 As `pykaldi <https://github.com/pykaldi/pykaldi>`_ does not provide a
-conda image for macos, you must install it manually.
+conda image for macos, you must install from sources.
 
 * Install `conda <https://conda.io/miniconda.html>`_ and `brew
   <https://brew.sh/>`_ on your machine,
+
+* Cloned the `shennong repository
+  <https://github.com/bootphon/shennong>`_ and move at its root
+  directory::
+
+     git clone https://github.com/bootphon/shennong.git
+     cd ./shennong
 
 * Install ``pykaldi`` and ``shennong`` in a virtual environment::
 

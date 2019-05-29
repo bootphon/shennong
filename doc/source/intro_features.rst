@@ -24,6 +24,7 @@ Implemented models
   PLP             from Kaldi_
   RASTA-PLP       from rastapy_, after labrosa_
   Bottleneck      from BUTspeech_
+  One Hot Vectors shennong
   Pitch           from Kaldi_
   Energy          from Kaldi_
   =============== ==============
@@ -93,6 +94,10 @@ experiment is available at ``shennong/examples/features_abx``.
   * This gives us 2 corpora * 2 tasks * 6 features * 3 parameters sets
     = 72 scores.
 
+.. note::
+
+   The results below are ABX error rates on phone discrimination
+   (given in %).
 
 * Results on English:
 

@@ -12,8 +12,8 @@ setuptools.setup(
     description='A toolbox for unsupervised speech recognition',
     version=shennong.version(),
 
-    # python package dependancies
-    setup_requires=['pytest-runner', 'numpy', 'scipy'],
+    # python package dependencies
+    setup_requires=['pytest-runner'],
     tests_require=['pytest'],
 
     # packages for code and data

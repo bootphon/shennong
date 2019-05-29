@@ -1,11 +1,11 @@
 name: shennong
 channels:
-  - pykaldi
-  - conda-forge
+  - coml
 dependencies:
   - python>=3.6
   - cython
   - flake8
+  - h5features>=1.3.2
   - h5py
   - ipython
   - joblib
@@ -22,6 +22,5 @@ dependencies:
   - sphinx
   - sphinx_rtd_theme
   - pip:
-      - h5features>=1.3.2
       - json-tricks
       - ninja

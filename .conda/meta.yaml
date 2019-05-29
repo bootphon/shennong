@@ -1,0 +1,57 @@
+# Build the shennong conda package. Run with "conda build . -c coml"
+
+{% set name = 'shennong' %}
+{% set data = load_setup_py_data() %}
+
+package:
+  name: {{ name }}
+  version: {{ data.get('version') }}
+
+source:
+  path: ..
+
+build:
+  entry_points:
+  {% for entry in data.get('entry_points')['console_scripts'] %}
+    - {{ entry }}
+  {% endfor %}
+  script:
+    - pip install git+https://github.com/mverleg/pyjson_tricks.git
+    - python setup.py install
+
+requirements:
+  build:
+    - pip
+    - pytest-runner
+    - python {{ python }}
+    - setuptools
+  run:
+    - python {{ python }}
+    - h5features
+    - h5py
+    - joblib
+    - numpy
+    - pip
+    - pykaldi  # [linux]
+    - pyparsing
+    - pyyaml
+    - scipy
+    - sox
+    - h5features
+    - ninja
+
+test:
+  imports:
+    - {{ name }}
+  requires:
+    - pytest
+  source_files:
+    - test
+  commands:
+    - speech-features -h
+    - pytest -vx
+
+about:
+  home: {{ data.get('url') }}
+  license: {{ data.get('license') }}
+  summary: {{ data.get('description') }}
