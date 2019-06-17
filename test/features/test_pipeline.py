@@ -303,12 +303,12 @@ def test_extract_features_full(ext, wav_file, wav_file_8k, wav_file_float32,
     assert feats['u3'].shape == (40, 42)
 
     # check cmvn
-    assert feats['u2'].data[:, :13].mean() == pytest.approx(0.0, abs=1e-6)
-    assert feats['u2'].data[:, :13].std() == pytest.approx(1.0, abs=1e-6)
+    assert feats['u2'].data[:, :13].mean() == pytest.approx(0.0, abs=1e-5)
+    assert feats['u2'].data[:, :13].std() == pytest.approx(1.0, abs=1e-5)
 
     data = np.vstack((feats['u1'].data[:, :13], feats['u3'].data[:, :13]))
-    assert data.mean() == pytest.approx(0.0, abs=1e-6)
-    assert data.std() == pytest.approx(1.0, abs=1e-6)
+    assert data.mean() == pytest.approx(0.0, abs=1e-5)
+    assert data.std() == pytest.approx(1.0, abs=1e-5)
     assert np.abs(data.mean()) <= np.abs(feats['u1'].data[:, :13].mean())
     assert np.abs(data.std() - 1.0) <= np.abs(
         feats['u1'].data[:, :13].std() - 1.0)
