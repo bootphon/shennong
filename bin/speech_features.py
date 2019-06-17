@@ -254,8 +254,12 @@ def command_extract(args):
         if not os.path.exists(filename):
             log.error('input file not found: %s', filename)
 
-    # read the utterances file as a list of lists
-    utterances = [utt.strip().split(' ') for utt in open(args.utts_index, 'r')]
+    # read the utterances file as a list of lists, ignore empty lines
+    # in the file
+    utterances = [
+        utt.split(' ') for utt in
+        (utt.strip() for utt in open(args.utts_index, 'r'))
+        if utt]
 
     # run the pipeline
     features = pipeline.extract_features(
