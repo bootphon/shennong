@@ -20,11 +20,11 @@ def test_version():
 
     with pytest.raises(ValueError) as err:
         version(type=int)
-    assert 'version type must be str or tuple' in str(err)
+    assert 'version type must be str or tuple' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         version(type='abc')
-    assert 'version type must be str or tuple' in str(err)
+    assert 'version type must be str or tuple' in str(err.value)
 
     assert version() in version_long()
     assert 'gpl' in version_long().lower()
@@ -49,7 +49,7 @@ def test_get_params():
     p = ProcessorTest()
     with pytest.raises(RuntimeError) as err:
         p.get_params()
-    assert 'specify their parameters in the signature' in str(err)
+    assert 'specify their parameters in the signature' in str(err.value)
 
     m = MfccProcessor()
     p = ProcessorNested(1, m)
@@ -65,7 +65,7 @@ def test_set_params():
 
     with pytest.raises(ValueError) as err:
         p.set_params(spam=True)
-    assert 'invalid parameter spam' in str(err)
+    assert 'invalid parameter spam' in str(err.value)
 
     p.set_params(mfcc__sample_rate=2)
     assert p.mfcc.sample_rate == 2

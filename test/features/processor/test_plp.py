@@ -29,7 +29,7 @@ def test_num_ceps(audio, num_ceps):
     if num_ceps >= 23:
         with pytest.raises(ValueError) as err:
             PlpProcessor(num_ceps=num_ceps)
-        assert 'We must have num_ceps <= lpc_order+1' in str(err)
+        assert 'We must have num_ceps <= lpc_order+1' in str(err.value)
     else:
         proc = PlpProcessor(num_ceps=num_ceps)
         if 0 < proc.num_ceps:

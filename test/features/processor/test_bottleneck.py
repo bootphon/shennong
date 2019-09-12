@@ -26,12 +26,12 @@ def test_bad_params():
     w = 'BadWeights'
     with pytest.raises(ValueError) as err:
         BottleneckProcessor(w)
-    assert 'invalid weights' in str(err)
+    assert 'invalid weights' in str(err.value)
 
     b = BottleneckProcessor()
     with pytest.raises(ValueError) as err:
         b.set_params(**{'weights': w})
-    assert 'invalid weights' in str(err)
+    assert 'invalid weights' in str(err.value)
 
 
 def test_available_weights():
@@ -87,7 +87,7 @@ def test_silence():
 
     with pytest.raises(RuntimeError) as err:
         BottleneckProcessor().process(silence)
-    assert 'no voice detected in signal' in str(err)
+    assert 'no voice detected in signal' in str(err.value)
 
     # silence VAD all false
     vad = _compute_vad(silence.data, null_logger(), bugfix=True)

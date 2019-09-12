@@ -19,11 +19,11 @@ def test_scan(wav_file, audio):
 def test_scan_bad():
     with pytest.raises(ValueError) as err:
         Audio.scan(__file__)
-    assert 'is it a wav?' in str(err)
+    assert 'is it a wav?' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         Audio.scan('/path/to/some/lost/place')
-    assert 'file not found' in str(err)
+    assert 'file not found' in str(err.value)
 
 
 def test_load(audio):
@@ -38,13 +38,13 @@ def test_load(audio):
 def test_load_notwav():
     with pytest.raises(ValueError) as err:
         Audio.load(__file__)
-    assert 'is it a wav?' in str(err)
+    assert 'is it a wav?' in str(err.value)
 
 
 def test_load_badfile():
     with pytest.raises(ValueError) as err:
         Audio.load('/spam/spam/with/eggs')
-    assert 'file not found' in str(err)
+    assert 'file not found' in str(err.value)
 
 
 def test_save(tmpdir, audio):
@@ -54,7 +54,7 @@ def test_save(tmpdir, audio):
     # cannot overwrite an existing file
     with pytest.raises(ValueError) as err:
         audio.save(p)
-    assert 'file already exist' in str(err)
+    assert 'file already exist' in str(err.value)
 
     audio2 = Audio.load(p)
     assert audio == audio2
@@ -235,7 +235,7 @@ def test_resample(audio, fs, backend):
 def test_resample_bad(audio):
     with pytest.raises(ValueError) as err:
         audio.resample(5, backend='a_bad_one')
-    assert 'backend must be sox or scipy, it is' in str(err)
+    assert 'backend must be sox or scipy, it is' in str(err.value)
 
 
 def test_compare_kaldi(wav_file):
@@ -277,15 +277,15 @@ def test_segment(audio):
 def test_segment_bad(audio):
     with pytest.raises(ValueError) as err:
         audio.segment(0)
-    assert 'segments must be a list' in str(err)
+    assert 'segments must be a list' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         audio.segment([0, 1])
-    assert 'must be pairs' in str(err)
+    assert 'must be pairs' in str(err.value)
     with pytest.raises(ValueError) as err:
         audio.segment([(0, 1, 2)])
-    assert 'must be pairs' in str(err)
+    assert 'must be pairs' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         audio.segment([(1, 0)])
-    assert 'must be sorted' in str(err)
+    assert 'must be sorted' in str(err.value)

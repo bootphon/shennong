@@ -29,7 +29,7 @@ def test_compression(audio, compression):
     if compression == 'bad':
         with pytest.raises(ValueError) as err:
             p.compression = compression
-        assert 'compression must be in ' in str(err)
+        assert 'compression must be in ' in str(err.value)
     else:
         p.compression = compression
         assert p.process(audio).shape == (140, 1)
@@ -55,11 +55,11 @@ def test_output_shape(audio):
     # sample rate mismatch
     with pytest.raises(ValueError) as err:
         EnergyProcessor(sample_rate=8000).process(audio)
-    assert 'mismatch in sample rate' in str(err)
+    assert 'mismatch in sample rate' in str(err.value)
 
     # only mono signals are accepted
     with pytest.raises(ValueError) as err:
         data = np.random.random((1000, 2))
         stereo = Audio(data, sample_rate=16000)
         EnergyProcessor(sample_rate=stereo.sample_rate).process(stereo)
-    assert 'must have one dimension' in str(err)
+    assert 'must have one dimension' in str(err.value)

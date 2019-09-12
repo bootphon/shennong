@@ -14,17 +14,17 @@ def ali():
 def test_bad_file():
     with pytest.raises(ValueError) as err:
         AlignmentCollection.load('/spam/spam/with/eggs')
-    assert 'file not found' in str(err)
+    assert 'file not found' in str(err.value)
 
 
 def test_bad_data():
     with pytest.raises(ValueError) as err:
         AlignmentCollection([['a', 1, 2, 'a'], ['a', 2, 3]])
-    assert 'alignment must have 4 columns but line 2 has 3' in str(err)
+    assert 'alignment must have 4 columns but line 2 has 3' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         AlignmentCollection([['a', 1, 2, 'a'], ['a', 1, 2, 'b']])
-    assert 'item a: mismatch in tstop/tstart timestamps' in str(err)
+    assert 'item a: mismatch in tstop/tstart timestamps' in str(err.value)
 
 
 def test_simple(ali):
@@ -81,7 +81,7 @@ def test_valid(ali):
 
     with pytest.raises(ValueError) as err:
         Alignment(np.asarray([[0, 1], [1, 2]]), np.asarray(['a', 'b', 'c']))
-    assert 'timestamps and tokens must have the same length' in str(err)
+    assert 'timestamps and tokens must have the same length' in str(err.value)
 
 
 def test_attributes(ali):
@@ -263,12 +263,12 @@ def test_save(tmpdir, alignments, sort, compress):
     # cannot rewrite an existing file
     with pytest.raises(ValueError) as err:
         alignments.save(str(tmpdir.join(filename)), sort=sort)
-    assert 'already exist' in str(err)
+    assert 'already exist' in str(err.value)
 
     # cannot write in an unexisting directory
     with pytest.raises(ValueError) as err:
         alignments.save('/spam/spam/with/eggs', sort=sort)
-    assert 'cannot write to' in str(err)
+    assert 'cannot write to' in str(err.value)
 
     alignments2 = AlignmentCollection.load(
         str(tmpdir.join(filename)), compress=compress)

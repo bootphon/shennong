@@ -17,11 +17,11 @@ def test_params():
 
     with pytest.raises(ValueError) as err:
         c.set_params(**{'dim': None})
-    assert 'cannot set attribute dim for CmvnPostProcessor' in str(err)
+    assert 'cannot set attribute dim for CmvnPostProcessor' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         c.set_params(**{'stats': None})
-    assert 'cannot set attribute stats for CmvnPostProcessor' in str(err)
+    assert 'cannot set attribute stats for CmvnPostProcessor' in str(err.value)
 
 
 @pytest.mark.parametrize('dim', [-2, 0, 1, 3, 2.54, 'a'])
@@ -32,7 +32,8 @@ def test_dim(dim):
     else:
         with pytest.raises(ValueError) as err:
             CmvnPostProcessor(dim)
-        assert 'dimension must be a strictly positive integer' in str(err)
+        assert (
+            'dimension must be a strictly positive integer' in str(err.value))
 
 
 @pytest.mark.parametrize('norm_vars', [True, False])
@@ -45,7 +46,7 @@ def test_cmvn(mfcc, norm_vars):
     # cannot process without accumulation
     with pytest.raises(ValueError) as err:
         proc.process(mfcc)
-    assert 'insufficient accumulation of stats' in str(err)
+    assert 'insufficient accumulation of stats' in str(err.value)
 
     # accumulate
     proc.accumulate(mfcc)
@@ -85,11 +86,11 @@ def test_cmvn(mfcc, norm_vars):
 def test_pre_stats(mfcc):
     with pytest.raises(ValueError) as err:
         CmvnPostProcessor(mfcc.ndims, stats=1)
-    assert 'shape (2, 14), but is shaped as ()' in str(err)
+    assert 'shape (2, 14), but is shaped as ()' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         CmvnPostProcessor(mfcc.ndims, stats=np.random.random((2, mfcc.ndims)))
-    assert 'shape (2, 14), but is shaped as (2, 13)' in str(err)
+    assert 'shape (2, 14), but is shaped as (2, 13)' in str(err.value)
 
     stats = np.random.random((2, mfcc.ndims+1))
     proc = CmvnPostProcessor(mfcc.ndims, stats=stats.copy())
@@ -124,12 +125,12 @@ def test_bad_weights(mfcc):
 
     with pytest.raises(ValueError) as err:
         proc.accumulate(mfcc, weights=np.asarray([[1, 2], [3, 4]]))
-    assert 'weights must have a single dimension' in str(err)
+    assert 'weights must have a single dimension' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         proc.accumulate(mfcc, weights=np.asarray([]))
     assert 'there is 0 weights but {} feature frames'.format(
-        mfcc.nframes) in str(err)
+        mfcc.nframes) in str(err.value)
 
 
 def test_skip_dims(mfcc):
@@ -163,7 +164,7 @@ def test_apply_weights(features_collection):
 
     with pytest.raises(ValueError) as err:
         apply_cmvn(features_collection, weights={})
-    assert 'keys differ for ' in str(err)
+    assert 'keys differ for ' in str(err.value)
 
     weights = {k: None for k in features_collection.keys()}
     cmvn3 = apply_cmvn(features_collection, weights=weights)
@@ -178,7 +179,7 @@ def test_apply_baddim(features_collection):
 
     with pytest.raises(ValueError) as err:
         apply_cmvn(feats)
-    assert 'must have consistent dimensions' in str(err)
+    assert 'must have consistent dimensions' in str(err.value)
 
 
 def test_apply_cmvn_bycollection(features_collection):
@@ -196,7 +197,7 @@ def test_apply_cmvn_skipdims(features_collection, skip_dims):
     if skip_dims in ([-1], [13]):
         with pytest.raises(ValueError) as err:
             apply_cmvn(features_collection, skip_dims=skip_dims)
-        assert 'out of bounds dimensions' in str(err)
+        assert 'out of bounds dimensions' in str(err.value)
     else:
         cmvns = apply_cmvn(
             features_collection, skip_dims=skip_dims, by_collection=False)

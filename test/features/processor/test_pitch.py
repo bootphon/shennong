@@ -94,13 +94,13 @@ def test_post_pitch(raw_pitch):
         np.random.random((raw_pitch.nframes, 1)), raw_pitch.times)
     with pytest.raises(ValueError) as err:
         post_processor.process(bad_pitch)
-    assert 'data shape must be (_, 2), but it is (_, 1)' in str(err)
+    assert 'data shape must be (_, 2), but it is (_, 1)' in str(err.value)
 
     bad_pitch = Features(
         np.random.random((raw_pitch.nframes, 3)), raw_pitch.times)
     with pytest.raises(ValueError) as err:
         post_processor.process(bad_pitch)
-    assert 'data shape must be (_, 2), but it is (_, 3)' in str(err)
+    assert 'data shape must be (_, 2), but it is (_, 3)' in str(err.value)
 
 
 @pytest.mark.parametrize('options', [
@@ -125,4 +125,4 @@ def test_post_pitch_output(raw_pitch, options):
     else:  # all False not supported by Kaldi
         with pytest.raises(ValueError) as err:
             p.process(raw_pitch)
-        assert 'must be True' in str(err)
+        assert 'must be True' in str(err.value)

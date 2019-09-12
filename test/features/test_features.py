@@ -11,29 +11,29 @@ from shennong.utils import get_logger
 def test_init_bad():
     with pytest.raises(ValueError) as err:
         Features(0, 0, properties=0)
-    assert 'data must be a numpy array' in str(err)
+    assert 'data must be a numpy array' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         Features(np.asarray([0]), 0, properties=0)
-    assert 'times must be a numpy array' in str(err)
+    assert 'times must be a numpy array' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         Features(np.asarray([0]), np.asarray([0]), properties=0)
-    assert 'properties must be a dictionnary' in str(err)
+    assert 'properties must be a dictionnary' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         Features(np.asarray([0]), np.asarray([0]), properties={0: 0})
-    assert 'data dimension must be 2' in str(err)
+    assert 'data dimension must be 2' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         Features(np.asarray([[0], [0]]), np.random.random((2, 2, 2)))
-    assert 'times dimension must be 1 or 2' in str(err)
+    assert 'times dimension must be 1 or 2' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         data = np.random.random((12, 2))
         data[2, 1] = np.nan
         Features(data, np.ones((12,)))
-    assert 'data contains non-finite numbers' in str(err)
+    assert 'data contains non-finite numbers' in str(err.value)
 
 
 def test_tofrom_dict(mfcc):
@@ -43,7 +43,7 @@ def test_tofrom_dict(mfcc):
 
     with pytest.raises(ValueError) as err:
         Features._from_dict({'data': a['data'], 'properties': a['properties']})
-    assert 'missing keys: times' in str(err)
+    assert 'missing keys: times' in str(err.value)
 
 
 def test_equal(mfcc):
@@ -113,7 +113,7 @@ def test_concatenate(mfcc):
     mfcc2 = Features(mfcc.data, mfcc.times + 1)
     with pytest.raises(ValueError) as err:
         mfcc.concatenate(mfcc2)
-    assert 'times are not equal' in str(err)
+    assert 'times are not equal' in str(err.value)
 
 
 def test_concatenate_tolerance(capsys):
@@ -123,11 +123,11 @@ def test_concatenate_tolerance(capsys):
 
     with pytest.raises(ValueError) as err:
         f1.concatenate(f2, tolerance=0)
-    assert 'features have a different number of frames' in str(err)
+    assert 'features have a different number of frames' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         f1.concatenate(f2, tolerance=1)
-    assert 'features differs number of frames, and greater than ' in str(err)
+    assert 'features differs number of frames, and greater than ' in str(err.value)
 
     f3 = f1.concatenate(f2, tolerance=2)
     assert f3.shape == (10, 4)
@@ -169,7 +169,7 @@ def test_partition():
     with pytest.raises(ValueError) as err:
         fp = fc.partition({'f1': 'p1', 'f2': 'p1'})
     assert ('following items are not defined in the partition index: f3'
-            in str(err))
+            in str(err.value))
 
     fp = fc.partition({'f1': 'p1', 'f2': 'p1', 'f3': 'p2'})
     assert sorted(fp.keys()) == ['p1', 'p2']
@@ -196,10 +196,10 @@ def test_1d_times_sorted():
 def test_2d_times_unsorted():
     with pytest.raises(ValueError) as err:
         Features(np.random.random((10, 3)), np.random.random((10, 2)))
-    assert 'times is not sorted in increasing order' in str(err)
+    assert 'times is not sorted in increasing order' in str(err.value)
 
 
 def test_2d_times_badshape():
     with pytest.raises(ValueError) as err:
         Features(np.random.random((10, 3)), np.random.random((10, 3)))
-    assert 'times shape[1] must be 2, it is 3' in str(err)
+    assert 'times shape[1] must be 2, it is 3' in str(err.value)
