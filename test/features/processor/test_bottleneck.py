@@ -72,7 +72,7 @@ def test_process(capsys, audio, mfcc, weights):
     captured = capsys.readouterr().err
     assert 'resampling audio from 16000Hz@16b to 8000Hz@16b' in captured
     assert '{} frames of speech detected (on 140 total frames)'.format(
-        '118' if audio._sox_found() else '121') in captured
+        '118' if audio._sox_binary else '121') in captured
 
 
 def test_compare_original(audio_8k, bottleneck_original):

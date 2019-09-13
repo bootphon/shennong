@@ -78,6 +78,7 @@ True
 """
 
 import collections
+import distutils.spawn
 import functools
 import logging
 import os
@@ -118,6 +119,10 @@ class Audio:
     _metawav = collections.namedtuple(
         '_metawav', 'nchannels sample_rate nsamples duration')
     """A structure to store wavs metadata, see :meth:`Audio.scan`"""
+
+    # find the sox and soxi executables (None if not found)
+    _sox_binary = distutils.spawn.find_executable('sox')
+    _soxi_binary = distutils.spawn.find_executable('soxi')
 
     def __init__(self, data, sample_rate, validate=True):
         self._sample_rate = sample_rate
@@ -213,7 +218,7 @@ class Audio:
         try:
             return cls._scan_wave(wav_file)
         except ValueError as err:  # wav may contain floating points samples
-            if cls._sox_found():
+            if cls._soxi_binary:
                 return cls._scan_sox(wav_file)
             else:  # pragma: nocover
                 raise err
@@ -228,7 +233,7 @@ class Audio:
         """
         try:
             soxi = subprocess.run(
-                ['soxi',  wav_file], check=True,
+                [cls._soxi_binary, wav_file], check=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 universal_newlines=True).stdout.split('\n')
@@ -259,10 +264,10 @@ class Audio:
         try:
             with wave.open(wav_file, 'r') as fwav:
                 return cls._metawav(
-                        fwav.getnchannels(),
-                        fwav.getframerate(),
-                        fwav.getnframes(),
-                        fwav.getnframes() / fwav.getframerate())
+                    fwav.getnchannels(),
+                    fwav.getframerate(),
+                    fwav.getnframes(),
+                    fwav.getnframes() / fwav.getframerate())
         except wave.Error:
             raise ValueError(
                 '{}: cannot read file, is it a wav?'.format(wav_file))
@@ -394,18 +399,9 @@ class Audio:
             raise ValueError(
                 'backend must be sox or scipy, it is {}'.format(backend))
 
-        if backend == 'sox' and self._sox_found():
+        if backend == 'sox' and self._sox_binary:
             return self._resample_sox(sample_rate)
-        else:
-            return self._resample_scipy(sample_rate)
-
-    @classmethod
-    def _sox_found(cls):
-        """Returns True if sox is installed on the system, False otherwise"""
-        if not len(os.popen('sox -h').readlines()):  # pragma: nocover
-            cls._log.warning('sox not found, install it for faster resampling')
-            return False
-        return True
+        return self._resample_scipy(sample_rate)
 
     def _resample_sox(self, sample_rate):
         """Resample the audio signal to the given `sample_rate` using sox"""
@@ -417,7 +413,7 @@ class Audio:
             self.save(orig)
 
             command = shlex.split(
-                f'sox -D -V2 {orig} {dest} rate -h {sample_rate}')
+                f'{self._sox_binary} -D -V2 {orig} {dest} rate -h {sample_rate}')
 
             try:
                 subprocess.run(command, check=True)
@@ -461,8 +457,7 @@ class Audio:
         """
         # make sure the data type is valid
         if not self._is_valid_dtype(self.dtype):
-            self._log.warning(
-                'unsupported audio data type: {}'.format(self.dtype))
+            self._log.warning('unsupported audio data type: %s', self.dtype)
             return False
 
         # get the theoretical min/max
