@@ -8,6 +8,8 @@ Version numbers follow [semantic versioning](https://semver.org).
 
 * correctly load utterances from a file in `speech-features` (ignore empty lines)
 
+* fixed a harmless warning when resampling audio with sox
+
 ### environment
 
 * now compatible with (and depends on) `pytest>=5.0`
