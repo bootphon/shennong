@@ -32,7 +32,7 @@ test-osx:
     - conda activate shennong
     - python setup.py test
 
-# documentation is available on https://coml.lscp.ens.fr/shennong
+# documentation is available on https://coml.lscp.ens.fr/docs/shennong
 documentation:
   stage: deploy
   only:
@@ -43,7 +43,7 @@ documentation:
     - module load texlive/2018
     - conda activate shennong-ci
     - sphinx-build doc/source doc/build
-    - scp -r doc/build/* coml.lscp.ens.fr:/var/www/html/shennong
+    - scp -r doc/build/* coml.lscp.ens.fr:/var/www/html/docs/shennong
 
 # shennong package is available on oberon with "conda activate shennong"
 deploy-oberon:

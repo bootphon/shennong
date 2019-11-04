@@ -4,7 +4,7 @@
 shennong is a Python module integrating unsupervised learning
 algorithms applied to speech processing and recognition.
 
-See https://coml.lscp.ens.fr/shennong for a complete documentation.
+See https://coml.lscp.ens.fr/docs/shennong for a complete documentation.
 
 """
 
@@ -17,7 +17,7 @@ __version__ = '0.1'
 
 def url():
     """Return the URL to the shennong website"""
-    return 'https://coml.lscp.ens.fr/shennong'
+    return 'https://coml.lscp.ens.fr/docs/shennong'
 
 
 def version(type=str, full=False):
