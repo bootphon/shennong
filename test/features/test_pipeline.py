@@ -63,7 +63,7 @@ def test_config_format(utterances_index, capsys, tmpdir, kind):
         config2 = 'a:\nb\n'
         with pytest.raises(ValueError) as err:
             pipeline._init_config(config2)
-        assert 'error in configuration' in str(err)
+        assert 'error in configuration' in str(err.value)
 
     parsed = pipeline._init_config(config, log=utils.get_logger(level='info'))
     output = capsys.readouterr().err
@@ -75,25 +75,25 @@ def test_config_format(utterances_index, capsys, tmpdir, kind):
 def test_config_bad(utterances_index):
     with pytest.raises(ValueError) as err:
         pipeline.get_default_config('bad')
-    assert 'invalid features "bad"' in str(err)
+    assert 'invalid features "bad"' in str(err.value)
 
     config = pipeline.get_default_config('mfcc')
     del config['mfcc']
     with pytest.raises(ValueError) as err:
         pipeline.extract_features(config, utterances_index)
-    assert 'the configuration does not define any features' in str(err)
+    assert 'the configuration does not define any features' in str(err.value)
 
     config = pipeline.get_default_config('mfcc')
     config['plp'] = config['mfcc']
     with pytest.raises(ValueError) as err:
         pipeline.extract_features(config, utterances_index)
-    assert 'more than one features extraction processor' in str(err)
+    assert 'more than one features extraction processor' in str(err.value)
 
     config = pipeline.get_default_config('mfcc')
     config['invalid'] = config['mfcc']
     with pytest.raises(ValueError) as err:
         pipeline.extract_features(config, utterances_index)
-    assert 'invalid keys in configuration' in str(err)
+    assert 'invalid keys in configuration' in str(err.value)
 
     config = pipeline.get_default_config('mfcc')
     del config['cmvn']['with_vad']
@@ -119,7 +119,7 @@ def test_check_speakers(utterances_index, capsys):
     with pytest.raises(ValueError) as err:
         pipeline.extract_features(
             config, [(utterances_index[0][1], )], log=log)
-    assert 'no speaker information provided' in str(err)
+    assert 'no speaker information provided' in str(err.value)
 
     capsys.readouterr()  # clean the buffer
     config = pipeline.get_default_config('mfcc', with_cmvn=False)
@@ -150,19 +150,19 @@ def test_utts_bad(wav_file, wav_file_8k, tmpdir, capsys):
     # ensure we catch basic errors
     with pytest.raises(ValueError) as err:
         fun([('a'), ('a', 'b')])
-    assert 'entries have different lengths' in str(err)
+    assert 'entries have different lengths' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         fun([('a', 'b', 'c', 'd', 'e', 'g')])
-    assert 'unknown format for utterances index' in str(err)
+    assert 'unknown format for utterances index' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         fun([('a'), ('a')])
-    assert 'duplicates found in utterances index' in str(err)
+    assert 'duplicates found in utterances index' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         fun([('/foo/bar/a')])
-    assert 'the following wav files are not found' in str(err)
+    assert 'the following wav files are not found' in str(err.value)
 
 
 def test_check_wavs_bad(wav_file, wav_file_8k, tmpdir, capsys):
@@ -183,7 +183,7 @@ def test_check_wavs_bad(wav_file, wav_file_8k, tmpdir, capsys):
     stereo.save(wav_file_2)
     with pytest.raises(ValueError) as err:
         fun([(wav_file_2,)])
-    assert 'all wav files are not mono' in str(err)
+    assert 'all wav files are not mono' in str(err.value)
 
     # ensure we catch differences in sample rates
     capsys.readouterr()  # clear buffer
@@ -196,18 +196,18 @@ def test_check_wavs_bad(wav_file, wav_file_8k, tmpdir, capsys):
     # make sure timestamps are ordered
     with pytest.raises(ValueError) as err:
         fun([('1', wav_file, 1, 0)])
-    assert 'timestamps are not in increasing order for' in str(err)
+    assert 'timestamps are not in increasing order for' in str(err.value)
 
 
 def test_processor_bad():
     get = pipeline._Manager.get_processor_class
     with pytest.raises(ValueError) as err:
         get('bad')
-    assert 'invalid processor "bad"' in str(err)
+    assert 'invalid processor "bad"' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         get(0)
-    assert 'invalid processor "0"' in str(err)
+    assert 'invalid processor "0"' in str(err.value)
 
 
 @pytest.mark.parametrize('features', pipeline.valid_features())

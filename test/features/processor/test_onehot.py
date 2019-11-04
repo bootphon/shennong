@@ -52,7 +52,7 @@ def test_base(alignments):
     assert base._tokens_set(ali) == ali.get_tokens_inventory()
     with pytest.raises(ValueError) as err:
         base.ndims
-    assert 'cannot know their dimension' in str(err)
+    assert 'cannot know their dimension' in str(err.value)
 
     extra = ali.get_tokens_inventory()
     extra.add('!!')
@@ -149,7 +149,7 @@ def test_sample_rate():
 
     with pytest.raises(ValueError) as err:
         onehot.FramedOneHotProcessor(sample_rate=2).process(ali)
-    assert 'sample rate too low' in str(err)
+    assert 'sample rate too low' in str(err.value)
 
     feats = onehot.FramedOneHotProcessor(sample_rate=1000).process(ali)
     assert feats.nframes == frames.Frames(sample_rate=1000).nframes(2000)

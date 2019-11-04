@@ -30,7 +30,7 @@ def test_njobs(capsys, njobs, audio):
     if njobs == 0:
         with pytest.raises(ValueError) as err:
             p.process_all(signals, njobs=njobs)
-        assert 'must be strictly positive' in str(err)
+        assert 'must be strictly positive' in str(err.value)
         return
 
     features = p.process_all(signals, njobs=njobs)

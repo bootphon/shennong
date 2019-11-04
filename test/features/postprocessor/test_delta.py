@@ -38,4 +38,4 @@ def test_output(mfcc, order, window):
 def test_ndims():
     with pytest.raises(ValueError) as err:
         DeltaPostProcessor().ndims
-    assert 'output dimension for delta processor depends on input' in str(err)
+    assert 'output dimension for delta processor depends on input' in str(err.value)

@@ -60,7 +60,7 @@ def test_logger(capsys, level):
 def test_logger_bad_level():
     with pytest.raises(ValueError) as err:
         utils.get_logger(level='bad')
-    assert 'invalid logging level' in str(err)
+    assert 'invalid logging level' in str(err.value)
 
 
 @pytest.mark.parametrize('x', ['abc', 0, {'a': 0}, {0, 1}])

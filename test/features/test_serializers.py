@@ -44,7 +44,7 @@ def test_get_serializer_byname(name):
     if name == 'kaldi':
         with pytest.raises(ValueError) as err:
             serializers.get_serializer(FeaturesCollection, 'foo.file', name)
-        assert 'the file extension must be ".ark", it is ".file"' in str(err)
+        assert 'the file extension must be ".ark", it is ".file"' in str(err.value)
         filename = 'foo.ark'
 
     h = serializers.get_serializer(FeaturesCollection, filename, name)
@@ -62,26 +62,26 @@ def test_get_serializer_byext(ext):
 def test_get_serializer_bad():
     with pytest.raises(ValueError) as err:
         serializers.get_serializer(int, 'foo', None)
-    assert 'must be shennong.features.FeaturesCollection' in str(err)
+    assert 'must be shennong.features.FeaturesCollection' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         serializers.get_serializer(FeaturesCollection, 'foo.spam', None)
-    assert 'invalid extension .spam' in str(err)
+    assert 'invalid extension .spam' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         serializers.get_serializer(FeaturesCollection, 'foo', None)
-    assert 'no extension nor serializer name specified' in str(err)
+    assert 'no extension nor serializer name specified' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         serializers.get_serializer(FeaturesCollection, 'foo.spam', 'spam')
-    assert 'invalid serializer spam' in str(err)
+    assert 'invalid serializer spam' in str(err.value)
 
 
 def test_load_nofile():
     h = serializers.get_serializer(FeaturesCollection, 'foo.json', None)
     with pytest.raises(IOError) as err:
         h.load()
-    assert 'file not found' in str(err)
+    assert 'file not found' in str(err.value)
 
 
 @pytest.mark.skipif(getpass.getuser() == 'root', reason='executed as root')
@@ -92,7 +92,7 @@ def test_load_noreadable(tmpdir):
     os.chmod(f, 0o222)  # write-only
     with pytest.raises(IOError) as err:
         h.load()
-    assert 'file not readable' in str(err)
+    assert 'file not readable' in str(err.value)
 
 
 def test_load_invalid(tmpdir, mfcc_col):
@@ -108,7 +108,7 @@ def test_load_invalid(tmpdir, mfcc_col):
 
     with pytest.raises(ValueError) as err:
         h.load()
-    assert 'features not valid in file' in str(err)
+    assert 'features not valid in file' in str(err.value)
 
 
 def test_save_exists(tmpdir, mfcc_col):
@@ -117,7 +117,7 @@ def test_save_exists(tmpdir, mfcc_col):
     h = serializers.get_serializer(FeaturesCollection, f, None)
     with pytest.raises(IOError) as err:
         h.save(mfcc_col)
-    assert 'file already exists' in str(err)
+    assert 'file already exists' in str(err.value)
 
 
 def test_save_not_collection(tmpdir, mfcc):
@@ -125,7 +125,7 @@ def test_save_not_collection(tmpdir, mfcc):
     h = serializers.get_serializer(FeaturesCollection, f, None)
     with pytest.raises(ValueError) as err:
         h.save(mfcc)
-    assert 'features must be FeaturesCollection but are Features' in str(err)
+    assert 'features must be FeaturesCollection but are Features' in str(err.value)
 
 
 def test_save_invalid(tmpdir, mfcc):
@@ -135,7 +135,7 @@ def test_save_invalid(tmpdir, mfcc):
         data=mfcc.data, times=0, validate=False))
     with pytest.raises(ValueError) as err:
         h.save(feats)
-    assert 'features are not valid' in str(err)
+    assert 'features are not valid' in str(err.value)
 
 
 @pytest.mark.parametrize('serializer', SERIALIZERS)
@@ -191,7 +191,7 @@ def test_heterogeneous(mfcc, serializer, tmpdir):
     if serializer is serializers.H5featuresSerializer:
         with pytest.raises(IOError) as err:
             h.save(mfcc_col)
-        assert 'data is not appendable to the group' in str(err)
+        assert 'data is not appendable to the group' in str(err.value)
     else:
         h.save(mfcc_col)
         mfcc2 = h.load()
@@ -225,7 +225,7 @@ def test_kaldiserializer_baditems(tmpdir, mfcc_col):
         str(tmpdir.join('two.times.ark')))
     with pytest.raises(ValueError) as err:
         FeaturesCollection.load(str(tmpdir.join('two.ark')))
-    assert 'items differ in data and times' in str(err)
+    assert 'items differ in data and times' in str(err.value)
 
     os.remove(str(tmpdir.join('one.properties.json')))
     shutil.copyfile(
@@ -233,7 +233,7 @@ def test_kaldiserializer_baditems(tmpdir, mfcc_col):
         str(tmpdir.join('one.properties.json')))
     with pytest.raises(ValueError) as err:
         FeaturesCollection.load(str(tmpdir.join('one.ark')))
-    assert 'items differ in data and properties' in str(err)
+    assert 'items differ in data and properties' in str(err.value)
 
 
 @pytest.mark.parametrize(
@@ -244,4 +244,4 @@ def test_kaldiserializer_badfile(tmpdir, mfcc_col, missing):
     os.remove(str(tmpdir.join(missing)))
     with pytest.raises(IOError) as err:
         FeaturesCollection.load(filename)
-    assert 'file not found: {}'.format(str(tmpdir.join(missing))) in str(err)
+    assert 'file not found: {}'.format(str(tmpdir.join(missing))) in str(err.value)

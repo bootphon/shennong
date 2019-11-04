@@ -19,11 +19,11 @@ def test_params():
 
     with pytest.raises(ValueError) as err:
         f.order = -1
-    assert 'must be an integer in [0, 12]' in str(err)
+    assert 'must be an integer in [0, 12]' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         f.order = 13
-    assert 'must be an integer in [0, 12]' in str(err)
+    assert 'must be an integer in [0, 12]' in str(err.value)
 
 
 def test_bad_signal():
@@ -31,7 +31,7 @@ def test_bad_signal():
     proc = RastaPlpProcessor(sample_rate=signal.sample_rate)
     with pytest.raises(ValueError) as err:
         proc.process(signal)
-        assert 'signal must have one dimension' in str(err)
+        assert 'signal must have one dimension' in str(err.value)
 
 
 @pytest.mark.parametrize('order', [0, 1, 2, 5, 10, 12])
@@ -40,7 +40,7 @@ def test_order(order, audio):
         proc = RastaPlpProcessor(
             order=order, sample_rate=audio.sample_rate + 1)
         proc.process(audio)
-    assert 'mismatch in sample rates' in str(err)
+    assert 'mismatch in sample rates' in str(err.value)
 
     proc = RastaPlpProcessor(
         order=order, sample_rate=audio.sample_rate, dither=0)

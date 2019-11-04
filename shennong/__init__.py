@@ -12,7 +12,7 @@ import datetime
 import textwrap
 
 
-__version__ = '0.1'
+__version__ = '0.1.1'
 
 
 def url():

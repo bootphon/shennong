@@ -13,15 +13,15 @@ def test_bad_params():
 
     with pytest.raises(ValueError) as err:
         p.energy_mean_scale = -1
-    assert 'must be >= 0' in str(err)
+    assert 'must be >= 0' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         p.frames_context = -1
-    assert 'must be >= 0' in str(err)
+    assert 'must be >= 0' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         p.proportion_threshold = 0
-    assert 'must be in ]0, 1[' in str(err)
+    assert 'must be in ]0, 1[' in str(err.value)
 
 
 def test_params():

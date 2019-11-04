@@ -605,12 +605,12 @@ class BottleneckProcessor(FeaturesProcessor):
     def _get_weights(self):
         if self.weights not in self._loaded_weights:
             # load the weights if not already loaded
-            available_weights = self.available_weights()
-            weights_file = available_weights[self.weights]
+            weights_file = self.available_weights()[self.weights]
             self._log.info('loading %s', os.path.basename(weights_file))
-            # explicitely load all the data once, instead of have file
-            # descriptors
-            with np.load(available_weights[self.weights]) as w:
+
+            # explicitely load all the data once, instead of having a file
+            # descriptor
+            with np.load(weights_file) as w:
                 self._loaded_weights[self.weights] = {
                     k: v for k, v in w.items()}
 
