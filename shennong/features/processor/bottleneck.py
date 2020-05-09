@@ -363,7 +363,7 @@ def _gmm_eval(data, GMM, return_accums=0):
     if return_accums == 0:
         return llh
 
-    gamma = sp.exp(gamma.T - llh)
+    gamma = np.exp(gamma.T - llh)
     N = gamma.sum(axis=1)
     F = gamma.dot(data)
 
@@ -376,8 +376,8 @@ def _gmm_eval(data, GMM, return_accums=0):
 
 def _logsumexp(x, axis=0):
     xmax = x.max(axis)
-    ex = sp.exp(x - np.expand_dims(xmax, axis))
-    x = xmax + sp.log(sp.sum(ex, axis))
+    ex = np.exp(x - np.expand_dims(xmax, axis))
+    x = xmax + np.lib.scimath.log(np.sum(ex, axis))
     not_finite = ~np.isfinite(xmax)
     x[not_finite] = xmax[not_finite]
     return x
