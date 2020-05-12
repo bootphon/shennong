@@ -43,7 +43,7 @@ documentation:
     - module load texlive/2018
     - conda activate shennong-ci
     - sphinx-build doc/source doc/build
-    - scp -r doc/build/* coml.lscp.ens.fr:/var/www/html/docs/shennong
+    - scp -r doc/build/* syntheticlearner.net:/var/www/docs.syntheticlearner.net/shennong
 
 # shennong package is available on oberon with "conda activate shennong"
 deploy-oberon:

@@ -21,13 +21,13 @@ https://anaconda.org/coml/shennong)
 
 ### Documentation
 
-* See the complete documentation at https://coml.lscp.ens.fr/docs/shennong.
+* See the complete documentation at https://docs.syntheticlearner.net/shennong.
 
 * See the detailed installation procedure
-  [here](https://coml.lscp.ens.fr/docs/shennong/installation.html). On
+  [here](https://docs.syntheticlearner.net/shennong/installation.html). On
   Linux, simply have a:
 
         conda install -c coml shennong
 
 * See the list of available features
-  [here](https://coml.lscp.ens.fr/docs/shennong/intro_features.html).
+  [here](https://docs.syntheticlearner.net/shennong/intro_features.html).
