@@ -7,27 +7,13 @@ Shennong's documentation
   :target: https://codecov.io/gh/bootphon/shennong
 
 
-* Shennong is a **toolbox for unsupervised speech recognition**.
+* Shennong is a **toolbox for speech features extraction** which provide a wide
+  range of extraction and post-processing algorithms.
 
 * It provides both a **Python API** and a **command line interface**.
 
-* It aims to provide three blocks of processing, inspired by the `Zero
-  Resource Speech challenges <http://www.zerospeech.com/>`_:
-
-  * Speech features extraction,
-  * Subword modeling,
-  * Spoken term discovery.
-
-.. note::
-
-   The package is still in development phase (current version is
-   |version|):
-
-    * Release *0.1* includes the *features* block,
-    * Release 0.2 will include the *subword modeling* block,
-    * Release *0.3* will include the *term discovery* block,
-    * Further versions will include complete recipes, replication of
-      published results and additional models.
+* It is mainly based on `Kaldi <https://kaldi-asr.org>`_ using the `pykaldi
+  <https://github.com/pykaldi/pykaldi>`_ Python adapter.
 
 
 .. toctree::

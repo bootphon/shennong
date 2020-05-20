@@ -7,19 +7,12 @@ https://codecov.io/gh/bootphon/shennong)
 [![Anaconda-Server Badge](https://anaconda.org/coml/shennong/badges/version.svg)](
 https://anaconda.org/coml/shennong)
 
-### A Python toolbox for unsupervised speech recognition
+### A Python toolbox for speech features extraction
 
-* It aims to provide three blocks of processing as a **Python API**
-  and a **command line interface**, inspired by the [Zero Resource
-  Speech challenges](http://www.zerospeech.com):
-
-  * **Speech features extraction**,
-  * Subword modeling,
-  * Spoken term discovery.
-
-  Actually only speech features are implemented.
-
-### Documentation
+Shennong provides a wide range of speech features extraction algorithms as well
+as post-processing pipelines. It relies on [Kaldi](https://kaldi-asr.org) for
+most of the algorithms while providing simple to use **Python API** and
+**command line interface**.
 
 * See the complete documentation at https://docs.syntheticlearner.net/shennong.
 
@@ -29,5 +22,6 @@ https://anaconda.org/coml/shennong)
 
         conda install -c coml shennong
 
-* See the list of available features
+* Implementented models include filterbanks, MFCC, PLP, bottleneck, pitch,
+  delta, CMVN, VAD. See the complete list of available features
   [here](https://docs.syntheticlearner.net/shennong/intro_features.html).
