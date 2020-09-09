@@ -61,6 +61,7 @@ References
 import numpy as np
 import kaldi.matrix
 import kaldi.transform.cmvn
+import kaldi.feat.functions
 
 from shennong.features.postprocessor.base import FeaturesPostProcessor
 from shennong.features import Features, FeaturesCollection
@@ -83,6 +84,7 @@ class CmvnPostProcessor(FeaturesPostProcessor):
         If ``dim`` is not a strictly positive integer
 
     """
+
     def __init__(self, dim, stats=None):
         # init features dimension
         if not isinstance(dim, int) or dim <= 0:
@@ -348,3 +350,98 @@ def apply_cmvn(feats_collection, by_collection=True, norm_vars=True,
                 f, norm_vars=norm_vars, skip_dims=skip_dims)
 
         return cmvn_collection
+
+
+class SlidingWindowCmvnPostProcessor(FeaturesPostProcessor):
+    def __init__(self, center=True, cmn_window=600, max_warnings=5,
+                 min_window=100, normalize_variance=False):
+        self._options = kaldi.feat.functions.SlidingWindowCmnOptions()
+        self.center = center
+        self.cmn_window = cmn_window
+        self.max_warnings = max_warnings
+        self.min_window = min_window
+        self.normalize_variance = normalize_variance
+
+    @property
+    def name(self):
+        return 'sliding_window_cmn'
+
+    @property
+    def center(self):
+        """Whether to center the window on the current frame"""
+        return self._options.center
+
+    @center.setter
+    def center(self, value):
+        self._options.center = value
+
+    @property
+    def cmn_window(self):
+        """Window size for average CMN computation"""
+        return self._options.cmn_window
+
+    @cmn_window.setter
+    def cmn_window(self, value):
+        self._options.cmn_window = value
+
+    @property
+    def max_warnings(self):
+        """Maximum warning to report per utterance"""
+        return self._options.max_warnings
+
+    @max_warnings.setter
+    def max_warnings(self, value):
+        self._options.max_warnings = value
+
+    @property
+    def min_window(self):
+        """Minimum CMN window used at start of decoding"""
+        return self._options.min_window
+
+    @min_window.setter
+    def min_window(self, value):
+        self._options.min_window = value
+
+    @property
+    def normalize_variance(self):
+        """Whether to normalize variance to one"""
+        return self._options.normalize_variance
+
+    @normalize_variance.setter
+    def normalize_variance(self, value):
+        self._options.normalize_variance = value
+
+    def get_properties(self, features):  # TODO: add pipeline ?
+        properties = super().get_properties(features)
+        properties[self.name] = {
+            'center': self.center,
+            'cmn_window': self.cmn_window,
+            'max_warnings': self.max_warnings,
+            'min_window': self.min_window,
+            'normalize_variance': self.normalize_variance
+        }
+        return properties
+
+    def process(self, features):
+        """Applies sliding-window cepstral mean and/or variance normalization
+        on `features` with the specified options
+
+        Parameters
+        ----------
+        features : :class:`~shennong.features.features.Features`
+            The input features.
+
+        Returns
+        -------
+        slid_window_cmvn_feats : :class:`~shennong.features.features.Features`
+            The normalized features.
+        """
+        data = kaldi.matrix.Matrix(
+            features.data.shape[0], features.data.shape[1])
+        kaldi.feat.functions.sliding_window_cmn(
+            self._options, kaldi.matrix.SubMatrix(features.data), data)
+
+        return Features(
+            data.numpy(),
+            features.times,
+            self.get_properties(features))
