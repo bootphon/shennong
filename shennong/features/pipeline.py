@@ -95,7 +95,9 @@ def valid_features():
 
 
 def get_default_config(features, to_yaml=False, yaml_commented=True,
-                       with_pitch=True, with_cmvn=True, with_delta=True):
+                       with_pitch=True, with_cmvn=True,
+                       with_sliding_window_cmvn=False, with_delta=True,
+                       with_vad_trimming=False):
     """Returns the default configuration for the specified pipeline
 
     The pipeline is specified with the main `features` it computes and
@@ -121,9 +123,14 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
     with_cmvn : bool, optional
         Configure the pipeline for CMVN normalization of the features,
         default to True.
+    with_sliding_window_cmvn: bool, optional
+        Configure the pipeline for sliding window CMVN normalization
+        of the features, default to False.
     with_delta : bool, optional
         Configure the pipeline for features's delta extraction,
         default to True.
+    with_vad_trimming: bool, optional
+        Configure the pipeline for removing silent frames, default to False.
 
     Returns
     -------
@@ -165,8 +172,17 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
         config['cmvn'] = {'by_speaker': True, 'with_vad': True}
         config['cmvn']['vad'] = _Manager.get_processor_params('vad')
 
+    if with_sliding_window_cmvn:
+        config['sliding_window_cmvn'] = _Manager.get_processor_params(
+            'sliding_window_cmvn')
+
     if with_delta:
         config['delta'] = _Manager.get_processor_params('delta')
+
+    if with_vad_trimming:
+        config['vad_trimming'] = _Manager.get_processor_params('vad')
+        if with_cmvn:
+            config['cmvn']['with_vad'] = False
 
     if to_yaml:
         return _get_config_to_yaml(config, comments=yaml_commented)
@@ -542,6 +558,14 @@ def _extract_pass_one(utt_name, manager, log=get_logger()):
     log.debug('%s: extract %s', utt_name, manager.features)
     features = manager.get_features_processor(utt_name).process(audio)
 
+    # vad trimming (remove non-voiced frames)
+    if 'vad_trimming' in manager.config:
+        log.debug('%s: vad trimming', utt_name)
+        energy = manager.get_energy_processor(utt_name).process(audio)
+        vad = manager.get_vad_processor(utt_name).process(energy)
+        vad = vad.data.reshape((vad.shape[0], ))
+        features = features.trim(vad)
+
     # cmvn accumulation
     if 'cmvn' in manager.config:
         log.debug('%s: accumulate cmvn', utt_name)
@@ -594,6 +618,12 @@ def _extract_pass_two(utt_name, manager, features, pitch,
         log.debug('%s: apply cmvn', utt_name)
         features = manager.get_cmvn_processor(utt_name).process(features)
 
+    # apply sliding window cmvn
+    if 'sliding_window_cmvn' in manager.config:
+        log.debug('%s: apply sliding window cmvn', utt_name)
+        features = manager.get_sliding_window_cmvn_processor(
+            utt_name).process(features)
+
     # apply delta
     if 'delta' in manager.config:
         log.debug('%s: apply delta', utt_name)
@@ -639,6 +669,8 @@ class _Manager:
         'rastaplp': ('processor', 'RastaPlpProcessor'),
         'spectrogram': ('processor', 'SpectrogramProcessor'),
         'cmvn': ('postprocessor', 'CmvnPostProcessor'),
+        'sliding_window_cmvn':
+            ('postprocessor', 'SlidingWindowCmvnPostProcessor'),
         'delta': ('postprocessor', 'DeltaPostProcessor'),
         'vad': ('postprocessor', 'VadPostProcessor')}
     """The features processors as a dict {name: (module, class)}"""
@@ -876,6 +908,11 @@ class _Manager:
             return self._cmvn_processors[speaker]
         else:
             return self._cmvn_processors[utterance]
+
+    def get_sliding_window_cmvn_processor(self, utterrance):
+        """Instanciates and returns a sliding-window CMVN processor"""
+        return self.get_processor_class('sliding_window_cmvn')(
+            **self.config['sliding_window_cmvn'])
 
     def get_pitch_processor(self, utterance):
         """Instanciates and returns a pitch processor"""
