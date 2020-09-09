@@ -352,6 +352,7 @@ def apply_cmvn(feats_collection, by_collection=True, norm_vars=True,
         return cmvn_collection
 
 
+# TODO: add unittest
 class SlidingWindowCmvnPostProcessor(FeaturesPostProcessor):
     def __init__(self, center=True, cmn_window=600, max_warnings=5,
                  min_window=100, normalize_variance=False):
