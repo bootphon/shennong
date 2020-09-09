@@ -367,6 +367,12 @@ class Features:
 
         return Features(np.hstack((d1, d2)), t1, properties=properties)
 
+    def trim(self, frames):
+        return Features(
+            self.data[frames],
+            self.times[frames],
+            properties=self.properties)
+
 
 class FeaturesCollection(dict):
     # a tweak inspired by C++ metaprogramming to avoid import loops

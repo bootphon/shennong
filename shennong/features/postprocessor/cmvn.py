@@ -365,7 +365,7 @@ class SlidingWindowCmvnPostProcessor(FeaturesPostProcessor):
 
     @property
     def name(self):
-        return 'sliding_window_cmn'
+        return 'sliding_window_cmvn'
 
     @property
     def center(self):
