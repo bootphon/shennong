@@ -186,7 +186,7 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
             config['ubm'] = with_vtln
 
     if with_vad_trimming:
-        config['vad_trimming'] = _Manager.get_processor_params('vad')
+        config['vad'] = _Manager.get_processor_params('vad')
         if with_cmvn:
             config['cmvn']['with_vad'] = False
 
@@ -566,7 +566,7 @@ def _extract_pass_one(utt_name, manager, log=get_logger()):
         audio, vtln_warp=manager.get_vtln_warp(utt_name))
 
     # vad trimming (remove non-voiced frames)
-    if 'vad_trimming' in manager.config:
+    if 'vad' in manager.config:
         log.debug('%s: vad trimming', utt_name)
         energy = manager.get_energy_processor(utt_name).process(audio)
         vad = manager.get_vad_processor(utt_name).process(energy)

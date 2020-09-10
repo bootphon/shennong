@@ -58,6 +58,7 @@ References
 
 """
 
+import copy
 import numpy as np
 import kaldi.matrix
 import kaldi.transform.cmvn
@@ -417,15 +418,17 @@ class SlidingWindowCmvnPostProcessor(FeaturesPostProcessor):
     def normalize_variance(self, value):
         self._options.normalize_variance = value
 
-    def get_properties(self, features):  # TODO: add pipeline ?
-        properties = super().get_properties(features)
-        properties[self.name] = {
-            'center': self.center,
-            'cmn_window': self.cmn_window,
-            'max_warnings': self.max_warnings,
-            'min_window': self.min_window,
-            'normalize_variance': self.normalize_variance
-        }
+    def get_properties(self, features):
+        properties = copy.deepcopy(features.properties)
+        properties[self.name] = self.get_params()
+
+        if 'pipeline' not in properties:
+            properties['pipeline'] = []
+
+        properties['pipeline'].append({
+            'name': self.name,
+            'columns': [0, features.ndims - 1]})
+
         return properties
 
     def process(self, features):
