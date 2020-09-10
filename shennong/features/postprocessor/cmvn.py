@@ -437,8 +437,7 @@ class SlidingWindowCmvnPostProcessor(FeaturesPostProcessor):
         slid_window_cmvn_feats : :class:`~shennong.features.features.Features`
             The normalized features.
         """
-        data = kaldi.matrix.Matrix(
-            features.data.shape[0], features.data.shape[1])
+        data = kaldi.matrix.Matrix(*features.data.shape)
         kaldi.feat.functions.sliding_window_cmn(
             self._options, kaldi.matrix.SubMatrix(features.data), data)
 
