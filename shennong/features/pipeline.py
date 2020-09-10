@@ -96,7 +96,8 @@ def valid_features():
 
 def get_default_config(features, to_yaml=False, yaml_commented=True,
                        with_pitch=True, with_cmvn=True,
-                       with_sliding_window_cmvn=False, with_delta=True):
+                       with_sliding_window_cmvn=False, with_delta=True,
+                       with_vtln=False):
     """Returns the default configuration for the specified pipeline
 
     The pipeline is specified with the main `features` it computes and
@@ -128,7 +129,7 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
     with_delta : bool, optional
         Configure the pipeline for features's delta extraction,
         default to True.
-
+    with_vtln:
     Returns
     -------
     config : dict or str
@@ -176,6 +177,9 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
     if with_delta:
         config['delta'] = _Manager.get_processor_params('delta')
 
+    # if with_vtln:
+    #     if isinstance(with_vtln, dict):
+    #         config['vtln'] = with_vtln
     if to_yaml:
         return _get_config_to_yaml(config, comments=yaml_commented)
     return config
@@ -548,7 +552,8 @@ def _extract_pass_one(utt_name, manager, log=get_logger()):
 
     # main features extraction
     log.debug('%s: extract %s', utt_name, manager.features)
-    features = manager.get_features_processor(utt_name).process(audio)
+    features = manager.get_features_processor(utt_name).process(
+        audio, vtln_warp=manager.get_vtln_warp(utt_name))
 
     # cmvn accumulation
     if 'cmvn' in manager.config:
@@ -701,6 +706,11 @@ class _Manager:
                     utt: self.get_processor_class('cmvn')(p.ndims)
                     for utt in self.utterances}
 
+        self._vtln = {}
+        # if 'vtln' in self.config:
+        #     if self.config['vtln']:
+        #         warps = self.get_processor_class('vtln')(self.utterance)
+
     @property
     def config(self):
         return self._config
@@ -790,6 +800,8 @@ class _Manager:
             raise ValueError('invalid processor "{}"'.format(name))
         if name == 'pitch_post':
             name = 'pitch'
+        if name == 'sliding_window_cmvn':
+            name = 'cmvn'
 
         module = 'shennong.features.{}.{}'.format(_module, name)
         try:
@@ -916,3 +928,13 @@ class _Manager:
     def get_delta_processor(self, utterance):
         """Instanciates and returns a delta processor"""
         return self.get_processor_class('delta')(**self.config['delta'])
+
+    def get_vtln_warp(self, utterance):
+        return 1 if utterance not in self._vtln else self._vtln[utterance]
+
+
+# config = get_default_config('mfcc', with_sliding_window_cmvn=True)
+
+# utterances = [
+#     ('s0101a', '../../../vtln/mini_buckeye/data/wavs/s0101a.wav', 's01')]
+# features = extract_features(config, utterances, njobs=3)
