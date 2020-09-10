@@ -96,7 +96,8 @@ def valid_features():
 
 def get_default_config(features, to_yaml=False, yaml_commented=True,
                        with_pitch=True, with_cmvn=True,
-                       with_sliding_window_cmvn=False, with_delta=True):
+                       with_sliding_window_cmvn=False, with_delta=True,
+                       with_vad_trimming=False):
     """Returns the default configuration for the specified pipeline
 
     The pipeline is specified with the main `features` it computes and
@@ -128,6 +129,8 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
     with_delta : bool, optional
         Configure the pipeline for features's delta extraction,
         default to True.
+    with_vad_trimming: bool, optional
+        Configure the pipeline for removing silent frames, default to False.
 
     Returns
     -------
@@ -175,6 +178,11 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
 
     if with_delta:
         config['delta'] = _Manager.get_processor_params('delta')
+
+    if with_vad_trimming:
+        config['vad_trimming'] = _Manager.get_processor_params('vad')
+        if with_cmvn:
+            config['cmvn']['with_vad'] = False
 
     if to_yaml:
         return _get_config_to_yaml(config, comments=yaml_commented)
@@ -549,6 +557,14 @@ def _extract_pass_one(utt_name, manager, log=get_logger()):
     # main features extraction
     log.debug('%s: extract %s', utt_name, manager.features)
     features = manager.get_features_processor(utt_name).process(audio)
+
+    # vad trimming (remove non-voiced frames)
+    if 'vad_trimming' in manager.config:
+        log.debug('%s: vad trimming', utt_name)
+        energy = manager.get_energy_processor(utt_name).process(audio)
+        vad = manager.get_vad_processor(utt_name).process(energy)
+        vad = vad.data.reshape((vad.shape[0], ))
+        features = features.trim(vad)
 
     # cmvn accumulation
     if 'cmvn' in manager.config:
