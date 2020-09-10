@@ -180,13 +180,16 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
     if with_delta:
         config['delta'] = _Manager.get_processor_params('delta')
 
-    # if with_vtln:
-    #     if isinstance(with_vtln, dict):
-    #         config['vtln'] = with_vtln
+    if with_vtln:
+        if isinstance(with_vtln, dict):
+            config['vtln'] = with_vtln
+            config['ubm'] = with_vtln
+
     if with_vad_trimming:
         config['vad_trimming'] = _Manager.get_processor_params('vad')
         if with_cmvn:
             config['cmvn']['with_vad'] = False
+
     if to_yaml:
         return _get_config_to_yaml(config, comments=yaml_commented)
     return config
@@ -326,7 +329,7 @@ def _get_config_to_yaml(config, comments=True):
     if not comments:
         return config + '\n'
 
-    # incrust the parameters docstings as comments in the yaml
+    # incrust the parameters docstrings as comments in the yaml
     config_commented = []
     processor = None
     for line in config.split('\n'):
@@ -673,9 +676,9 @@ class _Manager:
         'rastaplp': ('processor', 'RastaPlpProcessor'),
         'spectrogram': ('processor', 'SpectrogramProcessor'),
         'cmvn': ('postprocessor', 'CmvnPostProcessor'),
+        'delta': ('postprocessor', 'DeltaPostProcessor'),
         'sliding_window_cmvn':
             ('postprocessor', 'SlidingWindowCmvnPostProcessor'),
-        'delta': ('postprocessor', 'DeltaPostProcessor'),
         'vad': ('postprocessor', 'VadPostProcessor')}
     """The features processors as a dict {name: (module, class)}"""
 
@@ -721,10 +724,11 @@ class _Manager:
                     utt: self.get_processor_class('cmvn')(p.ndims)
                     for utt in self.utterances}
 
-        self._vtln = {}
-        # if 'vtln' in self.config:
-        #     if self.config['vtln']:
-        #         warps = self.get_processor_class('vtln')(self.utterance)
+        self._warps = {}
+        if 'vtln' in self.config:
+            if self.config['vtln']:
+                self._warps = self.get_vtln_processor(
+                    'vtln').fit(utterances, **self.config['ubm'])
 
     @property
     def config(self):
@@ -737,6 +741,10 @@ class _Manager:
     @property
     def speakers(self):
         return self._speakers
+
+    @property
+    def warps(self):
+        return self._warps
 
     def _check_speakers(self):
         """Ensures the configuration is compatible with speakers information
@@ -944,8 +952,12 @@ class _Manager:
         """Instanciates and returns a delta processor"""
         return self.get_processor_class('delta')(**self.config['delta'])
 
+    def get_vtln_processor(self, utterance):
+        """Instanciates and returns a VTLN processor"""
+        return self.get_processor_class('vtln')(**self.config['vtln'])
+
     def get_vtln_warp(self, utterance):
-        return 1 if utterance not in self._vtln else self._vtln[utterance]
+        return 1 if utterance not in self.warps else self.warps[utterance]
 
 
 # config = get_default_config('mfcc', with_sliding_window_cmvn=True)

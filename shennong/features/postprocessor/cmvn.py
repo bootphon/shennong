@@ -368,6 +368,11 @@ class SlidingWindowCmvnPostProcessor(FeaturesPostProcessor):
         return 'sliding_window_cmvn'
 
     @property
+    def ndims(self):
+        raise ValueError('output dimension for sliding '
+                         'window CMVN processor depends on input')
+
+    @property
     def center(self):
         """Whether to center the window on the current frame"""
         return self._options.center
