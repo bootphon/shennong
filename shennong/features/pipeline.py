@@ -565,14 +565,6 @@ def _extract_pass_one(utt_name, manager, log=get_logger()):
     features = manager.get_features_processor(utt_name).process(
         audio, vtln_warp=manager.get_vtln_warp(utt_name))
 
-    # vad trimming (remove non-voiced frames)
-    if 'vad' in manager.config:
-        log.debug('%s: vad trimming', utt_name)
-        energy = manager.get_energy_processor(utt_name).process(audio)
-        vad = manager.get_vad_processor(utt_name).process(energy)
-        vad = vad.data.reshape((vad.shape[0], ))
-        features = features.trim(vad)
-
     # cmvn accumulation
     if 'cmvn' in manager.config:
         log.debug('%s: accumulate cmvn', utt_name)
@@ -595,6 +587,16 @@ def _extract_pass_one(utt_name, manager, log=get_logger()):
         pitch = p2.process(p1.process(audio))
     else:
         pitch = None
+
+    # vad trimming (remove non-voiced frames)
+    if 'vad' in manager.config:
+        log.debug('%s: vad trimming', utt_name)
+        energy = manager.get_energy_processor(utt_name).process(audio)
+        vad = manager.get_vad_processor(utt_name).process(energy)
+        vad = vad.data.reshape((vad.shape[0], ))
+        features = features.trim(vad)
+        if 'pitch' in manager.config:
+            pitch = pitch.trim(vad)
 
     # add info on speaker and audio input on the features properties
     speaker = manager.utterances[utt_name].speaker
@@ -958,10 +960,3 @@ class _Manager:
 
     def get_vtln_warp(self, utterance):
         return 1 if utterance not in self.warps else self.warps[utterance]
-
-
-# config = get_default_config('mfcc', with_sliding_window_cmvn=True)
-
-# utterances = [
-#     ('s0101a', '../../../vtln/mini_buckeye/data/wavs/s0101a.wav', 's01')]
-# features = extract_features(config, utterances, njobs=3)

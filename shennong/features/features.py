@@ -369,8 +369,8 @@ class Features:
 
     def trim(self, frames):
         return Features(
-            self.data[frames],
-            self.times[frames],
+            self.data[frames.astype(bool)],
+            self.times[frames.astype(bool)],
             properties=self.properties)
 
 
