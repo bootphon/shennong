@@ -1,11 +1,12 @@
 import os
 import kaldi.matrix
 import kaldi.matrix.common
+import kaldi.matrix.functions
 import kaldi.util.io
 import kaldi.transform
 from math import sqrt
 
-from shennong.features.processor.diagubm import DiagUbmProcessor, subsample_feats, extract_features_sliding_warp, Timer
+from shennong.features.processor.diagubm import DiagUbmProcessor, subsample_feats, extract_features_sliding_warp, Timer, get_vad
 from shennong.base import BaseProcessor
 from shennong.features.features import FeaturesCollection, Features
 from shennong.utils import get_logger
@@ -516,8 +517,10 @@ class VtlnProcessor(BaseProcessor):
 
         Parameters
         ----------
-        feats_collection : FeaturesCollection
-            [description]
+        utterances : list of tuples
+            The utterances can be defined in one of the following format:
+            * 3-uple: `<utterance-id> <wav-file> <speaker-id>`
+            * 5-uple: `<utterance-id> <wav-file> <speaker-id> <tstart> <tstop>`
         ubm : DiagUbmProcessor
             [description]
 
@@ -530,8 +533,7 @@ class VtlnProcessor(BaseProcessor):
             ubm = DiagUbmProcessor(**kwargs)
             ubm.process(utterances)
 
-        utt2speak = {u.file: u.speaker for u in utterances.values()
-                     } if self.by_speaker else {}
+        utt2speak = {} if self.by_speaker else {}  # TODO: adapt to utterances
 
         self._log.info('Initiliazing base LVTLN transforms')
         dim = ubm.gmm.dim()
@@ -540,20 +542,22 @@ class VtlnProcessor(BaseProcessor):
         self._lvtln = kaldi.transform.lvtln.LinearVtln.new(
             dim, num_classes, default_class)
 
+        vad_collection = get_vad(utterances)
         featsub_unwarped = extract_features_sliding_warp(
-            utterances, apply_cmn=False)
+            utterances, vad_collection, apply_cmn=False)
         featsub_unwarped = subsample_feats(featsub_unwarped, n=self.subsample)
         for c in range(num_classes):
             this_warp = self.min_warp + c*self.warp_step
             featsub_warped = extract_features_sliding_warp(
-                utterances, apply_cmn=False, warp=this_warp)
+                utterances, vad_collection, apply_cmn=False, warp=this_warp)
             featsub_warped = subsample_feats(featsub_warped, n=self.subsample)
             self._train_lvtln_special(
                 featsub_unwarped, featsub_warped, c, warp=this_warp)
             del featsub_warped
         del featsub_unwarped
 
-        orig_features = extract_features_sliding_warp(utterances, **ubm.config)
+        orig_features = extract_features_sliding_warp(
+            utterances, vad_collection, **ubm.config)
         orig_features = subsample_feats(orig_features, n=self.subsample)
 
         self._log.info('Computing Gaussian selection info')

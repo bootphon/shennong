@@ -110,23 +110,32 @@ def subsample_feats(feats_collection, n=1, offset=0, log=get_logger()):
     return subsampled_feats
 
 
+@Timer('Vad')
+def get_vad(utterances, energy_threshold=5.5, energy_mean_scale=0.5):
+    vad_collection = {}
+    for utt in utterances:
+        audio = Audio.load(utt[1])
+        mfcc = MfccProcessor(sample_rate=audio.sample_rate).process(
+            audio)
+        vad = VadPostProcessor(energy_threshold=energy_threshold,
+                               energy_mean_scale=energy_mean_scale
+                               ).process(mfcc)
+        vad_collection[utt[0]] = vad.data.reshape((vad.shape[0],))
+    return vad_collection
+
+
 @Timer('Extract features')
-def extract_features_sliding_warp(utterances, warp=1.0,
-                                  energy_threshold=5.5, energy_mean_scale=0.5,
+def extract_features_sliding_warp(utterances, vad_collection, warp=1.0,
                                   delta_order=2, delta_window=3,
                                   apply_cmn=True):
     features = FeaturesCollection()
     for utt in utterances:
-        print(utt)
         audio = Audio.load(utt[1])
         mfcc = MfccProcessor(sample_rate=audio.sample_rate).process(
             audio, vtln_warp=warp)
-        vad = VadPostProcessor(energy_threshold=energy_threshold,
-                               energy_mean_scale=energy_mean_scale
-                               ).process(mfcc)
-        vad = vad.data.reshape((vad.shape[0],))
         deltas = DeltaPostProcessor(
-            order=delta_order, window=delta_window).process(mfcc.trim(vad))
+            order=delta_order, window=delta_window).process(
+                mfcc.trim(vad_collection[utt[0]]))
         if apply_cmn:
             cmvn = SlidingWindowCmvnPostProcessor(cmn_window=300)
             features[utt[0]] = cmvn.process(deltas)
@@ -564,7 +573,9 @@ class DiagUbmProcessor(BaseProcessor):
             * 3-uple: `<utterance-id> <wav-file> <speaker-id>`
             * 5-uple: `<utterance-id> <wav-file> <speaker-id> <tstart> <tstop>`
         """
-        features = extract_features_sliding_warp(utterances, **kwargs)
+        vad_collection = get_vad(utterances)
+        features = extract_features_sliding_warp(
+            utterances, vad_collection, **kwargs)
         self._global_init_from_feats(features)
         self._log.info(f'Will train for {self.num_iters} iterations')
         features = subsample_feats(features, n=self.subsample)
