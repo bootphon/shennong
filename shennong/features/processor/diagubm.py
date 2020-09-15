@@ -8,7 +8,7 @@ from kaldi.gmm import GmmUpdateFlags
 
 from shennong.base import BaseProcessor
 
-# All the imports below will be removed
+# -----------WILL BE REMOVED--------------
 from shennong.utils import get_logger
 from shennong.audio import Audio
 from shennong.features.processor.mfcc import MfccProcessor
@@ -74,6 +74,67 @@ class Timer(ContextDecorator):
             self.timers[self.name] += elapsed_time
 
         return elapsed_time
+
+
+@Timer('Subsample')
+def subsample_feats(feats_collection, n=1, offset=0, log=get_logger()):
+    if n < 0:
+        raise ValueError('n must be positive')
+    num_done, num_err = 0, 0
+    frames_in, frames_out = 0, 0
+    subsampled_feats = FeaturesCollection()
+    for utt in feats_collection.keys():
+        feats = SubMatrix(feats_collection[utt].data)
+        num_indexes = 0
+        for k in range(offset, feats.num_rows, n):
+            num_indexes += 1
+        frames_in += feats.num_rows
+        frames_out += num_indexes
+        if num_indexes == 0:
+            log.warning(f'For utterance {utt}, output would have no rows,'
+                        f' producing no output')
+            num_err += 1
+            continue
+        output = Matrix(num_indexes, feats.num_cols)
+        i = 0
+        for k in range(offset, feats.num_rows, n):
+            src = SubVector(feats.row(k))
+            dest = SubVector(output.row(i))
+            dest.copy_(src)
+            i += 1
+        assert(i == num_indexes)
+        subsampled_feats[utt] = output
+        num_done += 1
+    log.debug(f'Processed {num_done} features matrices; {num_err} with errors;'
+              f' {frames_in} input frames and {frames_out} output frames')
+    return subsampled_feats
+
+
+@Timer('Extract features')
+def extract_features_sliding_warp(utterances, warp=1.0,
+                                  energy_threshold=5.5, energy_mean_scale=0.5,
+                                  delta_order=2, delta_window=3,
+                                  apply_cmn=True):
+    features = FeaturesCollection()
+    for utt in utterances:
+        print(utt)
+        audio = Audio.load(utt[1])
+        mfcc = MfccProcessor(sample_rate=audio.sample_rate).process(
+            audio, vtln_warp=warp)
+        vad = VadPostProcessor(energy_threshold=energy_threshold,
+                               energy_mean_scale=energy_mean_scale
+                               ).process(mfcc)
+        vad = vad.data.reshape((vad.shape[0],))
+        deltas = DeltaPostProcessor(
+            order=delta_order, window=delta_window).process(mfcc.trim(vad))
+        if apply_cmn:
+            cmvn = SlidingWindowCmvnPostProcessor(cmn_window=300)
+            features[utt[0]] = cmvn.process(deltas)
+        else:
+            features[utt[0]] = deltas
+    return features
+
+# ------------END OF REMOVING-----------------
 
 
 class DiagUbmProcessor(BaseProcessor):
@@ -515,62 +576,3 @@ class DiagUbmProcessor(BaseProcessor):
             self._global_est(gmm_accs)
         self.remove_low_count_gaussians = False
         self._log.info("Done training UBM.")
-
-
-@Timer('Subsample')
-def subsample_feats(feats_collection, n=1, offset=0, log=get_logger()):
-    if n < 0:
-        raise ValueError('n must be positive')
-    num_done, num_err = 0, 0
-    frames_in, frames_out = 0, 0
-    subsampled_feats = FeaturesCollection()
-    for utt in feats_collection.keys():
-        feats = SubMatrix(feats_collection[utt].data)
-        num_indexes = 0
-        for k in range(offset, feats.num_rows, n):
-            num_indexes += 1
-        frames_in += feats.num_rows
-        frames_out += num_indexes
-        if num_indexes == 0:
-            log.warning(f'For utterance {utt}, output would have no rows,'
-                        f' producing no output')
-            num_err += 1
-            continue
-        output = Matrix(num_indexes, feats.num_cols)
-        i = 0
-        for k in range(offset, feats.num_rows, n):
-            src = SubVector(feats.row(k))
-            dest = SubVector(output.row(i))
-            dest.copy_(src)
-            i += 1
-        assert(i == num_indexes)
-        subsampled_feats[utt] = output
-        num_done += 1
-    log.debug(f'Processed {num_done} features matrices; {num_err} with errors;'
-              f' {frames_in} input frames and {frames_out} output frames')
-    return subsampled_feats
-
-
-@Timer('Extract features')
-def extract_features_sliding_warp(utterances, warp=1.0,
-                                  energy_threshold=5.5, energy_mean_scale=0.5,
-                                  delta_order=2, delta_window=3,
-                                  apply_cmn=True):
-    features = FeaturesCollection()
-    for utt in utterances:
-        print(utt)
-        audio = Audio.load(utt[1])
-        mfcc = MfccProcessor(sample_rate=audio.sample_rate).process(
-            audio, vtln_warp=warp)
-        vad = VadPostProcessor(energy_threshold=energy_threshold,
-                               energy_mean_scale=energy_mean_scale
-                               ).process(mfcc)
-        vad = vad.data.reshape((vad.shape[0],))
-        deltas = DeltaPostProcessor(
-            order=delta_order, window=delta_window).process(mfcc.trim(vad))
-        if apply_cmn:
-            cmvn = SlidingWindowCmvnPostProcessor(cmn_window=300)
-            features[utt[0]] = cmvn.process(deltas)
-        else:
-            features[utt[0]] = deltas
-    return features
