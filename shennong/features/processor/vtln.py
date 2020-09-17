@@ -1,4 +1,5 @@
 import os
+import copy
 import kaldi.matrix
 import kaldi.matrix.common
 import kaldi.matrix.functions
@@ -6,10 +7,12 @@ import kaldi.util.io
 import kaldi.transform
 from math import sqrt
 
-from shennong.features.processor.diagubm import DiagUbmProcessor, subsample_feats, extract_features_sliding_warp, Timer, get_vad
+from shennong.features.processor.diagubm import DiagUbmProcessor, subsample_feats, Timer, _get_vad, _get_default_vtln_config
 from shennong.base import BaseProcessor
 from shennong.features.features import FeaturesCollection, Features
+from shennong.pipeline import extract_features, _extract_features_warp
 from shennong.utils import get_logger
+from kaldi.util.table import SequentialMatrixReader
 
 
 def _transform_feats(feats_collection, transforms, log=get_logger()):
@@ -18,12 +21,15 @@ def _transform_feats(feats_collection, transforms, log=get_logger()):
     for utt in feats_collection:
         transform_rows = transforms[utt].num_rows
         transform_cols = transforms[utt].num_cols
-        feat_dim = feats_collection[utt].num_cols
+        # feat_dim = feats_collection[utt].ndims
+        feat_dim = feats_collection[utt].shape[1]
         feat_out = kaldi.matrix.Matrix(
-            feats_collection[utt].num_rows, transform_rows)
+            # feats_collection[utt].nframes, transform_rows)
+            feats_collection[utt].shape[0], transform_rows)
         if transform_cols == feat_dim:
             feat_out.add_mat_mat_(
-                kaldi.matrix.SubMatrix(feats_collection[utt]), transforms[utt],
+                kaldi.matrix.SubMatrix(
+                    feats_collection[utt].data), transforms[utt],
                 transA=kaldi.matrix.common.MatrixTransposeType.NO_TRANS,
                 transB=kaldi.matrix.common.MatrixTransposeType.TRANS,
                 alpha=1.0,
@@ -32,7 +38,8 @@ def _transform_feats(feats_collection, transforms, log=get_logger()):
             linear_part = kaldi.matrix.SubMatrix(
                 transforms[utt], 0, transform_rows, 0, feat_dim)
             feat_out.add_mat_mat_(
-                kaldi.matrix.SubMatrix(feats_collection[utt]), linear_part,
+                kaldi.matrix.SubMatrix(
+                    feats_collection[utt].data), linear_part,
                 transA=kaldi.matrix.common.MatrixTransposeType.NO_TRANS,
                 transB=kaldi.matrix.common.MatrixTransposeType.TRANS,
                 alpha=1.0,
@@ -47,9 +54,10 @@ def _transform_feats(feats_collection, transforms, log=get_logger()):
             num_err += 1
             continue
         num_done += 1
-        transformed_feats[utt] = Features(
-            feat_out.numpy(), feats_collection[utt].times,
-            feats_collection[utt].properties)
+        transformed_feats[utt] = feat_out.numpy()
+        # transformed_feats[utt] = Features(
+        #     feat_out.numpy(), feats_collection[utt].times,
+        #     feats_collection[utt].properties)
     return transformed_feats
 
 
@@ -59,7 +67,9 @@ class VtlnProcessor(BaseProcessor):
 
     def __init__(self, by_speaker=True, num_iters=15,
                  min_warp=0.85, max_warp=1.25, warp_step=0.01,
-                 logdet_scale=0.0, norm_type='offset', subsample=5):
+                 logdet_scale=0.0, norm_type='offset', njobs=1,
+                 subsample=5, extract_config=_get_default_vtln_config(),
+                 ubm_config=DiagUbmProcessor(64).get_params()):
         self._by_speaker = by_speaker
         self._num_iters = num_iters
         self._min_warp = min_warp
@@ -68,6 +78,9 @@ class VtlnProcessor(BaseProcessor):
         self._logdet_scale = logdet_scale
         self._norm_type = norm_type
         self._subsample = subsample
+        self._njobs = njobs
+        self._extract_config = extract_config
+        self._ubm_config = ubm_config
 
         self._lvtln = None
 
@@ -148,14 +161,47 @@ class VtlnProcessor(BaseProcessor):
     def subsample(self, value):
         self._subsample = int(value)
 
-    def load(self, path):
+    @property
+    def njobs(self):
+        return self._njobs
+
+    @njobs.setter
+    def njobs(self, value):
+        self._njobs = int(value)
+
+    @property
+    def extract_config(self):
+        return self._extract_config
+
+    @extract_config.setter
+    def extract_config(self, value):
+        if not isinstance(value, dict):
+            raise TypeError('Features extraction configuration must be a dict')
+        if 'mfcc' not in value:
+            raise ValueError('The features needed are mfcc')
+        self._extract_config = copy.deepcopy(value)
+
+    @property
+    def ubm_config(self):
+        return self._ubm_config
+
+    @ubm_config.setter
+    def ubm_config(self, value):
+        if not isinstance(value, dict):
+            raise TypeError('Ubm configuration must be a dict')
+        self._ubm_config = copy.deepcopy(value)
+
+    @classmethod
+    def load(cls, path):
         """Load the LVTLN from a binary file"""
         if not os.path.isfile(path):
             raise IOError('{}: file not found'.format(path))
 
+        vtln = VtlnProcessor()
         ki = kaldi.util.io.xopen(path, mode='rb')
-        self._lvtln = kaldi.transform.lvtln.LinearVtln.new(0, 1, 0)
-        self._lvtln.read(ki.stream(), binary=True)
+        vtln._lvtln = kaldi.transform.lvtln.LinearVtln.new(0, 1, 0)
+        vtln._lvtln.read(ki.stream(), binary=True)
+        return vtln
 
     def save(self, path):
         """Save the LVTLN to a binary file"""
@@ -328,24 +374,24 @@ class VtlnProcessor(BaseProcessor):
         tot_posts, tot_loglike, tot_frames = 0, 0, 0
         num_done, num_err = 0, 0
         for utt in feats_collection.keys():
-            mat = kaldi.matrix.Matrix(feats_collection[utt].data)
+            mat = kaldi.matrix.SubMatrix(feats_collection[utt].data)
             num_frames = mat.num_rows
             post = []
-            if utt not in ubm.select:
+            if utt not in ubm.selection:
                 self._log.warning(
                     f'No gselect information for utterance {utt}')
                 num_err += 1
                 continue
-            if len(ubm.select[utt]) != num_frames:
+            if len(ubm.selection[utt]) != num_frames:
                 self._log.warning(
                     f'gselect information for utterance {utt} has'
-                    f' wrong size {len(ubm.select[utt])} vs {num_frames}')
+                    f' wrong size {len(ubm.selection[utt])} vs {num_frames}')
                 continue
             this_tot_loglike = 0.0
             utt_ok = True
             for i in range(num_frames):
                 frame = kaldi.matrix.SubVector(mat.row(i))
-                this_gselect = ubm.select[utt][i]
+                this_gselect = ubm.selection[utt][i]
                 loglikes = ubm.gmm.log_likelihoods_preselect(
                     frame, this_gselect)
                 this_tot_loglike += loglikes.apply_softmax_()
@@ -425,7 +471,8 @@ class VtlnProcessor(BaseProcessor):
                             f'Did not find posterior for utterance {utt}')
                         num_no_post += 1
                         continue
-                    feats = kaldi.matrix.Matrix(spk2utt2feats[spk][utt].data)
+                    feats = kaldi.matrix.SubMatrix(
+                        spk2utt2feats[spk][utt].data)
                     post = posteriors[utt]
                     if len(post) != feats.num_rows:
                         self._log.warning(
@@ -466,7 +513,7 @@ class VtlnProcessor(BaseProcessor):
                         f'Did not find posterior for utterance {utt}')
                     num_no_post += 1
                     continue
-                feats = kaldi.matrix.Matrix(feats_collection[utt].data)
+                feats = kaldi.matrix.SubMatrix(feats_collection[utt].data)
                 post = posteriors[utt]
                 if len(post) != feats.num_rows:
                     self._log.warning(f'Posterior has wrong size {len(post)}'
@@ -512,7 +559,7 @@ class VtlnProcessor(BaseProcessor):
         return transforms, warps
 
     @Timer('Fit')
-    def process(self, utterances, ubm=None, **kwargs):
+    def process(self, utterances, ubm=None):
         """[summary]
 
         Parameters
@@ -530,35 +577,58 @@ class VtlnProcessor(BaseProcessor):
             Warps computed for each speaker or each utterance.
         """
         if ubm is None:
-            ubm = DiagUbmProcessor(**kwargs)
-            ubm.process(utterances)
+            ubm = DiagUbmProcessor(**self.ubm_config).process(utterances)
+        else:
+            self.ubm_config = ubm.get_params()
 
-        utt2speak = {} if self.by_speaker else {}  # TODO: adapt to utterances
+        # TODO: adapt to utterances
+        utt2speak = None if self.by_speaker else None
 
-        self._log.info('Initiliazing base LVTLN transforms')
+        self._log.info('Initializing base LVTLN transforms')
         dim = ubm.gmm.dim()
         num_classes = int(1.5 + (self.max_warp-self.min_warp)/self.warp_step)
         default_class = int(0.5 + (1-self.min_warp)/self.warp_step)
         self._lvtln = kaldi.transform.lvtln.LinearVtln.new(
             dim, num_classes, default_class)
 
-        vad_collection = get_vad(utterances)
-        featsub_unwarped = extract_features_sliding_warp(
-            utterances, vad_collection, apply_cmn=False)
+        vad = _get_vad(utterances)
+        cmvn_config = self.extract_config.pop('sliding_window_cmvn', None)
+        featsub_unwarped = extract_features(
+            self.extract_config, utterances, njobs=self.njobs).trim(vad)
         featsub_unwarped = subsample_feats(featsub_unwarped, n=self.subsample)
+
+        # features_path = "ark:kaldi_res/BUCKEYE_abkhazia/recipe/data/main/copy.feats.{}.ark"
+        # features_path = "ark:kaldi_res/mini_buckeye/data/recipe/data/main/copy.feats.{}.ark"
+        # featsub_unwarped = FeaturesCollection()
+        # with SequentialMatrixReader(features_path.format(default_class)) as reader:
+        #     for key, feats in reader:
+        #         featsub_unwarped[key] = feats
+
         for c in range(num_classes):
             this_warp = self.min_warp + c*self.warp_step
-            featsub_warped = extract_features_sliding_warp(
-                utterances, vad_collection, apply_cmn=False, warp=this_warp)
+            featsub_warped = _extract_features_warp(
+                self.extract_config, utterances, this_warp,
+                njobs=self.njobs).trim(vad)
             featsub_warped = subsample_feats(featsub_warped, n=self.subsample)
+            # featsub_warped = FeaturesCollection()
+            # with SequentialMatrixReader(features_path.format(c)) as reader:
+            #     for key, feats in reader:
+            #         featsub_warped[key] = feats.numpy()
             self._train_lvtln_special(
                 featsub_unwarped, featsub_warped, c, warp=this_warp)
             del featsub_warped
         del featsub_unwarped
 
-        orig_features = extract_features_sliding_warp(
-            utterances, vad_collection, **ubm.config)
+        if cmvn_config is not None:
+            self.extract_config['sliding_window_cmvn'] = cmvn_config
+        orig_features = extract_features(
+            self.extract_config, utterances, njobs=self.njobs).trim(vad)
         orig_features = subsample_feats(orig_features, n=self.subsample)
+        # orig_features = FeaturesCollection()
+        # with SequentialMatrixReader(features_path.format('sifeats')) as reader:
+        #     for key, feats in reader:
+        #         orig_features[key] = feats.numpy()
+        del vad
 
         self._log.info('Computing Gaussian selection info')
         ubm.gselect(orig_features)

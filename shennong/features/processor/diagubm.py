@@ -1,3 +1,4 @@
+import copy
 import os
 import kaldi.base.math
 import kaldi.util.io
@@ -7,16 +8,15 @@ import kaldi.gmm
 from kaldi.gmm import GmmUpdateFlags
 
 from shennong.base import BaseProcessor
+from shennong.pipeline import get_default_config, extract_features
 
 # -----------WILL BE REMOVED--------------
 from shennong.utils import get_logger
 from shennong.audio import Audio
 from shennong.features.processor.mfcc import MfccProcessor
-from shennong.features.postprocessor.delta import DeltaPostProcessor
 from shennong.features.postprocessor.vad import VadPostProcessor
-from shennong.features.postprocessor.cmvn import SlidingWindowCmvnPostProcessor
 from kaldi.matrix import Matrix, SubVector, SubMatrix
-from shennong.features.features import FeaturesCollection
+from shennong.features.features import FeaturesCollection, Features
 from dataclasses import dataclass, field
 import time
 from typing import Callable, ClassVar, Dict, Optional
@@ -80,11 +80,14 @@ class Timer(ContextDecorator):
 def subsample_feats(feats_collection, n=1, offset=0, log=get_logger()):
     if n < 0:
         raise ValueError('n must be positive')
+    if n == 1:
+        return feats_collection
     num_done, num_err = 0, 0
     frames_in, frames_out = 0, 0
     subsampled_feats = FeaturesCollection()
     for utt in feats_collection.keys():
         feats = SubMatrix(feats_collection[utt].data)
+        times = SubMatrix(feats_collection[utt].times)
         num_indexes = 0
         for k in range(offset, feats.num_rows, n):
             num_indexes += 1
@@ -96,54 +99,50 @@ def subsample_feats(feats_collection, n=1, offset=0, log=get_logger()):
             num_err += 1
             continue
         output = Matrix(num_indexes, feats.num_cols)
+        output_times = Matrix(num_indexes, times.num_cols)
         i = 0
         for k in range(offset, feats.num_rows, n):
             src = SubVector(feats.row(k))
             dest = SubVector(output.row(i))
             dest.copy_(src)
+            src_times = SubVector(times.row(k))
+            dest_times = SubVector(output_times.row(i))
+            dest_times.copy_(src_times)
             i += 1
         assert(i == num_indexes)
-        subsampled_feats[utt] = output
+        subsampled_feats[utt] = Features(
+            output.numpy(), output_times.numpy(),
+            feats_collection[utt].properties)
         num_done += 1
     log.debug(f'Processed {num_done} features matrices; {num_err} with errors;'
               f' {frames_in} input frames and {frames_out} output frames')
     return subsampled_feats
 
+# ------------END OF REMOVING-----------------
 
-@Timer('Vad')
-def get_vad(utterances, energy_threshold=5.5, energy_mean_scale=0.5):
+
+@Timer('Vad')  # TODO: better implementation
+def _get_vad(utterances, energy_threshold=5.5, energy_mean_scale=0.5):
     vad_collection = {}
     for utt in utterances:
+        print(utt)
         audio = Audio.load(utt[1])
         mfcc = MfccProcessor(sample_rate=audio.sample_rate).process(
             audio)
         vad = VadPostProcessor(energy_threshold=energy_threshold,
                                energy_mean_scale=energy_mean_scale
                                ).process(mfcc)
-        vad_collection[utt[0]] = vad.data.reshape((vad.shape[0],))
+        vad_collection[utt[0]] = vad.data.reshape((vad.shape[0],)).astype(bool)
     return vad_collection
 
 
-@Timer('Extract features')
-def extract_features_sliding_warp(utterances, vad_collection, warp=1.0,
-                                  delta_order=2, delta_window=3,
-                                  apply_cmn=True):
-    features = FeaturesCollection()
-    for utt in utterances:
-        audio = Audio.load(utt[1])
-        mfcc = MfccProcessor(sample_rate=audio.sample_rate).process(
-            audio, vtln_warp=warp)
-        deltas = DeltaPostProcessor(
-            order=delta_order, window=delta_window).process(
-                mfcc.trim(vad_collection[utt[0]]))
-        if apply_cmn:
-            cmvn = SlidingWindowCmvnPostProcessor(cmn_window=300)
-            features[utt[0]] = cmvn.process(deltas)
-        else:
-            features[utt[0]] = deltas
-    return features
-
-# ------------END OF REMOVING-----------------
+def _get_default_vtln_config():
+    config = get_default_config(
+        'mfcc', with_pitch=False, with_cmvn=False,
+        with_sliding_window_cmvn=True)
+    config['sliding_window_cmvn']['cmn_window'] = 300
+    config['delta']['window'] = 3
+    return config
 
 
 class DiagUbmProcessor(BaseProcessor):
@@ -151,27 +150,29 @@ class DiagUbmProcessor(BaseProcessor):
     """
 
     def __init__(self, num_gauss,
-                 num_iters=4, num_gselect=30, initial_gauss_proportion=0.5,
-                 num_iters_init=20, num_threads=32, num_frames=500000,
-                 subsample=5, min_gaussian_weight=0.0001, seed=0):
+                 num_iters=4, num_gselect=15, initial_gauss_proportion=0.5,
+                 num_iters_init=20, njobs=1, num_frames=500000,
+                 subsample=5, min_gaussian_weight=0.0001,
+                 remove_low_count_gaussians=False, seed=0,
+                 extract_config=_get_default_vtln_config()):
         self._options = kaldi.gmm.MleDiagGmmOptions()
         self._options.min_gaussian_weight = min_gaussian_weight
-        self._options.remove_low_count_gaussians = False
+        self._options.remove_low_count_gaussians = remove_low_count_gaussians
+        self._state = kaldi.base.math.RandomState()
+        self._state.seed = seed
 
         self._num_gauss = num_gauss
         self._num_iters = num_iters
         self._num_iters_init = num_iters_init
         self._num_gselect = num_gselect
         self._initial_gauss_proportion = initial_gauss_proportion
-        self._num_threads = num_threads
+        self._njobs = njobs
         self._num_frames = num_frames
         self._subsample = subsample
-
-        self._state = kaldi.base.math.RandomState()
-        self._state.seed = seed
+        self._extract_config = extract_config
 
         self.gmm = None
-        self.selection = {}
+        self.selection = None
 
     @property
     def name(self):
@@ -224,13 +225,13 @@ class DiagUbmProcessor(BaseProcessor):
         self._initial_gauss_proportion = float(value)
 
     @property
-    def num_threads(self):
+    def njobs(self):
         """Number of threads to use in initialization phase."""
-        return self._num_threads
+        return self._njobs
 
-    @num_threads.setter
-    def num_threads(self, value):
-        self._num_threads = int(value)
+    @njobs.setter
+    def njobs(self, value):
+        self._njobs = int(value)
 
     @property
     def num_frames(self):
@@ -268,14 +269,40 @@ class DiagUbmProcessor(BaseProcessor):
     def remove_low_count_gaussians(self, value):
         self._options.remove_low_count_gaussians = bool(value)
 
-    def load(self, path):
+    @property
+    def seed(self):
+        """Random seed"""
+        return self._state.seed
+
+    @seed.setter
+    def seed(self, value):
+        self._state.seed = int(value)
+
+    @property
+    def extract_config(self):
+        """Features extraction configuration"""
+        return self._extract_config
+
+    @extract_config.setter
+    def extract_config(self, value):
+        if not isinstance(value, dict):
+            raise TypeError('Features configuration must be a dict')
+        if 'mfcc' not in value:
+            raise ValueError('The features needed are mfcc')
+        self._extract_config = copy.deepcopy(value)
+
+    @classmethod
+    def load(cls, path):
         """Load the GMM from a binary file"""
         if not os.path.isfile(path):
             raise ValueError('{}: file not found'.format(path))
 
-        self.gmm = kaldi.gmm.DiagGmm()
+        gmm = kaldi.gmm.DiagGmm()
         ki = kaldi.util.io.xopen(path, mode='rb')
-        self.gmm.read(ki.stream(), binary=True)
+        gmm.read(ki.stream(), binary=True)
+        ubm = DiagUbmProcessor(gmm.get_means().num_rows)
+        ubm.gmm = gmm
+        return ubm
 
     def save(self, path):
         """Save the GMM to a binary file"""
@@ -418,7 +445,7 @@ class DiagUbmProcessor(BaseProcessor):
         frame_weights.set_(1.0)
         gmm_accs = kaldi.gmm.AccumDiagGmm.new(self.gmm, GmmUpdateFlags.ALL)
         tot_like = gmm_accs.accumulate_from_diag_multi_threaded(
-            self.gmm, feats, frame_weights, self.num_threads)
+            self.gmm, feats, frame_weights, self.njobs)
         self._log.debug(f'Likelihood per frame: {tot_like/feats.num_rows}'
                         f' over {feats.num_rows} frames')
         obj_change, count, _, _, _ = kaldi.gmm.mle_diag_gmm_update(
@@ -438,7 +465,9 @@ class DiagUbmProcessor(BaseProcessor):
         feats_collection : FeaturesCollection
             The collection of features to select the best Gaussians from.
         """
-        already_selection = self.selection != {}
+        already_selection = self.selection is not None
+        if not already_selection:
+            self.selection = {}
         if self.num_gselect > self.gmm.num_gauss():
             self._log.warning(f'You asked for {self.num_gselect} Gaussians'
                               f' but GMM only has {self.gmm.num_gauss()},'
@@ -525,7 +554,7 @@ class DiagUbmProcessor(BaseProcessor):
                 weights = kaldi.matrix.SubVector(weights_collection[utt])
                 file_weight = sum(weights_collection[utt])
             file_like = gmm_accs.accumulate_from_diag_multi_threaded(
-                self.gmm, mat, weights, self.num_threads)
+                self.gmm, mat, weights, self.njobs)
             self._log.debug(
                 f'Utterance {utt}: average likelihood ='
                 f'{file_like/file_weight} over {file_weight} frames')
@@ -562,20 +591,24 @@ class DiagUbmProcessor(BaseProcessor):
             self.gmm.split(mixup, perturb_factor)
 
     @Timer(name='Fit')
-    def process(self, utterances, **kwargs):
+    def process(self, utterances):
         """Initialize the GMM, which sets the means to random data points and
         then does some iterations of EM. Train for a few iterations in parallel
 
         Parameters
         ----------
-        utterances : list of tuples
+        utterances : dict[str, _Utterance]
             The utterances can be defined in one of the following format:
+            * 1-uple (or str): <wav-file>`
+            * 2-uple: `<utterance-id> <wav-file>`
             * 3-uple: `<utterance-id> <wav-file> <speaker-id>`
+            * 4-uple: `<utterance-id> <wav-file> <tstart> <tstop>`
             * 5-uple: `<utterance-id> <wav-file> <speaker-id> <tstart> <tstop>`
         """
-        vad_collection = get_vad(utterances)
-        features = extract_features_sliding_warp(
-            utterances, vad_collection, **kwargs)
+        print(utterances)
+        vad = _get_vad(utterances)
+        features = extract_features(
+            self._extract_config, utterances, njobs=self.njobs).trim(vad)
         self._global_init_from_feats(features)
         self._log.info(f'Will train for {self.num_iters} iterations')
         features = subsample_feats(features, n=self.subsample)

@@ -97,7 +97,7 @@ def valid_features():
 def get_default_config(features, to_yaml=False, yaml_commented=True,
                        with_pitch=True, with_cmvn=True,
                        with_sliding_window_cmvn=False, with_delta=True,
-                       with_vtln=False, with_vad_trimming=False):
+                       with_vtln=False):
     """Returns the default configuration for the specified pipeline
 
     The pipeline is specified with the main `features` it computes and
@@ -181,14 +181,10 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
         config['delta'] = _Manager.get_processor_params('delta')
 
     if with_vtln:
-        if isinstance(with_vtln, dict):
-            config['vtln'] = with_vtln
-            config['ubm'] = with_vtln
-
-    if with_vad_trimming:
-        config['vad'] = _Manager.get_processor_params('vad')
-        if with_cmvn:
-            config['cmvn']['with_vad'] = False
+        if isinstance(with_vtln, str):
+            config['vtln'] = {'warps_path': with_vtln}
+        else:
+            config['vtln'] = _Manager.get_processor_params('vtln')
 
     if to_yaml:
         return _get_config_to_yaml(config, comments=yaml_commented)
@@ -588,16 +584,6 @@ def _extract_pass_one(utt_name, manager, log=get_logger()):
     else:
         pitch = None
 
-    # vad trimming (remove non-voiced frames)
-    if 'vad' in manager.config:
-        log.debug('%s: vad trimming', utt_name)
-        energy = manager.get_energy_processor(utt_name).process(audio)
-        vad = manager.get_vad_processor(utt_name).process(energy)
-        vad = vad.data.reshape((vad.shape[0], ))
-        features = features.trim(vad)
-        if 'pitch' in manager.config:
-            pitch = pitch.trim(vad)
-
     # add info on speaker and audio input on the features properties
     speaker = manager.utterances[utt_name].speaker
     if speaker:
@@ -655,6 +641,56 @@ def _extract_single_pass(utt_name, manager, log=get_logger()):
     return _extract_pass_two(utt_name, manager, features, pitch, log=log)
 
 
+def _extract_single_pass_warp(utt_name, manager, warp, log=get_logger()):
+    # load audio signal of the utterance
+    log.debug('%s: load audio', utt_name)
+    audio = manager.get_audio(utt_name)
+
+    # main features extraction
+    log.debug('%s: extract %s', utt_name, manager.features)
+    features = manager.get_features_processor(utt_name).process(
+        audio, vtln_warp=warp)
+
+    # apply delta
+    if 'delta' in manager.config:
+        log.debug('%s: apply delta', utt_name)
+        features = manager.get_delta_processor(utt_name).process(features)
+
+    # apply sliding window cmvn
+    if 'sliding_window_cmvn' in manager.config:
+        log.debug('%s: apply sliding window cmvn', utt_name)
+        features = manager.get_sliding_window_cmvn_processor(
+            utt_name).process(features)
+
+    return utt_name, features
+
+
+def _extract_features_warp(configuration, utterances_index, warp,
+                           njobs=1, log=get_logger()):
+    # intialize the pipeline configuration, the list of wav files to
+    # process, instanciate the pipeline processors and make all the
+    # checks to ensure all is correct
+    njobs = get_njobs(njobs, log=log)
+    config = _init_config(configuration, log=log)
+    utterances = _init_utterances(utterances_index, log=log)
+
+    # check the OMP_NUM_THREADS variable for parallel computations
+    _check_environment(njobs, log=log)
+
+    manager = _Manager(config, utterances, log=log)
+
+    # verbosity level for joblib (no joblib verbosity on debug level
+    # (level <= 10) because each step is already detailed in inner
+    # loops
+    verbose = 8 if log.getEffectiveLevel() > 10 else 0
+
+    return FeaturesCollection(**{k: v for k, v in _Parallel(
+        'features extraction with warp {}'.format(warp), log,
+        n_jobs=njobs, verbose=verbose, prefer='threads')(
+        joblib.delayed(_extract_single_pass_warp)(
+            utterance, manager, warp, log=log) for utterance in utterances)})
+
+
 class _Manager:
     """This class handles the instanciation of processors for the pipeline
 
@@ -677,6 +713,7 @@ class _Manager:
         'plp': ('processor', 'PlpProcessor'),
         'rastaplp': ('processor', 'RastaPlpProcessor'),
         'spectrogram': ('processor', 'SpectrogramProcessor'),
+        'vtln': ('processor', 'VtlnProcessor'),
         'cmvn': ('postprocessor', 'CmvnPostProcessor'),
         'delta': ('postprocessor', 'DeltaPostProcessor'),
         'sliding_window_cmvn':
@@ -728,9 +765,11 @@ class _Manager:
 
         self._warps = {}
         if 'vtln' in self.config:
-            if self.config['vtln']:
+            if 'warps_path' in self.config['vtln']:
+                self._warps = {}
+            else:
                 self._warps = self.get_vtln_processor(
-                    'vtln').fit(utterances, **self.config['ubm'])
+                    'vtln').process(utterances)
 
     @property
     def config(self):
@@ -959,4 +998,4 @@ class _Manager:
         return self.get_processor_class('vtln')(**self.config['vtln'])
 
     def get_vtln_warp(self, utterance):
-        return 1 if utterance not in self.warps else self.warps[utterance]
+        return 1 if utterance not in self._warps else self._warps[utterance]

@@ -367,12 +367,6 @@ class Features:
 
         return Features(np.hstack((d1, d2)), t1, properties=properties)
 
-    def trim(self, frames):
-        return Features(
-            self.data[frames.astype(bool)],
-            self.times[frames.astype(bool)],
-            properties=self.properties)
-
 
 class FeaturesCollection(dict):
     # a tweak inspired by C++ metaprogramming to avoid import loops
@@ -488,3 +482,12 @@ class FeaturesCollection(dict):
 
         return {k: FeaturesCollection({item: self[item] for item in items})
                 for k, items in reverse_index.items()}
+
+    def trim(self, vad):
+        if vad.keys() != self.keys():
+            raise ValueError('Vad keys are different from this keys.')
+        return FeaturesCollection({
+            k: Features(
+                self[k].data[vad[k].astype(bool)],
+                self[k].times[vad[k].astype(bool)],
+                properties=self[k].properties) for k in self.keys()})
