@@ -4,7 +4,7 @@ Features extraction pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
-.. automodule:: shennong.features.pipeline
+.. automodule:: shennong.pipeline
     :members:
     :inherited-members:
     :undoc-members:

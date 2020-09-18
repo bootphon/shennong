@@ -1,11 +1,11 @@
-"""Test of the module shennong.features.pipeline"""
+"""Test of the module shennong.pipeline"""
 
 import numpy as np
 import os
 import pytest
 import yaml
 
-import shennong.features.pipeline as pipeline
+import shennong.pipeline as pipeline
 import shennong.utils as utils
 from shennong.audio import Audio
 from shennong.features import FeaturesCollection

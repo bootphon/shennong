@@ -12,7 +12,7 @@ returns the extracted features as an instance of
 Examples
 --------
 
->>> from shennong.features.pipeline import get_default_config, extract_features
+>>> from shennong.pipeline import get_default_config, extract_features
 
 Generates a configuration for MFCC extraction (including CMVN
 normalization by speaker, delta / delta-delta and pitch). The
