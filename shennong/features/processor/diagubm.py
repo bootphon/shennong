@@ -9,14 +9,11 @@ from kaldi.gmm import GmmUpdateFlags
 
 from shennong.base import BaseProcessor
 from shennong.pipeline import get_default_config, extract_features
+from shennong.features.postprocessor.vad import VadPostProcessor
+from shennong.features.features import FeaturesCollection
 
 # -----------WILL BE REMOVED--------------
 from shennong.utils import get_logger
-from shennong.audio import Audio
-from shennong.features.processor.mfcc import MfccProcessor
-from shennong.features.postprocessor.vad import VadPostProcessor
-from kaldi.matrix import Matrix, SubVector, SubMatrix
-from shennong.features.features import FeaturesCollection, Features
 from dataclasses import dataclass, field
 import time
 from typing import Callable, ClassVar, Dict, Optional
@@ -76,12 +73,6 @@ class Timer(ContextDecorator):
         return elapsed_time
 
 # ------------END OF REMOVING-----------------
-
-
-@ Timer('Vad')  # TODO: better implementation
-def _get_vad(utterances, energy_threshold=5.5, energy_mean_scale=0.5):
-
-    return vad_collection
 
 
 def _get_default_config_for_vtln():
@@ -448,8 +439,8 @@ class DiagUbmProcessor(BaseProcessor):
                     tot_like_this_file += tot_like_this_file_i
                     self.selection[utt][i] = gselect_out
             else:
-                tot_like_this_file, gselect_out = self.gmm.gaussian_selection_matrix(
-                    mat, self.num_gselect)
+                tot_like_this_file, gselect_out = \
+                    self.gmm.gaussian_selection_matrix(mat, self.num_gselect)
                 self.selection[utt] = gselect_out
 
             tot_t += tot_t_this_file
@@ -556,9 +547,10 @@ class DiagUbmProcessor(BaseProcessor):
         features = extract_features(
             self.extract_config, utterances, njobs=self.njobs)
         vad = {}
-        for utt in utterances:
-            this_vad = VadPostProcessor(**self.vad).process(features)
-            vad[utt[0]] = this_vad.data.reshape(
+        vad_config = {'energy_threshold': 5.5}
+        for utt in features.keys():
+            this_vad = VadPostProcessor(**vad_config).process(features[utt])
+            vad[utt] = this_vad.data.reshape(
                 (this_vad.shape[0],)).astype(bool)
         features = features.trim(vad)
 

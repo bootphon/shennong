@@ -19,13 +19,11 @@ from shennong.features.postprocessor.vad import VadPostProcessor
 from shennong.base import BaseProcessor
 from shennong.features.features import FeaturesCollection, Features
 from shennong.pipeline import extract_features, _extract_features_warp, _Utterance
-from shennong.utils import get_logger
 
 
 @Timer('Transform feats')
 def _transform_feats(feats_collection, transforms,
-                     utt2speak=None, log=get_logger()):
-    num_err, num_done = 0, 0
+                     utt2speak=None):
     transformed_feats = FeaturesCollection()
     if utt2speak is None:
         utt2speak = {utt: utt for utt in feats_collection.keys()}
@@ -44,7 +42,6 @@ def _transform_feats(feats_collection, transforms,
                 alpha=1.0,
                 beta=0.0)
         elif transform_cols == feat_dim+1:
-            print('No')
             linear_part = kaldi.matrix.SubMatrix(
                 transforms[utt2speak[utt]], 0, transform_rows, 0, feat_dim)
             feat_out.add_mat_mat_(
@@ -58,12 +55,9 @@ def _transform_feats(feats_collection, transforms,
             offset.copy_col_from_mat_(transforms[utt2speak[utt]], feat_dim)
             feat_out.add_vec_to_rows_(1.0, offset)
         else:
-            log.warning(
+            raise ValueError(
                 f'Transform matrix for utterance {utt} has wrong number of'
                 f' cols {transform_cols} versus feat dim {feat_dim}')
-            num_err += 1
-            continue
-        num_done += 1
         transformed_feats[utt] = Features(
             feat_out.numpy(), feats_collection[utt].times,
             feats_collection[utt].properties)
@@ -649,10 +643,12 @@ class VtlnProcessor(BaseProcessor):
         orig_features = extract_features(
             self.extract_config, utterances, njobs=self.njobs)
         # Compute VAD decision
-        vad = {}
-        for utt in utterances:
-            this_vad = VadPostProcessor(**self.vad).process(orig_features)
-            vad[utt[0]] = this_vad.data.reshape(
+        vad = {}  # TODO: better configuration
+        vad_config = {'energy_threshold': 5.5}
+        for utt in orig_features.keys():
+            this_vad = VadPostProcessor(
+                **vad_config).process(orig_features[utt])
+            vad[utt] = this_vad.data.reshape(
                 (this_vad.shape[0],)).astype(bool)
         orig_features = orig_features.trim(vad)
         orig_features = FeaturesCollection(  # Subsample
@@ -704,4 +700,4 @@ class VtlnProcessor(BaseProcessor):
                           for utt, spk in utt2speak.items()}
             warps = {utt: warps[spk] for utt, spk in utt2speak.items()}
         self._log.info("Done training LVTLN model.")
-        return warps
+        return warps, transforms
