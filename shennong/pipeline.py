@@ -287,7 +287,7 @@ def _check_environment(njobs, log=get_logger()):
             'OMP_NUM_THREADS=1 to disable this warning', njobs)
 
 
-def _get_config_to_yaml(config, comments=True):
+def _get_config_to_yaml(config, comments=True):  # TODO: adapt with VTLN
     """Converts a configuration from dict to a yaml string
 
     Auxiliary method to :func:`get_default_config`.
@@ -522,6 +522,17 @@ def _extract_features(config, utterances, njobs=1, log=get_logger()):
     # loops
     verbose = 8 if log.getEffectiveLevel() > 10 else 0
 
+    # vtln : compute vtln warps or load pre-computed warps
+    if 'vtln' in config:
+        if 'warps_path' in config['vtln']:
+            # TODO load warps
+            log.debug('Loading pre-computed VTLN warps')
+            manager.warps = {}
+        else:
+            log.debug('Computing VTLN warps')
+            manager.warps = manager.get_vtln_processor(
+                'vtln').process(utterances)
+
     # cmvn : two passes. 1st with features pitch and cmvn
     # accumulation, 2nd with cmvn application and delta
     if 'cmvn' in config:
@@ -559,7 +570,7 @@ def _extract_pass_one(utt_name, manager, log=get_logger()):
     # main features extraction
     log.debug('%s: extract %s', utt_name, manager.features)
     features = manager.get_features_processor(utt_name).process(
-        audio, vtln_warp=manager.get_vtln_warp(utt_name))
+        audio, vtln_warp=manager.get_warp(utt_name))
 
     # cmvn accumulation
     if 'cmvn' in manager.config:
@@ -667,6 +678,7 @@ def _extract_single_pass_warp(utt_name, manager, warp, log=get_logger()):
 
 def _extract_features_warp(configuration, utterances_index, warp,
                            njobs=1, log=get_logger()):
+    # TODO: documentation fonction
     # intialize the pipeline configuration, the list of wav files to
     # process, instanciate the pipeline processors and make all the
     # checks to ensure all is correct
@@ -724,6 +736,7 @@ class _Manager:
     def __init__(self, config, utterances, log=get_logger()):
         self._config = config
         self._utterances = utterances
+        self._warps = {}
         self.log = log
 
         # the list of speakers
@@ -763,14 +776,6 @@ class _Manager:
                     utt: self.get_processor_class('cmvn')(p.ndims)
                     for utt in self.utterances}
 
-        self._warps = {}
-        if 'vtln' in self.config:
-            if 'warps_path' in self.config['vtln']:
-                self._warps = {}
-            else:
-                self._warps = self.get_vtln_processor(
-                    'vtln').process(utterances)
-
     @property
     def config(self):
         return self._config
@@ -786,6 +791,12 @@ class _Manager:
     @property
     def warps(self):
         return self._warps
+
+    @warps.setter
+    def warps(self, value):
+        if value.keys() != self.utterances.keys():
+            raise ValueError('Given warps do not match utterances')
+        self._warps = value
 
     def _check_speakers(self):
         """Ensures the configuration is compatible with speakers information
@@ -997,5 +1008,6 @@ class _Manager:
         """Instanciates and returns a VTLN processor"""
         return self.get_processor_class('vtln')(**self.config['vtln'])
 
-    def get_vtln_warp(self, utterance):
-        return 1 if utterance not in self._warps else self._warps[utterance]
+    def get_warp(self, utterance):
+        """Returns the VTLN warp associated to this utterance"""
+        return 1 if utterance not in self.warps else self.warps[utterance]

@@ -125,7 +125,6 @@ def subsample_feats(feats_collection, n=1, offset=0, log=get_logger()):
 def _get_vad(utterances, energy_threshold=5.5, energy_mean_scale=0.5):
     vad_collection = {}
     for utt in utterances:
-        print(utt)
         audio = Audio.load(utt[1])
         mfcc = MfccProcessor(sample_rate=audio.sample_rate).process(
             audio)
@@ -136,7 +135,7 @@ def _get_vad(utterances, energy_threshold=5.5, energy_mean_scale=0.5):
     return vad_collection
 
 
-def _get_default_vtln_config():
+def _get_default_config_for_vtln():
     config = get_default_config(
         'mfcc', with_pitch=False, with_cmvn=False,
         with_sliding_window_cmvn=True)
@@ -154,7 +153,7 @@ class DiagUbmProcessor(BaseProcessor):
                  num_iters_init=20, njobs=1, num_frames=500000,
                  subsample=5, min_gaussian_weight=0.0001,
                  remove_low_count_gaussians=False, seed=0,
-                 extract_config=_get_default_vtln_config()):
+                 extract_config=_get_default_config_for_vtln()):
         self._options = kaldi.gmm.MleDiagGmmOptions()
         self._options.min_gaussian_weight = min_gaussian_weight
         self._options.remove_low_count_gaussians = remove_low_count_gaussians
@@ -605,7 +604,6 @@ class DiagUbmProcessor(BaseProcessor):
             * 4-uple: `<utterance-id> <wav-file> <tstart> <tstop>`
             * 5-uple: `<utterance-id> <wav-file> <speaker-id> <tstart> <tstop>`
         """
-        print(utterances)
         vad = _get_vad(utterances)
         features = extract_features(
             self._extract_config, utterances, njobs=self.njobs).trim(vad)
