@@ -183,7 +183,7 @@ class Features:
 
         return True
 
-    def copy(self, dtype=None):
+    def copy(self, dtype=None, n=1):
         """Returns a copy of the features
 
         Allocates new arrays for data, times and properties
@@ -193,7 +193,8 @@ class Features:
         dtype : type, optional
             When specified converts the data and times arrays to the
             requested `dtype`
-
+        n : int, optional
+            When specified subsample the features every n frames.
         Returns
         -------
         features : Features
@@ -202,14 +203,14 @@ class Features:
         """
         if dtype:
             return Features(
-                self.data.astype(dtype),
-                self.times.astype(dtype),
+                self.data[0:self.nframes:n].astype(dtype),
+                self.times[0:self.nframes:n].astype(dtype),
                 properties=copy.deepcopy(self.properties),
                 validate=False)
 
         return Features(
-            self.data.copy(),
-            self.times.copy(),
+            self.data[0:self.nframes:n].copy(),
+            self.times[0:self.nframes:n].copy(),
             properties=copy.deepcopy(self.properties),
             validate=False)
 

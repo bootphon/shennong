@@ -418,6 +418,15 @@ def _init_config(config, log=get_logger()):
     if 'pitch' in config and 'postprocessing' not in config['pitch']:
         config['pitch']['postprocessing'] = {}
 
+    if 'vtln' in config and 'warps_path' in config['vtln']:
+        if not os.path.isfile(config['vtln']['warps_path']):
+            raise ValueError('invalid path to VTLN warp factors file')
+        try:
+            with open(config['vtln']['warps_path']) as warps:
+                yaml.load(warps, Loader=yaml.FullLoader)
+        except yaml.YAMLError as err:
+            raise ValueError('error in VTLN warp factors file: {}'.format(err))
+
     # log message describing the pipeline configuration
     msg = []
     if 'pitch' in config:
@@ -525,13 +534,16 @@ def _extract_features(config, utterances, njobs=1, log=get_logger()):
     # vtln : compute vtln warps or load pre-computed warps
     if 'vtln' in config:
         if 'warps_path' in config['vtln']:
-            # TODO load warps
             log.debug('Loading pre-computed VTLN warps')
-            manager.warps = {}
+            with open(config['vtln']['warps_path']) as warps:
+                manager.warps = yaml.load(warps, Loader=yaml.FullLoader)
         else:
             log.debug('Computing VTLN warps')
             manager.warps = manager.get_vtln_processor(
                 'vtln').process(utterances)
+            if 'save_path' in config['vtln']:
+                with open(config['vtln']['save_path'], 'w') as f:
+                    yaml.dump(manager.warps, f)
 
     # cmvn : two passes. 1st with features pitch and cmvn
     # accumulation, 2nd with cmvn application and delta

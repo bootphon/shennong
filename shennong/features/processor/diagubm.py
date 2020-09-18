@@ -75,63 +75,12 @@ class Timer(ContextDecorator):
 
         return elapsed_time
 
-
-@Timer('Subsample')
-def subsample_feats(feats_collection, n=1, offset=0, log=get_logger()):
-    if n < 0:
-        raise ValueError('n must be positive')
-    if n == 1:
-        return feats_collection
-    num_done, num_err = 0, 0
-    frames_in, frames_out = 0, 0
-    subsampled_feats = FeaturesCollection()
-    for utt in feats_collection.keys():
-        feats = SubMatrix(feats_collection[utt].data)
-        times = SubMatrix(feats_collection[utt].times)
-        num_indexes = 0
-        for k in range(offset, feats.num_rows, n):
-            num_indexes += 1
-        frames_in += feats.num_rows
-        frames_out += num_indexes
-        if num_indexes == 0:
-            log.warning(f'For utterance {utt}, output would have no rows,'
-                        f' producing no output')
-            num_err += 1
-            continue
-        output = Matrix(num_indexes, feats.num_cols)
-        output_times = Matrix(num_indexes, times.num_cols)
-        i = 0
-        for k in range(offset, feats.num_rows, n):
-            src = SubVector(feats.row(k))
-            dest = SubVector(output.row(i))
-            dest.copy_(src)
-            src_times = SubVector(times.row(k))
-            dest_times = SubVector(output_times.row(i))
-            dest_times.copy_(src_times)
-            i += 1
-        assert(i == num_indexes)
-        subsampled_feats[utt] = Features(
-            output.numpy(), output_times.numpy(),
-            feats_collection[utt].properties)
-        num_done += 1
-    log.debug(f'Processed {num_done} features matrices; {num_err} with errors;'
-              f' {frames_in} input frames and {frames_out} output frames')
-    return subsampled_feats
-
 # ------------END OF REMOVING-----------------
 
 
-@Timer('Vad')  # TODO: better implementation
+@ Timer('Vad')  # TODO: better implementation
 def _get_vad(utterances, energy_threshold=5.5, energy_mean_scale=0.5):
-    vad_collection = {}
-    for utt in utterances:
-        audio = Audio.load(utt[1])
-        mfcc = MfccProcessor(sample_rate=audio.sample_rate).process(
-            audio)
-        vad = VadPostProcessor(energy_threshold=energy_threshold,
-                               energy_mean_scale=energy_mean_scale
-                               ).process(mfcc)
-        vad_collection[utt[0]] = vad.data.reshape((vad.shape[0],)).astype(bool)
+
     return vad_collection
 
 
@@ -173,116 +122,116 @@ class DiagUbmProcessor(BaseProcessor):
         self.gmm = None
         self.selection = None
 
-    @property
+    @ property
     def name(self):
         return 'diag-ubm'
 
-    @property
+    @ property
     def num_gauss(self):
         """Number of Gaussians in the model"""
         return self._num_gauss
 
-    @num_gauss.setter
+    @ num_gauss.setter
     def num_gauss(self, value):
         self._num_gauss = int(value)
 
-    @property
+    @ property
     def num_iters(self):
         """Number of iterations of training."""
         return self._num_iters
 
-    @num_iters.setter
+    @ num_iters.setter
     def num_iters(self, value):
         self._num_iters = int(value)
 
-    @property
+    @ property
     def num_iters_init(self):
         """ Number of E-M iterations for model initialization."""
         return self._num_iters_init
 
-    @num_iters_init.setter
+    @ num_iters_init.setter
     def num_iters_init(self, value):
         self._num_iters_init = int(value)
 
-    @property
+    @ property
     def num_gselect(self):
         """Number of Gaussians per frame to limit computation to, for speed."""
         return self._num_gselect
 
-    @num_gselect.setter
+    @ num_gselect.setter
     def num_gselect(self, value):
         self._num_gselect = int(value)
 
-    @property
+    @ property
     def initial_gauss_proportion(self):
         """Proportion of Gaussians to start with in initialization phase
         (then split)"""
         return self._initial_gauss_proportion
 
-    @initial_gauss_proportion.setter
+    @ initial_gauss_proportion.setter
     def initial_gauss_proportion(self, value):
         self._initial_gauss_proportion = float(value)
 
-    @property
+    @ property
     def njobs(self):
         """Number of threads to use in initialization phase."""
         return self._njobs
 
-    @njobs.setter
+    @ njobs.setter
     def njobs(self, value):
         self._njobs = int(value)
 
-    @property
+    @ property
     def num_frames(self):
         """Maximum num-frames to keep in memory for model initialization."""
         return self._num_frames
 
-    @num_frames.setter
+    @ num_frames.setter
     def num_frames(self, value):
         self._num_frames = int(value)
 
-    @property
-    def subsample(self):  # TODO: get rid of subsample ?
+    @ property
+    def subsample(self):
         """In main E-M phase, use every n frames (a speedup)"""
         return self._subsample
 
-    @subsample.setter
+    @ subsample.setter
     def subsample(self, value):
         self._subsample = int(value)
 
-    @property
+    @ property
     def min_gaussian_weight(self):
         """Minimum weight below which a Gaussian is not updated"""
         return self._options.min_gaussian_weight
 
-    @min_gaussian_weight.setter
+    @ min_gaussian_weight.setter
     def min_gaussian_weight(self, value):
         self._options.min_gaussian_weight = float(value)
 
-    @property
+    @ property
     def remove_low_count_gaussians(self):
         """Remove Gaussians with a weight below `min_gaussian_weight`"""
         return self._options.remove_low_count_gaussians
 
-    @remove_low_count_gaussians.setter
+    @ remove_low_count_gaussians.setter
     def remove_low_count_gaussians(self, value):
         self._options.remove_low_count_gaussians = bool(value)
 
-    @property
+    @ property
     def seed(self):
         """Random seed"""
         return self._state.seed
 
-    @seed.setter
+    @ seed.setter
     def seed(self, value):
         self._state.seed = int(value)
 
-    @property
+    @ property
     def extract_config(self):
         """Features extraction configuration"""
         return self._extract_config
 
-    @extract_config.setter
+    @ extract_config.setter
     def extract_config(self, value):
         if not isinstance(value, dict):
             raise TypeError('Features configuration must be a dict')
@@ -290,7 +239,7 @@ class DiagUbmProcessor(BaseProcessor):
             raise ValueError('The features needed are mfcc')
         self._extract_config = copy.deepcopy(value)
 
-    @classmethod
+    @ classmethod
     def load(cls, path):
         """Load the GMM from a binary file"""
         if not os.path.isfile(path):
@@ -311,7 +260,7 @@ class DiagUbmProcessor(BaseProcessor):
         ki = kaldi.util.io.xopen(path, mode='wb')
         self.gmm.write(ki.stream(), binary=True)
 
-    @Timer(name='Global init')
+    @ Timer(name='Global init')
     def _global_init_from_feats(self, feats_collection):
         """Initializes a single diagonal GMM and does multiple iterations of
         training.
@@ -388,7 +337,7 @@ class DiagUbmProcessor(BaseProcessor):
                 self.gmm.split(next_num_gauss, 0.1)
                 cur_num_gauss = next_num_gauss
 
-    @Timer(name='Init gmm from random frames')
+    @ Timer(name='Init gmm from random frames')
     def _init_gmm_from_random_frames(self, feats):
         """GMM initialization.
 
@@ -431,7 +380,7 @@ class DiagUbmProcessor(BaseProcessor):
             self.gmm.set_component_mean(g, feats.row(random_frame))
         self.gmm.compute_gconsts()
 
-    @Timer(name='Train one iter')
+    @ Timer(name='Train one iter')
     def _train_one_iter(self, feats):
         """One iteration of training during initialization.
 
@@ -453,7 +402,7 @@ class DiagUbmProcessor(BaseProcessor):
             f'Objective-function change: {obj_change/count} over {count}'
             f'frames')
 
-    @Timer(name='Gselect')
+    @ Timer(name='Gselect')
     def gselect(self, feats_collection):
         """Precompute Gaussian indices for pruning
         For each frame, gives a list of the n best Gaussian indices
@@ -499,8 +448,8 @@ class DiagUbmProcessor(BaseProcessor):
                     tot_like_this_file += tot_like_this_file_i
                     self.selection[utt][i] = gselect_out
             else:
-                tot_like_this_file, gselect_out = \
-                    self.gmm.gaussian_selection_matrix(mat, self.num_gselect)
+                tot_like_this_file, gselect_out = self.gmm.gaussian_selection_matrix(
+                    mat, self.num_gselect)
                 self.selection[utt] = gselect_out
 
             tot_t += tot_t_this_file
@@ -514,7 +463,7 @@ class DiagUbmProcessor(BaseProcessor):
                         f'likelihood is {tot_like/tot_t} over {tot_t} frames')
 
     # TODO: faster with gselect
-    @Timer(name='Global acc stats')
+    @ Timer(name='Global acc stats')
     def _global_acc_stats(self, feats_collection, weights_collection=None):
         """Accumulate stats for training a diagonal-covariance GMM.
 
@@ -564,7 +513,7 @@ class DiagUbmProcessor(BaseProcessor):
             f' {tot_weight} weighted frames')
         return gmm_accs
 
-    @Timer(name='Global est')
+    @ Timer(name='Global est')
     def _global_est(self, gmm_accs, mixup=None, perturb_factor=0.01):
         """Estimate a diagonal-covariance GMM from the accumulated stats.
 
@@ -589,7 +538,7 @@ class DiagUbmProcessor(BaseProcessor):
         if mixup is not None:
             self.gmm.split(mixup, perturb_factor)
 
-    @Timer(name='Fit')
+    @ Timer(name='Fit')
     def process(self, utterances):
         """Initialize the GMM, which sets the means to random data points and
         then does some iterations of EM. Train for a few iterations in parallel
@@ -604,12 +553,20 @@ class DiagUbmProcessor(BaseProcessor):
             * 4-uple: `<utterance-id> <wav-file> <tstart> <tstop>`
             * 5-uple: `<utterance-id> <wav-file> <speaker-id> <tstart> <tstop>`
         """
-        vad = _get_vad(utterances)
         features = extract_features(
-            self._extract_config, utterances, njobs=self.njobs).trim(vad)
+            self.extract_config, utterances, njobs=self.njobs)
+        vad = {}
+        for utt in utterances:
+            this_vad = VadPostProcessor(**self.vad).process(features)
+            vad[utt[0]] = this_vad.data.reshape(
+                (this_vad.shape[0],)).astype(bool)
+        features = features.trim(vad)
+
         self._global_init_from_feats(features)
         self._log.info(f'Will train for {self.num_iters} iterations')
-        features = subsample_feats(features, n=self.subsample)
+        features = FeaturesCollection(
+            {utt: feats.copy(n=self.subsample)
+             for utt, feats in features.items()})
         for i in range(self.num_iters):
             self._log.info(f'Training pass {i+1}')
             gmm_accs = self._global_acc_stats(features)
