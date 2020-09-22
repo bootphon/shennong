@@ -485,10 +485,32 @@ class FeaturesCollection(dict):
                 for k, items in reverse_index.items()}
 
     def trim(self, vad):
+        """Returns a new instance of FeaturesCollection where each features
+        has been trimmed with the corresponding VAD.
+
+        Parameters
+        ----------
+        vad : dict of boolean ndarrays
+            A dictionnary of arrays indicating which frame to keep.
+
+        Returns
+        -------
+        features: FeaturesCollection
+            A new FeaturesCollection trimmed with the input VAD
+
+        Raises
+        ------
+        ValueError
+            If the utterances are not the same. If the VAD arrays are
+            not boolean arrays.
+        """
         if vad.keys() != self.keys():
             raise ValueError('Vad keys are different from this keys.')
+        for key in vad.keys():
+            if vad[key].dtype != np.dtype('bool'):
+                raise ValueError('Vad arrays must be arrays of bool')
         return FeaturesCollection({
             k: Features(
-                self[k].data[vad[k].astype(bool)],
-                self[k].times[vad[k].astype(bool)],
+                self[k].data[vad[k]],
+                self[k].times[vad[k]],
                 properties=self[k].properties) for k in self.keys()})
