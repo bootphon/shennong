@@ -453,7 +453,6 @@ class DiagUbmProcessor(BaseProcessor):
         self._log.debug(f'Done {num_done} utterances, average UBM log-'
                         f'likelihood is {tot_like/tot_t} over {tot_t} frames')
 
-    # TODO: faster with gselect
     @ Timer(name='Global acc stats')
     def _global_acc_stats(self, feats_collection, weights_collection=None):
         """Accumulate stats for training a diagonal-covariance GMM.
@@ -536,7 +535,7 @@ class DiagUbmProcessor(BaseProcessor):
 
         Parameters
         ----------
-        utterances : dict[str, _Utterance]
+        utterances : list of tuples
             The utterances can be defined in one of the following format:
             * 1-uple (or str): <wav-file>`
             * 2-uple: `<utterance-id> <wav-file>`

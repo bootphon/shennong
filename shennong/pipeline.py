@@ -581,8 +581,11 @@ def _extract_pass_one(utt_name, manager, log=get_logger()):
 
     # main features extraction
     log.debug('%s: extract %s', utt_name, manager.features)
-    features = manager.get_features_processor(utt_name).process(
-        audio, vtln_warp=manager.get_warp(utt_name))
+    if 'vtln' in manager.config:
+        features = manager.get_features_processor(utt_name).process(
+            audio, vtln_warp=manager.get_warp(utt_name))
+    else:
+        features = manager.get_features_processor(utt_name).process(audio)
 
     # cmvn accumulation
     if 'cmvn' in manager.config:

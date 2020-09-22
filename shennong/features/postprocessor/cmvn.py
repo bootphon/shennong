@@ -6,6 +6,10 @@ statistics. Uses the Kaldi implementation (see [kaldi-cmvn]_):
 
     :class:`Features` --> CmvnPostProcessor --> :class:`Features`
 
+The :class:`SlidingWindowCmvnPostProcessor` class is used to
+apply sliding window CMVN. Uses the Kaldi implementation:
+
+    :class: `Features` --> SlidingWindowCmvnPostProcessor --> :class:`Features`
 Examples
 --------
 
@@ -50,6 +54,26 @@ True
 >>> np.all(np.isclose(cmvn.data.var(axis=0), np.ones(cmvn.ndims), atol=1e-6))
 True
 
+Apply sliding-window normalization to the features:
+
+>>> processor = SlidingWindowCmvnPostProcessor()
+>>> window_size = 40
+>>> processor.cmn_window = window_size
+>>> processor.min_window = window_size
+>>> processor.normalize_variance = True
+>>> processor.center = True
+>>> slidcmvn = processor.process(mfcc)
+
+Each frame of the original features has been normalized with statistics
+computed in the window:
+
+>>> frame = 70
+>>> mfcc_window = mfcc.data[frame-window_size//2:frame+window_size//2, :]
+>>> np.all(np.isclose(slidcmvn.data[frame, :],
+                      (mfcc.data[frame, :] - mfcc_window.mean(axis=0)) /
+                      mfcc_window.std(axis=0),
+                      atol=1e-6))
+True
 
 References
 ----------
@@ -353,8 +377,11 @@ def apply_cmvn(feats_collection, by_collection=True, norm_vars=True,
         return cmvn_collection
 
 
-# TODO: add unittest
 class SlidingWindowCmvnPostProcessor(FeaturesPostProcessor):
+    """Compute sliding-window normalization on speech features
+
+    """
+
     def __init__(self, center=True, cmn_window=600, max_warnings=5,
                  min_window=100, normalize_variance=False):
         self._options = kaldi.feat.functions.SlidingWindowCmnOptions()
