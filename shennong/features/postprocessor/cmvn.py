@@ -55,7 +55,7 @@ True
 True
 
 Apply sliding-window normalization to the features:
-
+>>> from shennong.features.postprocessor.cmvn import SlidingWindowCmvnPostProcessor
 >>> processor = SlidingWindowCmvnPostProcessor()
 >>> window_size = 40
 >>> processor.cmn_window = window_size
@@ -68,11 +68,9 @@ Each frame of the original features has been normalized with statistics
 computed in the window:
 
 >>> frame = 70
->>> mfcc_window = mfcc.data[frame-window_size//2:frame+window_size//2, :]
->>> np.all(np.isclose(slidcmvn.data[frame, :],
-                      (mfcc.data[frame, :] - mfcc_window.mean(axis=0)) /
-                      mfcc_window.std(axis=0),
-                      atol=1e-6))
+>>> window = mfcc.data[frame-window_size//2:frame+window_size//2, :]
+>>> norm_mfcc = (mfcc.data[frame,:] - window.mean(axis=0)) / window.std(axis=0)
+>>> np.all(np.isclose(slidcmvn.data[frame, :], norm_mfcc, atol=1e-6))
 True
 
 References
