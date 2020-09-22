@@ -508,7 +508,10 @@ class FeaturesCollection(dict):
             raise ValueError('Vad keys are different from this keys.')
         for key in vad.keys():
             if vad[key].dtype != np.dtype('bool'):
-                raise ValueError('Vad arrays must be arrays of bool')
+                raise ValueError('Vad arrays must be arrays of bool.')
+            if vad[key].shape[0] != self[key].nframes:
+                raise ValueError(
+                    'Vad arrays length must be equal to the number of frames.')
         return FeaturesCollection({
             k: Features(
                 self[k].data[vad[k]],

@@ -127,7 +127,8 @@ def test_concatenate_tolerance(capsys):
 
     with pytest.raises(ValueError) as err:
         f1.concatenate(f2, tolerance=1)
-    assert 'features differs number of frames, and greater than ' in str(err.value)
+    assert 'features differs number of frames, and greater than ' in str(
+        err.value)
 
     f3 = f1.concatenate(f2, tolerance=2)
     assert f3.shape == (10, 4)
@@ -178,6 +179,42 @@ def test_partition():
 
     assert fc.is_valid()
     for fc in fp.values():
+        assert fc.is_valid()
+
+
+def test_trim():
+    f1 = Features(np.random.random((10, 2)), np.ones((10,)))
+    f2 = Features(np.random.random((10, 2)), np.ones((10,)))
+    fc = FeaturesCollection(f1=f1, f2=f2)
+
+    with pytest.raises(ValueError) as err:
+        vad = {'f3': np.random.choice([True, False], size=10),
+               'f4': np.random.choice([True, False], size=10)}
+        fct = fc.trim(vad)
+    assert 'Vad keys are different from this keys.' in str(err.value)
+
+    with pytest.raises(ValueError) as err:
+        vad = {'f1': np.random.randint(0, 10, 10),
+               'f2': np.random.randint(0, 10, 10)}
+        fct = fc.trim(vad)
+    assert 'Vad arrays must be arrays of bool.' in str(err.value)
+
+    with pytest.raises(ValueError) as err:
+        vad = {'f1': np.random.choice([True, False], size=10),
+               'f2': np.random.choice([True, False], size=5)}
+        fct = fc.trim(vad)
+    assert 'Vad arrays length must be equal to the number of frames.' in str(
+        err.value)
+
+    vad = {'f1': np.array([True]*7+[False]*3),
+           'f2': np.array([True]*5+[False]*5)}
+    fct = fc.trim(vad)
+    assert sorted(fct.keys()) == ['f1', 'f2']
+    assert fct['f1'].shape == (7, 2)
+    assert fct['f2'].shape == (5, 2)
+
+    assert fc.is_valid()
+    for fc in fct.values():
         assert fc.is_valid()
 
 

@@ -4,7 +4,7 @@ import pytest
 import numpy as np
 
 from shennong.features import Features, FeaturesCollection
-from shennong.features.postprocessor.cmvn import CmvnPostProcessor, apply_cmvn
+from shennong.features.postprocessor.cmvn import CmvnPostProcessor, apply_cmvn, SlidingWindowCmvnPostProcessor
 
 
 def test_params():
@@ -214,3 +214,50 @@ def test_apply_cmvn_byfeatures(features_collection):
     for feat in cmvns.values():
         assert feat.data.mean(axis=0) == pytest.approx(0, abs=1e-5)
         assert feat.data.var(axis=0) == pytest.approx(1, abs=1e-5)
+
+
+@pytest.mark.parametrize(
+    'norm_vars, center',
+    [(s, v) for s in (True, False) for v in (True, False)])
+def test_sliding_cmvn(mfcc, norm_vars, center):
+    backup = mfcc.data.copy()
+    proc = SlidingWindowCmvnPostProcessor(
+        normalize_variance=norm_vars, center=center)
+    window_size = 40
+    proc.cmn_window = window_size
+    proc.min_window = window_size
+
+    with pytest.raises(ValueError) as err:
+        proc.ndims
+    assert 'output dimension for sliding window CMVN processor depends on input' in str(
+        err.value)
+
+    scmvn = proc.process(mfcc)
+    assert scmvn.shape == mfcc.shape
+    assert scmvn.dtype == mfcc.dtype
+    assert np.array_equal(scmvn.times, mfcc.times)
+
+    window_means = np.zeros(mfcc.ndims)
+    if norm_vars:
+        window_std = np.zeros(mfcc.ndims)
+
+    frame = 70
+    if center:
+        window_start = frame-window_size//2
+        window_end = frame+window_size//2
+    else:
+        window_start = frame-window_size
+        window_end = frame+1
+
+    window_means = mfcc.data[window_start: window_end, :].mean(axis=0)
+    if norm_vars:
+        window_std = mfcc.data[window_start: window_end, :].std(axis=0)
+        assert np.all(np.isclose(scmvn.data[frame, :],
+                                 (mfcc.data[frame, :] -
+                                  window_means) / window_std,
+                                 atol=1e-6))
+    else:
+        assert np.all(np.isclose(scmvn.data[frame, :],
+                                 mfcc.data[frame, :]-window_means,
+                                 atol=1e-6))
+    assert np.array_equal(backup, mfcc.data)
