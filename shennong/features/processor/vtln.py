@@ -139,7 +139,7 @@ class VtlnProcessor(BaseProcessor):
         else:
             self.ubm_config = ubm_config
 
-        self._lvtln = None
+        self.lvtln = None
 
     @property
     def name(self):  # pragma: nocover
@@ -255,23 +255,23 @@ class VtlnProcessor(BaseProcessor):
     def load(cls, path):
         """Load the LVTLN from a binary file"""
         if not os.path.isfile(path):
-            raise IOError('{}: file not found'.format(path))
+            raise OSError('{}: file not found'.format(path))
 
         vtln = VtlnProcessor()
         ki = kaldi.util.io.xopen(path, mode='rb')
-        vtln._lvtln = kaldi.transform.lvtln.LinearVtln.new(0, 1, 0)
-        vtln._lvtln.read(ki.stream(), binary=True)
+        vtln.lvtln = kaldi.transform.lvtln.LinearVtln.new(0, 1, 0)
+        vtln.lvtln.read(ki.stream(), binary=True)
         return vtln
 
     def save(self, path):
         """Save the LVTLN to a binary file"""
         if os.path.isfile(path):
-            raise IOError('{}: file already exists'.format(path))
-
-        if not isinstance(self._lvtln, kaldi.transform.lvtln.LinearVtln):
+            raise OSError('{}: file already exists'.format(path))
+        if not isinstance(self.lvtln, kaldi.transform.lvtln.LinearVtln):
             raise TypeError('VTLN not initialized')
+
         ki = kaldi.util.io.xopen(path, mode='wb')
-        self._lvtln.write(ki.stream(), binary=True)
+        self.lvtln.write(ki.stream(), binary=True)
 
     @Timer(name='Train lvtln special')
     def _train_lvtln_special(self, feats_untransformed,
@@ -308,7 +308,7 @@ class VtlnProcessor(BaseProcessor):
         # Normalize diagonal of variance to be the
         # same before and after transform.
         # We are not normalizing the full covariance
-        dim = self._lvtln.dim()
+        dim = self.lvtln.dim()
         Q = kaldi.matrix.packed.SpMatrix(dim+1)
         l = kaldi.matrix.Matrix(dim, dim+1)
         c = kaldi.matrix.Vector(dim)
@@ -401,8 +401,8 @@ class VtlnProcessor(BaseProcessor):
                 - (kaldi.matrix.functions.vec_vec(w_i, sum_xplus)/beta)**2
             scale = sqrt(x_var/y_var)
             A.row(i).scale_(scale)
-        self._lvtln.set_transform(class_idx, A)
-        self._lvtln.set_warp(class_idx, warp)
+        self.lvtln.set_transform(class_idx, A)
+        self.lvtln.set_warp(class_idx, warp)
 
     @Timer(name="Global gselect to post")
     def gaussian_selection_to_post(self, ubm,
@@ -513,7 +513,7 @@ class VtlnProcessor(BaseProcessor):
         transforms = {}
         warps = {}
         tot_lvtln_impr, tot_t = 0.0, 0.0
-        class_counts = kaldi.matrix.Vector(self._lvtln.num_classes())
+        class_counts = kaldi.matrix.Vector(self.lvtln.num_classes())
         class_counts.set_zero_()
         num_done, num_no_post, num_other_error = 0, 0, 0
 
@@ -521,7 +521,7 @@ class VtlnProcessor(BaseProcessor):
             spk2utt2feats = feats_collection.partition(utt2speak)
             for spk in spk2utt2feats:
                 spk_stats = kaldi.transform.mllr.FmllrDiagGmmAccs.from_dim(
-                    self._lvtln.dim())
+                    self.lvtln.dim())
                 # Accumulate stats over all utterances of the current speaker
                 for utt in spk2utt2feats[spk]:
                     if utt not in posteriors:
@@ -550,15 +550,15 @@ class VtlnProcessor(BaseProcessor):
                     num_done += 1
                 # Compute the transform
                 transform = kaldi.matrix.Matrix(
-                    self._lvtln.dim(), self._lvtln.dim()+1)
+                    self.lvtln.dim(), self.lvtln.dim()+1)
                 class_idx, logdet_out, objf_impr, count = \
-                    self._lvtln.compute_transform(spk_stats,
-                                                  self.norm_type,
-                                                  self.logdet_scale,
-                                                  transform)
+                    self.lvtln.compute_transform(spk_stats,
+                                                 self.norm_type,
+                                                 self.logdet_scale,
+                                                 transform)
                 class_counts[class_idx] += 1
                 transforms[spk] = transform
-                warps[spk] = self._lvtln.get_warp(class_idx)
+                warps[spk] = self.lvtln.get_warp(class_idx)
                 self._log.debug(f'For speaker {spk}, auxf-impr from LVTLN is'
                                 f' {objf_impr/count}, over {count} frames')
                 tot_lvtln_impr += objf_impr
@@ -580,7 +580,7 @@ class VtlnProcessor(BaseProcessor):
                     continue
                 num_done += 1
                 spk_stats = kaldi.transform.mllr.FmllrDiagGmmAccs.from_dim(
-                    self._lvtln.dim())
+                    self.lvtln.dim())
                 # Accumulate for utterance
                 for i in range(len(post)):
                     gselect = []
@@ -592,15 +592,15 @@ class VtlnProcessor(BaseProcessor):
                         ubm.gmm, gselect, feats.row(i), this_post)
                 # Compute the transform
                 transform = kaldi.matrix.Matrix(
-                    self._lvtln.dim(), self._lvtln.dim()+1)
+                    self.lvtln.dim(), self.lvtln.dim()+1)
                 class_idx, logdet_out, objf_impr, count = \
-                    self._lvtln.compute_transform(spk_stats,
-                                                  self.norm_type,
-                                                  self.logdet_scale,
-                                                  transform)
+                    self.lvtln.compute_transform(spk_stats,
+                                                 self.norm_type,
+                                                 self.logdet_scale,
+                                                 transform)
                 class_counts[class_idx] += 1
                 transforms[utt] = transform
-                warps[utt] = self._lvtln.get_warp(class_idx)
+                warps[utt] = self.lvtln.get_warp(class_idx)
                 self._log.debug(f'For utterance {utt}, auxf-impr from LVTLN is'
                                 f' {objf_impr/count}, over {count} frames')
                 tot_lvtln_impr += objf_impr
@@ -649,7 +649,7 @@ class VtlnProcessor(BaseProcessor):
         dim = ubm.gmm.dim()
         num_classes = int(1.5 + (self.max_warp-self.min_warp)/self.warp_step)
         default_class = int(0.5 + (1-self.min_warp)/self.warp_step)
-        self._lvtln = kaldi.transform.lvtln.LinearVtln.new(
+        self.lvtln = kaldi.transform.lvtln.LinearVtln.new(
             dim, num_classes, default_class)
 
         orig_features = extract_features(

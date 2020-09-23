@@ -294,7 +294,7 @@ class DiagUbmProcessor(BaseProcessor):
     def load(cls, path):
         """Load the GMM from a binary file"""
         if not os.path.isfile(path):
-            raise ValueError('{}: file not found'.format(path))
+            raise OSError('{}: file not found'.format(path))
 
         gmm = kaldi.gmm.DiagGmm()
         ki = kaldi.util.io.xopen(path, mode='rb')
@@ -306,9 +306,9 @@ class DiagUbmProcessor(BaseProcessor):
     def save(self, path):
         """Save the GMM to a binary file"""
         if os.path.isfile(path):
-            raise ValueError('{}: file already exists'.format(path))
+            raise OSError('{}: file already exists'.format(path))
         if not isinstance(self.gmm, kaldi.gmm.DiagGmm):
-            raise ValueError('GMM not initialized')
+            raise TypeError('GMM not initialized')
         try:
             self.gmm.gconsts()
         except RuntimeError:

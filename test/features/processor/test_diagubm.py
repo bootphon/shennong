@@ -53,7 +53,7 @@ def test_load_save(tmpdir):
     num_gauss = 8
     dim = 13
     p = DiagUbmProcessor(num_gauss)
-    with pytest.raises(ValueError) as err:
+    with pytest.raises(TypeError) as err:
         p.save(str(tmpdir.join('foo.dubm')))
     assert 'GMM not initialized' in str(err.value)
 
@@ -72,11 +72,28 @@ def test_load_save(tmpdir):
     assert p.gmm.get_means().numpy() == pytest.approx(random_means, abs=1e-6)
     assert p.gmm.get_vars().numpy() == pytest.approx(random_vars, abs=1e-6)
 
-    with pytest.raises(ValueError) as err:
+    with pytest.raises(OSError) as err:
         p.save(str(tmpdir.join('foo.dubm')))
     assert 'file already exists' in str(err.value)
 
     os.remove(str(tmpdir.join('foo.dubm')))
-    with pytest.raises(ValueError) as err:
+    with pytest.raises(OSError) as err:
         p = DiagUbmProcessor.load(str(tmpdir.join('foo.dubm')))
     assert 'file not found' in str(err.value)
+
+
+def test_train(wav_file, wav_file_float32, wav_file_8k):
+    utterances = [
+        ('u1', wav_file, 's1', 0, 1),
+        ('u2', wav_file_float32, 's2', 1, 1.2),
+        ('u3', wav_file_8k, 's1', 1, 3)]
+    ubm = DiagUbmProcessor(8, num_iters_init=1, num_iters=1,
+                           num_frames=100, vad_config={
+                               'energy_threshold': 0})
+    ubm.process(utterances)
+
+    ubm = DiagUbmProcessor(1024, num_iters_init=1, num_iters=1,
+                           vad_config={'energy_threshold': 0})
+    with pytest.raises(ValueError) as err:
+        ubm.process(utterances)
+    assert 'Too few frames to train on' in str(err.value)
