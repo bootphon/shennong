@@ -114,15 +114,15 @@ class VtlnProcessor(BaseProcessor):
                  logdet_scale=0.0, norm_type='offset', njobs=1,
                  subsample=5, extract_config=None,
                  ubm_config=None, num_gauss=64):
-        self._by_speaker = by_speaker
-        self._num_iters = num_iters
-        self._min_warp = min_warp
-        self._max_warp = max_warp
-        self._warp_step = warp_step
-        self._logdet_scale = logdet_scale
-        self._norm_type = norm_type
-        self._subsample = subsample
-        self._njobs = njobs
+        self.by_speaker = by_speaker
+        self.num_iters = num_iters
+        self.min_warp = min_warp
+        self.max_warp = max_warp
+        self.warp_step = warp_step
+        self.logdet_scale = logdet_scale
+        self.norm_type = norm_type
+        self.subsample = subsample
+        self.njobs = njobs
 
         if extract_config is None:
             config = get_default_config(
@@ -142,7 +142,7 @@ class VtlnProcessor(BaseProcessor):
         self._lvtln = None
 
     @property
-    def name(self):
+    def name(self):  # pragma: nocover
         return 'vtln'
 
     @property
@@ -187,7 +187,7 @@ class VtlnProcessor(BaseProcessor):
         return self._warp_step
 
     @warp_step.setter
-    def warp_step(self, value):
+    def warp_step(self, value):  # TODO CHECK WITH MAX WARP AND MIN WARP
         self._warp_step = float(value)
 
     @property
@@ -235,7 +235,7 @@ class VtlnProcessor(BaseProcessor):
         if not isinstance(value, dict):
             raise TypeError('Features extraction configuration must be a dict')
         if 'mfcc' not in value:
-            raise ValueError('The features needed are mfcc')
+            raise ValueError('Need mfcc features to train VTLN model')
         self._extract_config = copy.deepcopy(value)
 
     @property
@@ -245,7 +245,10 @@ class VtlnProcessor(BaseProcessor):
     @ubm_config.setter
     def ubm_config(self, value):
         if not isinstance(value, dict):
-            raise TypeError('Ubm configuration must be a dict')
+            raise TypeError('UBM configuration must be a dict')
+        ubm_keys = DiagUbmProcessor(1).get_params().keys()
+        if not value.keys() <= ubm_keys:
+            raise ValueError('Unknown parameters given for UBM config')
         self._ubm_config = copy.deepcopy(value)
 
     @classmethod

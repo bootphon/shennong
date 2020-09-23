@@ -20,8 +20,10 @@ can be specified at construction, or after:
 Process
 
 >>> ubm.process(num_gauss)
->>> type(ubm.gmm)
-kaldi.gmm._gmm.DiagGmm
+
+>>> import kaldi.gmm
+>>> isinstance(ubm.gmm, kaldi.gmm.DiagGmm)
+True
 
 >>> means = ubm.gmm.get_means()
 >>> means.num_rows == num_gauss
@@ -128,14 +130,14 @@ class DiagUbmProcessor(BaseProcessor):
         self._state = kaldi.base.math.RandomState()
         self._state.seed = seed
 
-        self._num_gauss = num_gauss
-        self._num_iters = num_iters
-        self._num_iters_init = num_iters_init
-        self._num_gselect = num_gselect
-        self._initial_gauss_proportion = initial_gauss_proportion
-        self._njobs = njobs
-        self._num_frames = num_frames
-        self._subsample = subsample
+        self.num_gauss = num_gauss
+        self.num_iters = num_iters
+        self.num_iters_init = num_iters_init
+        self.num_gselect = num_gselect
+        self.initial_gauss_proportion = initial_gauss_proportion
+        self.njobs = njobs
+        self.num_frames = num_frames
+        self.subsample = subsample
 
         if vad_config is None:
             config = VadPostProcessor().get_params()
@@ -158,7 +160,7 @@ class DiagUbmProcessor(BaseProcessor):
         self.selection = None
 
     @property
-    def name(self):
+    def name(self):  # pragma: nocover
         return 'diag-ubm'
 
     @property
@@ -285,7 +287,7 @@ class DiagUbmProcessor(BaseProcessor):
             raise TypeError('VAD configuration must be a dict')
         vad_keys = VadPostProcessor().get_params().keys()
         if not value.keys() <= vad_keys:
-            raise ValueError('Unknown parameters given')
+            raise ValueError('Unknown parameters given for VAD config')
         self._vad_config = copy.deepcopy(value)
 
     @classmethod
@@ -305,6 +307,13 @@ class DiagUbmProcessor(BaseProcessor):
         """Save the GMM to a binary file"""
         if os.path.isfile(path):
             raise ValueError('{}: file already exists'.format(path))
+        if not isinstance(self.gmm, kaldi.gmm.DiagGmm):
+            raise ValueError('GMM not initialized')
+        try:
+            self.gmm.gconsts()
+        except RuntimeError:
+            self._log.debug('Computing gconsts before saving GMM')
+            self.gmm.compute_gconsts()
 
         ki = kaldi.util.io.xopen(path, mode='wb')
         self.gmm.write(ki.stream(), binary=True)
