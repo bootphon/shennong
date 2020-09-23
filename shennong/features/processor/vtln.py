@@ -14,11 +14,11 @@ import kaldi.util.io
 import kaldi.transform
 from math import sqrt
 
-from shennong.features.processor.diagubm import DiagUbmProcessor, Timer, _get_default_config_for_vtln
+from shennong.features.processor.diagubm import DiagUbmProcessor, Timer
 from shennong.features.postprocessor.vad import VadPostProcessor
 from shennong.base import BaseProcessor
 from shennong.features.features import FeaturesCollection, Features
-from shennong.pipeline import extract_features, _extract_features_warp, _Utterance
+from shennong.pipeline import extract_features, get_default_config, _extract_features_warp, _Utterance
 
 
 @Timer('Transform feats')
@@ -112,7 +112,7 @@ class VtlnProcessor(BaseProcessor):
     def __init__(self, by_speaker=True, num_iters=15,
                  min_warp=0.85, max_warp=1.25, warp_step=0.01,
                  logdet_scale=0.0, norm_type='offset', njobs=1,
-                 subsample=5, extract_config=_get_default_config_for_vtln(),
+                 subsample=5, extract_config=None,
                  ubm_config=None, num_gauss=64):
         self._by_speaker = by_speaker
         self._num_iters = num_iters
@@ -123,7 +123,16 @@ class VtlnProcessor(BaseProcessor):
         self._norm_type = norm_type
         self._subsample = subsample
         self._njobs = njobs
-        self._extract_config = extract_config
+
+        if extract_config is None:
+            config = get_default_config(
+                'mfcc', with_pitch=False, with_cmvn=False,
+                with_sliding_window_cmvn=True)
+            config['sliding_window_cmvn']['cmn_window'] = 300
+            config['delta']['window'] = 3
+            self.extract_config = config
+        else:
+            self.extract_config = extract_config
 
         if ubm_config is None:
             self.ubm_config = DiagUbmProcessor(num_gauss).get_params()
@@ -393,9 +402,9 @@ class VtlnProcessor(BaseProcessor):
         self._lvtln.set_warp(class_idx, warp)
 
     @Timer(name="Global gselect to post")
-    def _global_gselect_to_post(self, ubm,
-                                feats_collection,
-                                min_post=None):
+    def gaussian_selection_to_post(self, ubm,
+                                   feats_collection,
+                                   min_post=None):
         """Given features and Gaussian-selection (gselect) information for
         a diagonal-covariance GMM, output per-frame posteriors for the selected
         indices.  Also supports pruning the posteriors if they are below
@@ -480,9 +489,9 @@ class VtlnProcessor(BaseProcessor):
         return posteriors
 
     @Timer('Global est lvtln trans')
-    def _global_est_lvtln_trans(self, ubm,
-                                feats_collection,
-                                posteriors, utt2speak=None):
+    def estimate(self, ubm,
+                 feats_collection,
+                 posteriors, utt2speak=None):
         """Estimate linear-VTLN transforms, either per utterance or for
         the supplied set of speakers (utt2speak option).
         Reads posteriors indicating Gaussian indexes in the UBM.
@@ -643,11 +652,10 @@ class VtlnProcessor(BaseProcessor):
         orig_features = extract_features(
             self.extract_config, utterances, njobs=self.njobs)
         # Compute VAD decision
-        vad = {}  # TODO: better configuration
-        vad_config = {'energy_threshold': 5.5}
+        vad = {}
         for utt in orig_features.keys():
             this_vad = VadPostProcessor(
-                **vad_config).process(orig_features[utt])
+                **ubm.vad_config).process(orig_features[utt])
             vad[utt] = this_vad.data.reshape(
                 (this_vad.shape[0],)).astype(bool)
         orig_features = orig_features.trim(vad)
@@ -676,23 +684,23 @@ class VtlnProcessor(BaseProcessor):
             self.extract_config['sliding_window_cmvn'] = cmvn_config
 
         self._log.info('Computing Gaussian selection info')
-        ubm.gselect(orig_features)
+        ubm.gaussian_selection(orig_features)
 
         self._log.info('Computing initial LVTLN transforms')
-        posteriors = self._global_gselect_to_post(ubm, orig_features)
-        transforms, warps = self._global_est_lvtln_trans(
+        posteriors = self.gaussian_selection_to_post(ubm, orig_features)
+        transforms, warps = self.estimate(
             ubm, orig_features, posteriors, utt2speak)
         for i in range(self.num_iters):
             features = _transform_feats(orig_features, transforms, utt2speak)
             # First update the model
             self._log.info(f'Updating model on pass {i+1}')
-            gmm_accs = ubm._global_acc_stats(features)
-            ubm._global_est(gmm_accs)
+            gmm_accs = ubm.accumulate(features)
+            ubm.estimate(gmm_accs)
 
             # Now update the LVTLN transforms (and warps)
             self._log.info(f'Re-estimating LVTLN transforms on pass {i+1}')
-            posteriors = self._global_gselect_to_post(ubm, features)
-            transforms, warps = self._global_est_lvtln_trans(
+            posteriors = self.gaussian_selection_to_post(ubm, features)
+            transforms, warps = self.estimate(
                 ubm, orig_features, posteriors, utt2speak)
 
         if utt2speak is not None:

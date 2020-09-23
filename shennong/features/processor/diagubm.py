@@ -1,3 +1,40 @@
+"""Provides the DiagUbmClass to train a Universal Background Model
+- Gaussian Mixture Model (UBM-GMM) with diagonal covariances
+
+Uses the kaldi implementation of GMM (see [kaldi_gmm]_)
+
+Examples
+--------
+
+>>> from shennong.features.processor.diagubm import DiagUbmProcessor
+>>> wav = './test/data/test.wav'
+>>> utterances = [('utt1', wav, 'spk1', 0, 1), ('utt2', wav, 'spk1', 1, 1.5)]
+
+Initialize the UBM-GMM with a given number of gaussians. Other options
+can be specified at construction, or after:
+
+>>> num_gauss = 32
+>>> ubm = DiagUbmProcessor(num_gauss, num_iters_init=10)
+>>> ubm.num_iters = 3
+
+Process
+
+>>> ubm.process(num_gauss)
+>>> type(ubm.gmm)
+kaldi.gmm._gmm.DiagGmm
+
+>>> means = ubm.gmm.get_means()
+>>> means.num_rows == num_gauss
+True
+>>> means.num_cols
+39
+
+References
+----------
+
+.. [kaldi_gmm] https://kaldi-asr.org/doc/model.html
+"""
+
 import copy
 import os
 import kaldi.base.math
@@ -75,15 +112,6 @@ class Timer(ContextDecorator):
 # ------------END OF REMOVING-----------------
 
 
-def _get_default_config_for_vtln():
-    config = get_default_config(
-        'mfcc', with_pitch=False, with_cmvn=False,
-        with_sliding_window_cmvn=True)
-    config['sliding_window_cmvn']['cmn_window'] = 300
-    config['delta']['window'] = 3
-    return config
-
-
 class DiagUbmProcessor(BaseProcessor):
     """Universal Background Model with Diagonal GMM
     """
@@ -93,7 +121,7 @@ class DiagUbmProcessor(BaseProcessor):
                  num_iters_init=20, njobs=1, num_frames=500000,
                  subsample=5, min_gaussian_weight=0.0001,
                  remove_low_count_gaussians=False, seed=0,
-                 extract_config=_get_default_config_for_vtln()):
+                 extract_config=None, vad_config=None):
         self._options = kaldi.gmm.MleDiagGmmOptions()
         self._options.min_gaussian_weight = min_gaussian_weight
         self._options.remove_low_count_gaussians = remove_low_count_gaussians
@@ -108,129 +136,159 @@ class DiagUbmProcessor(BaseProcessor):
         self._njobs = njobs
         self._num_frames = num_frames
         self._subsample = subsample
-        self._extract_config = extract_config
+
+        if vad_config is None:
+            config = VadPostProcessor().get_params()
+            config['energy_threshold'] = 5.5
+            self.vad_config = config
+        else:
+            self.vad_config = vad_config
+
+        if extract_config is None:
+            config = get_default_config(
+                'mfcc', with_pitch=False, with_cmvn=False,
+                with_sliding_window_cmvn=True)
+            config['sliding_window_cmvn']['cmn_window'] = 300
+            config['delta']['window'] = 3
+            self.extract_config = config
+        else:
+            self.extract_config = extract_config
 
         self.gmm = None
         self.selection = None
 
-    @ property
+    @property
     def name(self):
         return 'diag-ubm'
 
-    @ property
+    @property
     def num_gauss(self):
         """Number of Gaussians in the model"""
         return self._num_gauss
 
-    @ num_gauss.setter
+    @num_gauss.setter
     def num_gauss(self, value):
         self._num_gauss = int(value)
 
-    @ property
+    @property
     def num_iters(self):
         """Number of iterations of training."""
         return self._num_iters
 
-    @ num_iters.setter
+    @num_iters.setter
     def num_iters(self, value):
         self._num_iters = int(value)
 
-    @ property
+    @property
     def num_iters_init(self):
         """ Number of E-M iterations for model initialization."""
         return self._num_iters_init
 
-    @ num_iters_init.setter
+    @num_iters_init.setter
     def num_iters_init(self, value):
         self._num_iters_init = int(value)
 
-    @ property
+    @property
     def num_gselect(self):
         """Number of Gaussians per frame to limit computation to, for speed."""
         return self._num_gselect
 
-    @ num_gselect.setter
+    @num_gselect.setter
     def num_gselect(self, value):
         self._num_gselect = int(value)
 
-    @ property
+    @property
     def initial_gauss_proportion(self):
         """Proportion of Gaussians to start with in initialization phase
         (then split)"""
         return self._initial_gauss_proportion
 
-    @ initial_gauss_proportion.setter
+    @initial_gauss_proportion.setter
     def initial_gauss_proportion(self, value):
         self._initial_gauss_proportion = float(value)
 
-    @ property
+    @property
     def njobs(self):
         """Number of threads to use in initialization phase."""
         return self._njobs
 
-    @ njobs.setter
+    @njobs.setter
     def njobs(self, value):
         self._njobs = int(value)
 
-    @ property
+    @property
     def num_frames(self):
         """Maximum num-frames to keep in memory for model initialization."""
         return self._num_frames
 
-    @ num_frames.setter
+    @num_frames.setter
     def num_frames(self, value):
         self._num_frames = int(value)
 
-    @ property
+    @property
     def subsample(self):
         """In main E-M phase, use every n frames (a speedup)"""
         return self._subsample
 
-    @ subsample.setter
+    @subsample.setter
     def subsample(self, value):
         self._subsample = int(value)
 
-    @ property
+    @property
     def min_gaussian_weight(self):
         """Minimum weight below which a Gaussian is not updated"""
         return self._options.min_gaussian_weight
 
-    @ min_gaussian_weight.setter
+    @min_gaussian_weight.setter
     def min_gaussian_weight(self, value):
         self._options.min_gaussian_weight = float(value)
 
-    @ property
+    @property
     def remove_low_count_gaussians(self):
         """Remove Gaussians with a weight below `min_gaussian_weight`"""
         return self._options.remove_low_count_gaussians
 
-    @ remove_low_count_gaussians.setter
+    @remove_low_count_gaussians.setter
     def remove_low_count_gaussians(self, value):
         self._options.remove_low_count_gaussians = bool(value)
 
-    @ property
+    @property
     def seed(self):
         """Random seed"""
         return self._state.seed
 
-    @ seed.setter
+    @seed.setter
     def seed(self, value):
         self._state.seed = int(value)
 
-    @ property
+    @property
     def extract_config(self):
         """Features extraction configuration"""
         return self._extract_config
 
-    @ extract_config.setter
+    @extract_config.setter
     def extract_config(self, value):
         if not isinstance(value, dict):
             raise TypeError('Features configuration must be a dict')
         if 'mfcc' not in value:
-            raise ValueError('The features needed are mfcc')
+            raise ValueError('Need mfcc features to train UBM-GMM')
         self._extract_config = copy.deepcopy(value)
 
-    @ classmethod
+    @property
+    def vad_config(self):
+        """VAD configuration for the UBM-GMM"""
+        return self._vad_config
+
+    @vad_config.setter
+    def vad_config(self, value):
+        if not isinstance(value, dict):
+            raise TypeError('VAD configuration must be a dict')
+        vad_keys = VadPostProcessor().get_params().keys()
+        if not value.keys() <= vad_keys:
+            raise ValueError('Unknown parameters given')
+        self._vad_config = copy.deepcopy(value)
+
+    @classmethod
     def load(cls, path):
         """Load the GMM from a binary file"""
         if not os.path.isfile(path):
@@ -251,10 +309,12 @@ class DiagUbmProcessor(BaseProcessor):
         ki = kaldi.util.io.xopen(path, mode='wb')
         self.gmm.write(ki.stream(), binary=True)
 
-    @ Timer(name='Global init')
-    def _global_init_from_feats(self, feats_collection):
+    @Timer(name='Global init')
+    def _initialize_gmm(self, feats_collection):
         """Initializes a single diagonal GMM and does multiple iterations of
         training.
+
+        Adapted from [kaldi_init]_
 
         Parameters
         ----------
@@ -265,6 +325,10 @@ class DiagUbmProcessor(BaseProcessor):
         ------
         ValueError
             If the features have unconsistent dimensions.
+
+        References
+        ----------
+        .. [kaldi_init] https://kaldi-asr.org/doc/gmm-global-init-from-feats_8cc.html
         """
         num_gauss_init = int(self.initial_gauss_proportion*self.num_gauss)
         self._log.info(
@@ -309,7 +373,7 @@ class DiagUbmProcessor(BaseProcessor):
 
         num_gauss_init = int(self.initial_gauss_proportion*self.num_gauss)
         self.gmm = kaldi.gmm.DiagGmm(num_gauss_init, dim)
-        self._init_gmm_from_random_frames(feats)
+        self._init_from_random_frames(feats)
 
         cur_num_gauss = num_gauss_init
         gauss_inc = int((self.num_gauss - num_gauss_init) /
@@ -318,9 +382,23 @@ class DiagUbmProcessor(BaseProcessor):
             self._log.warning(
                 f'Number of gaussians {self.num_gauss} is too low')
             gauss_inc = 1
+
+        # Initial training
         for i in range(self.num_iters_init):
             self._log.debug(f'Iteration {i}')
-            self._train_one_iter(feats)
+            frame_weights = kaldi.matrix.Vector(feats.num_rows)
+            frame_weights.set_(1.0)
+            gmm_accs = kaldi.gmm.AccumDiagGmm.new(self.gmm, GmmUpdateFlags.ALL)
+            tot_like = gmm_accs.accumulate_from_diag_multi_threaded(
+                self.gmm, feats, frame_weights, self.njobs)
+            self._log.debug(f'Likelihood per frame: {tot_like/feats.num_rows}'
+                            f' over {feats.num_rows} frames')
+            obj_change, count, _, _, _ = kaldi.gmm.mle_diag_gmm_update(
+                self._options, gmm_accs, GmmUpdateFlags.ALL, self.gmm)
+            self._log.debug(
+                f'Objective-function change: {obj_change/count} over {count}'
+                f'frames')
+
             next_num_gauss = min(
                 self.num_gauss, cur_num_gauss + gauss_inc)
             if next_num_gauss > self.gmm.num_gauss():
@@ -328,8 +406,8 @@ class DiagUbmProcessor(BaseProcessor):
                 self.gmm.split(next_num_gauss, 0.1)
                 cur_num_gauss = next_num_gauss
 
-    @ Timer(name='Init gmm from random frames')
-    def _init_gmm_from_random_frames(self, feats):
+    @Timer(name='Init gmm from random frames')
+    def _init_from_random_frames(self, feats):
         """GMM initialization.
 
         Parameters
@@ -371,38 +449,22 @@ class DiagUbmProcessor(BaseProcessor):
             self.gmm.set_component_mean(g, feats.row(random_frame))
         self.gmm.compute_gconsts()
 
-    @ Timer(name='Train one iter')
-    def _train_one_iter(self, feats):
-        """One iteration of training during initialization.
-
-        Parameters
-        ----------
-        feats : Matrix or SubMatrix
-            Features data from random frames.
-        """
-        frame_weights = kaldi.matrix.Vector(feats.num_rows)
-        frame_weights.set_(1.0)
-        gmm_accs = kaldi.gmm.AccumDiagGmm.new(self.gmm, GmmUpdateFlags.ALL)
-        tot_like = gmm_accs.accumulate_from_diag_multi_threaded(
-            self.gmm, feats, frame_weights, self.njobs)
-        self._log.debug(f'Likelihood per frame: {tot_like/feats.num_rows}'
-                        f' over {feats.num_rows} frames')
-        obj_change, count, _, _, _ = kaldi.gmm.mle_diag_gmm_update(
-            self._options, gmm_accs, GmmUpdateFlags.ALL, self.gmm)
-        self._log.debug(
-            f'Objective-function change: {obj_change/count} over {count}'
-            f'frames')
-
-    @ Timer(name='Gselect')
-    def gselect(self, feats_collection):
+    @Timer(name='Gselect')
+    def gaussian_selection(self, feats_collection):
         """Precompute Gaussian indices for pruning
         For each frame, gives a list of the n best Gaussian indices
         sorted from best to worst.
+
+        Adapted from [kaldi_gselect]_.
 
         Parameters
         ----------
         feats_collection : FeaturesCollection
             The collection of features to select the best Gaussians from.
+
+        References
+        ----------
+        .. [kaldi_gselect] https://kaldi-asr.org/doc/gmm-gselect_8cc.html
         """
         already_selection = self.selection is not None
         if not already_selection:
@@ -453,9 +515,11 @@ class DiagUbmProcessor(BaseProcessor):
         self._log.debug(f'Done {num_done} utterances, average UBM log-'
                         f'likelihood is {tot_like/tot_t} over {tot_t} frames')
 
-    @ Timer(name='Global acc stats')
-    def _global_acc_stats(self, feats_collection, weights_collection=None):
+    @Timer(name='Global acc stats')
+    def accumulate(self, feats_collection, weights_collection=None):
         """Accumulate stats for training a diagonal-covariance GMM.
+
+        Adapted from [kaldi_acc]_
 
         Parameters
         ----------
@@ -471,6 +535,10 @@ class DiagUbmProcessor(BaseProcessor):
         -------
         gmm_accs : AccumDiagGmm
             accumulated stats
+
+        References
+        ----------
+        .. [kaldi_acc] https://kaldi-asr.org/doc/gmm-global-acc-stats_8cc.html
         """
         # check weights
         if weights_collection is not None and \
@@ -503,9 +571,11 @@ class DiagUbmProcessor(BaseProcessor):
             f' {tot_weight} weighted frames')
         return gmm_accs
 
-    @ Timer(name='Global est')
-    def _global_est(self, gmm_accs, mixup=None, perturb_factor=0.01):
+    @Timer(name='Global est')
+    def estimate(self, gmm_accs, mixup=None, perturb_factor=0.01):
         """Estimate a diagonal-covariance GMM from the accumulated stats.
+
+        Adapted from [kaldi_gmm_est]_
 
         Parameters
         ----------
@@ -516,6 +586,10 @@ class DiagUbmProcessor(BaseProcessor):
         perturb_factor : float, optional
             While mixing up, perturb means by standard deviation times
             this factor.
+
+        References
+        ----------
+        .. [kaldi_gmm_est] https://kaldi-asr.org/doc/gmm-global-est_8cc.html
         """
         update_flags = GmmUpdateFlags.MEANS + \
             GmmUpdateFlags.VARIANCES + \
@@ -528,7 +602,7 @@ class DiagUbmProcessor(BaseProcessor):
         if mixup is not None:
             self.gmm.split(mixup, perturb_factor)
 
-    @ Timer(name='Fit')
+    @Timer(name='Fit')
     def process(self, utterances):
         """Initialize the GMM, which sets the means to random data points and
         then does some iterations of EM. Train for a few iterations in parallel
@@ -546,23 +620,23 @@ class DiagUbmProcessor(BaseProcessor):
         features = extract_features(
             self.extract_config, utterances, njobs=self.njobs)
         vad = {}
-        vad_config = {'energy_threshold': 5.5}
         for utt in features.keys():
-            this_vad = VadPostProcessor(**vad_config).process(features[utt])
+            this_vad = VadPostProcessor(
+                **self.vad_config).process(features[utt])
             vad[utt] = this_vad.data.reshape(
                 (this_vad.shape[0],)).astype(bool)
         features = features.trim(vad)
 
-        self._global_init_from_feats(features)
+        self._initialize_gmm(features)
         self._log.info(f'Will train for {self.num_iters} iterations')
-        features = FeaturesCollection(
+        features = FeaturesCollection(  # Subsample features collection
             {utt: feats.copy(n=self.subsample)
              for utt, feats in features.items()})
         for i in range(self.num_iters):
             self._log.info(f'Training pass {i+1}')
-            gmm_accs = self._global_acc_stats(features)
+            gmm_accs = self.accumulate(features)
             if i == self.num_iters-1:
                 self.remove_low_count_gaussians = True
-            self._global_est(gmm_accs)
+            self.estimate(gmm_accs)
         self.remove_low_count_gaussians = False
         self._log.info("Done training UBM.")
