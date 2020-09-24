@@ -4,7 +4,7 @@ import argparse
 import os
 import tempfile
 import urllib.request
-import shennong.pipeline as pipeline
+import shennong.features.pipeline as pipeline
 from shennong.utils import list_files_with_extension, get_logger
 
 

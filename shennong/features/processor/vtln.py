@@ -13,55 +13,13 @@ import kaldi.matrix.functions
 import kaldi.util.io
 import kaldi.transform
 from math import sqrt
+import numpy as np
 
 from shennong.features.processor.diagubm import DiagUbmProcessor, Timer
 from shennong.features.postprocessor.vad import VadPostProcessor
 from shennong.base import BaseProcessor
 from shennong.features.features import FeaturesCollection, Features
-from shennong.pipeline import extract_features, get_default_config, _extract_features_warp, _Utterance
-
-
-@Timer('Transform feats')
-def _transform_feats(feats_collection, transforms,
-                     utt2speak=None):
-    transformed_feats = FeaturesCollection()
-    if utt2speak is None:
-        utt2speak = {utt: utt for utt in feats_collection.keys()}
-    for utt in feats_collection:
-        transform_rows = transforms[utt2speak[utt]].num_rows
-        transform_cols = transforms[utt2speak[utt]].num_cols
-        feat_dim = feats_collection[utt].ndims
-        feat_out = kaldi.matrix.Matrix(
-            feats_collection[utt].nframes, transform_rows)
-        if transform_cols == feat_dim:
-            feat_out.add_mat_mat_(
-                kaldi.matrix.SubMatrix(
-                    feats_collection[utt].data), transforms[utt2speak[utt]],
-                transA=kaldi.matrix.common.MatrixTransposeType.NO_TRANS,
-                transB=kaldi.matrix.common.MatrixTransposeType.TRANS,
-                alpha=1.0,
-                beta=0.0)
-        elif transform_cols == feat_dim+1:
-            linear_part = kaldi.matrix.SubMatrix(
-                transforms[utt2speak[utt]], 0, transform_rows, 0, feat_dim)
-            feat_out.add_mat_mat_(
-                kaldi.matrix.SubMatrix(
-                    feats_collection[utt].data), linear_part,
-                transA=kaldi.matrix.common.MatrixTransposeType.NO_TRANS,
-                transB=kaldi.matrix.common.MatrixTransposeType.TRANS,
-                alpha=1.0,
-                beta=0.0)
-            offset = kaldi.matrix.Vector(transform_rows)
-            offset.copy_col_from_mat_(transforms[utt2speak[utt]], feat_dim)
-            feat_out.add_vec_to_rows_(1.0, offset)
-        else:
-            raise ValueError(
-                f'Transform matrix for utterance {utt} has wrong number of'
-                f' cols {transform_cols} versus feat dim {feat_dim}')
-        transformed_feats[utt] = Features(
-            feat_out.numpy(), feats_collection[utt].times,
-            feats_collection[utt].properties)
-    return transformed_feats
+from shennong.features.pipeline import extract_features, get_default_config, _extract_features_warp, _Utterance
 
 
 def _check_utterances(raw_utterances, by_speaker):
@@ -246,7 +204,7 @@ class VtlnProcessor(BaseProcessor):
     def ubm_config(self, value):
         if not isinstance(value, dict):
             raise TypeError('UBM configuration must be a dict')
-        ubm_keys = DiagUbmProcessor(1).get_params().keys()
+        ubm_keys = DiagUbmProcessor(2).get_params().keys()
         if not value.keys() <= ubm_keys:
             raise ValueError('Unknown parameters given for UBM config')
         self._ubm_config = copy.deepcopy(value)
@@ -274,10 +232,10 @@ class VtlnProcessor(BaseProcessor):
         self.lvtln.write(ki.stream(), binary=True)
 
     @Timer(name='Train lvtln special')
-    def _train_lvtln_special(self, feats_untransformed,
-                             feats_transformed,
-                             class_idx, warp,
-                             weights_collection=None, posteriors=None):
+    def compute_mapping_transform(self, feats_untransformed,
+                                  feats_transformed,
+                                  class_idx, warp,
+                                  weights_collection=None, posteriors=None):
         """"Set one of the transforms in lvtln to the minimum-squared-error solution
         to mapping feats_untransformed to feats_transformed; posteriors may
         optionally be used to downweight/remove silence.
@@ -304,6 +262,9 @@ class VtlnProcessor(BaseProcessor):
             If the features have unconsistent dimensions. If the size of the
             posteriors does not correspond to the size of the features.
 
+        References
+        ----------
+        kaldi train lvtln special
         """
         # Normalize diagonal of variance to be the
         # same before and after transform.
@@ -317,8 +278,7 @@ class VtlnProcessor(BaseProcessor):
             dim+1), kaldi.matrix.Vector(dim), kaldi.matrix.Vector(dim)
         for utt in feats_untransformed:
             if utt not in feats_transformed:
-                self._log.warning(f'No transformed features for key {utt}')
-                continue
+                raise ValueError(f'No transformed features for key {utt}')
             x_feats = kaldi.matrix.SubMatrix(feats_untransformed[utt].data)
             y_feats = kaldi.matrix.SubMatrix(feats_transformed[utt].data)
             if x_feats.num_rows != y_feats.num_rows or \
@@ -332,8 +292,7 @@ class VtlnProcessor(BaseProcessor):
             weights = kaldi.matrix.Vector(x_feats.num_rows)
             if weights_collection is None and posteriors is not None:
                 if utt not in posteriors:
-                    self._log.warning(f'No posteriors for utterance {utt}')
-                    continue
+                    raise ValueError(f'No posteriors for utterance {utt}')
                 post = posteriors[utt]
                 if len(post) != x_feats.num_rows:
                     raise ValueError('Mismatch in size of posterior')
@@ -342,8 +301,7 @@ class VtlnProcessor(BaseProcessor):
                         weights[i] += post[i][j][1]
             elif weights_collection is not None:
                 if utt not in weights_collection:
-                    self._log.warning(f'No weights for utterance {utt}')
-                    continue
+                    raise ValueError(f'No weights for utterance {utt}')
                 weights.copy_(weights_collection[utt])
             else:
                 weights.add_(1)
@@ -404,93 +362,6 @@ class VtlnProcessor(BaseProcessor):
         self.lvtln.set_transform(class_idx, A)
         self.lvtln.set_warp(class_idx, warp)
 
-    @Timer(name="Global gselect to post")
-    def gaussian_selection_to_post(self, ubm,
-                                   feats_collection,
-                                   min_post=None):
-        """Given features and Gaussian-selection (gselect) information for
-        a diagonal-covariance GMM, output per-frame posteriors for the selected
-        indices.  Also supports pruning the posteriors if they are below
-        a stated threshold (and renormalizing the rest to sum to one)
-
-        Parameters
-        ----------
-        ubm : DiagUbm
-            [description]
-        feats_collection : FeaturesCollection
-            [description]
-        min_post : int, optional
-            Optional, posteriors below this threshold will be pruned away
-            and the rest will be renormalized
-
-        Returns
-        -------
-        posteriors : List[List[Tuple[int, float]]]
-            [description]
-        """
-        posteriors = {}
-        tot_posts, tot_loglike, tot_frames = 0, 0, 0
-        num_done, num_err = 0, 0
-        for utt in feats_collection.keys():
-            mat = kaldi.matrix.SubMatrix(feats_collection[utt].data)
-            num_frames = mat.num_rows
-            post = []
-            if utt not in ubm.selection:
-                self._log.warning(
-                    f'No gselect information for utterance {utt}')
-                num_err += 1
-                continue
-            if len(ubm.selection[utt]) != num_frames:
-                self._log.warning(
-                    f'gselect information for utterance {utt} has'
-                    f' wrong size {len(ubm.selection[utt])} vs {num_frames}')
-                continue
-            this_tot_loglike = 0.0
-            utt_ok = True
-            for i in range(num_frames):
-                frame = kaldi.matrix.SubVector(mat.row(i))
-                this_gselect = ubm.selection[utt][i]
-                loglikes = ubm.gmm.log_likelihoods_preselect(
-                    frame, this_gselect)
-                this_tot_loglike += loglikes.apply_softmax_()
-                post.append([])
-                # now loglikes contains posteriors
-                if abs(loglikes.sum()-1) > 0.01:
-                    utt_ok = False
-                else:
-                    if min_post is not None:
-                        _, max_index = loglikes.max_index()
-                        for j in range(loglikes.dim):
-                            if loglikes[j] < min_post:
-                                loglikes[j] = 0
-                            total = loglikes.sum()
-                            if total == 0:
-                                loglikes[max_index] = 1
-                            else:
-                                loglikes.scale_(1/total)
-                    for j in range(loglikes.dim):
-                        if loglikes[j] != 0:
-                            post[i].append((this_gselect[j], loglikes[j]))
-                            tot_posts += 1
-            if not utt_ok:
-                self._log.warning(
-                    f'Skipping utterance {utt} because bad'
-                    f' posterior-sum encountered (Nan ?)')
-            else:
-                posteriors[utt] = post
-                num_done += 1
-                self._log.debug(f'Likelihood per frame for utt {utt} was'
-                                f' {this_tot_loglike/num_frames} per frame'
-                                f' over {num_frames} frames')
-                tot_loglike += this_tot_loglike
-                tot_frames += num_frames
-        self._log.debug(f'Done {num_done} files, {num_err} had errors.'
-                        f' Overall likelihood per frame is'
-                        f' {tot_loglike/tot_frames} with'
-                        f' {tot_posts/tot_frames}'
-                        f' entries per frame over {tot_frames} frames')
-        return posteriors
-
     @Timer('Global est lvtln trans')
     def estimate(self, ubm,
                  feats_collection,
@@ -515,7 +386,6 @@ class VtlnProcessor(BaseProcessor):
         tot_lvtln_impr, tot_t = 0.0, 0.0
         class_counts = kaldi.matrix.Vector(self.lvtln.num_classes())
         class_counts.set_zero_()
-        num_done, num_no_post, num_other_error = 0, 0, 0
 
         if utt2speak is not None:  # per speaker adaptation
             spk2utt2feats = feats_collection.partition(utt2speak)
@@ -525,19 +395,15 @@ class VtlnProcessor(BaseProcessor):
                 # Accumulate stats over all utterances of the current speaker
                 for utt in spk2utt2feats[spk]:
                     if utt not in posteriors:
-                        self._log.warning(
+                        raise ValueError(
                             f'Did not find posterior for utterance {utt}')
-                        num_no_post += 1
-                        continue
                     feats = kaldi.matrix.SubMatrix(
                         spk2utt2feats[spk][utt].data)
                     post = posteriors[utt]
                     if len(post) != feats.num_rows:
-                        self._log.warning(
+                        raise ValueError(
                             f'Posterior has wrong size {len(post)}'
                             f' vs {feats.num_rows}')
-                        num_other_error += 1
-                        continue
                     # Accumulate for utterance
                     for i in range(len(post)):
                         gselect = []
@@ -547,7 +413,6 @@ class VtlnProcessor(BaseProcessor):
                             this_post[j] = post[i][j][1]
                         spk_stats.accumulate_from_posteriors_preselect(
                             ubm.gmm, gselect, feats.row(i), this_post)
-                    num_done += 1
                 # Compute the transform
                 transform = kaldi.matrix.Matrix(
                     self.lvtln.dim(), self.lvtln.dim()+1)
@@ -567,18 +432,13 @@ class VtlnProcessor(BaseProcessor):
         else:  # per utterance adaptation
             for utt in feats_collection:
                 if utt not in posteriors:
-                    self._log.warning(
+                    raise ValueError(
                         f'Did not find posterior for utterance {utt}')
-                    num_no_post += 1
-                    continue
                 feats = kaldi.matrix.Matrix(feats_collection[utt].data)
                 post = posteriors[utt]
                 if len(post) != feats.num_rows:
-                    self._log.warning(f'Posterior has wrong size {len(post)}'
-                                      f' vs {feats.num_rows}')
-                    num_other_error += 1
-                    continue
-                num_done += 1
+                    raise ValueError(f'Posterior has wrong size {len(post)}'
+                                     f' vs {feats.num_rows}')
                 spk_stats = kaldi.transform.mllr.FmllrDiagGmmAccs.from_dim(
                     self.lvtln.dim())
                 # Accumulate for utterance
@@ -609,10 +469,8 @@ class VtlnProcessor(BaseProcessor):
         message = 'Distribution of classes is'
         for count in class_counts:
             message += " "+str(count)
-        message += f'\n Done {num_done} files, {num_no_post} with no ' \
-            f'posteriors, {num_other_error} with other errors. ' \
-            f'Overall LVTLN auxfimpr per frame is {tot_lvtln_impr/tot_t} ' \
-            f'over {tot_t} frames'
+        message += f'\n Overall LVTLN auxfimpr per' \
+            f' frame is {tot_lvtln_impr/tot_t}  over {tot_t} frames'
         self._log.debug(message)
         return transforms, warps
 
@@ -644,6 +502,8 @@ class VtlnProcessor(BaseProcessor):
             ubm = DiagUbmProcessor(**self.ubm_config)
             ubm.process(utterances)
         else:
+            if ubm.gmm is None:
+                raise ValueError('Given UBM-GMM has not been trained')
             self.ubm_config = ubm.get_params()
         self._log.info('Initializing base LVTLN transforms')
         dim = ubm.gmm.dim()
@@ -680,7 +540,7 @@ class VtlnProcessor(BaseProcessor):
             featsub_warped = FeaturesCollection(
                 {utt: feats.copy(n=self.subsample)
                  for utt, feats in featsub_warped.items()})
-            self._train_lvtln_special(
+            self.compute_mapping_transform(
                 featsub_unwarped, featsub_warped, c, this_warp)
         del featsub_warped, featsub_unwarped, vad
         if cmvn_config is not None:
@@ -690,19 +550,29 @@ class VtlnProcessor(BaseProcessor):
         ubm.gaussian_selection(orig_features)
 
         self._log.info('Computing initial LVTLN transforms')
-        posteriors = self.gaussian_selection_to_post(ubm, orig_features)
+        posteriors = ubm.gaussian_selection_to_post(orig_features)
         transforms, warps = self.estimate(
             ubm, orig_features, posteriors, utt2speak)
+
         for i in range(self.num_iters):
-            features = _transform_feats(orig_features, transforms, utt2speak)
-            # First update the model
+            # Transform the features
+            features = FeaturesCollection()
+            for utt, feats in orig_features.items():
+                ind = utt if utt2speak is None else utt2speak[utt]
+                linear_part = transforms[ind][:, : feats.ndims]
+                offset = transforms[ind][:, feats.ndims]
+                data = np.dot(feats.data, linear_part.numpy().T) + \
+                    offset.numpy()
+                features[utt] = Features(data, feats.times, feats.properties)
+
+            # Update the model
             self._log.info(f'Updating model on pass {i+1}')
             gmm_accs = ubm.accumulate(features)
             ubm.estimate(gmm_accs)
 
             # Now update the LVTLN transforms (and warps)
             self._log.info(f'Re-estimating LVTLN transforms on pass {i+1}')
-            posteriors = self.gaussian_selection_to_post(ubm, features)
+            posteriors = ubm.gaussian_selection_to_post(features)
             transforms, warps = self.estimate(
                 ubm, orig_features, posteriors, utt2speak)
 
@@ -711,4 +581,4 @@ class VtlnProcessor(BaseProcessor):
                           for utt, spk in utt2speak.items()}
             warps = {utt: warps[spk] for utt, spk in utt2speak.items()}
         self._log.info("Done training LVTLN model.")
-        return warps, transforms
+        return warps

@@ -2,7 +2,7 @@
 
 import argparse
 import os
-import shennong.pipeline as pipeline
+import shennong.features.pipeline as pipeline
 from shennong.utils import get_logger
 
 

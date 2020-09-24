@@ -12,7 +12,7 @@ returns the extracted features as an instance of
 Examples
 --------
 
->>> from shennong.pipeline import get_default_config, extract_features
+>>> from shennong.features.pipeline import get_default_config, extract_features
 
 Generates a configuration for MFCC extraction (including CMVN
 normalization by speaker, delta / delta-delta and pitch). The
@@ -681,12 +681,6 @@ def _extract_single_pass_warp(utt_name, manager, warp, log=get_logger()):
     if 'delta' in manager.config:
         log.debug('%s: apply delta', utt_name)
         features = manager.get_delta_processor(utt_name).process(features)
-
-    # apply sliding window cmvn
-    if 'sliding_window_cmvn' in manager.config:
-        log.debug('%s: apply sliding window cmvn', utt_name)
-        features = manager.get_sliding_window_cmvn_processor(
-            utt_name).process(features)
 
     return utt_name, features
 

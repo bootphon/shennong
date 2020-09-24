@@ -4,6 +4,7 @@ import numpy as np
 
 from shennong.features.processor.vtln import VtlnProcessor
 from shennong.features.processor.diagubm import DiagUbmProcessor
+from shennong.features.pipeline import extract_features, get_default_config
 import kaldi.transform.lvtln
 import kaldi.matrix
 
@@ -46,7 +47,7 @@ def test_params():
         p = VtlnProcessor(1, ubm_config=0)
     assert 'UBM configuration must be a dict' in str(err.value)
 
-    wrong_config = DiagUbmProcessor(1).get_params()
+    wrong_config = DiagUbmProcessor(2).get_params()
     wrong_config['wrong'] = 0
     with pytest.raises(ValueError) as err:
         p.ubm_config = wrong_config
@@ -103,6 +104,20 @@ def test_train(wav_file, wav_file_float32, wav_file_8k):
     ubm_config['num_iters_init'] = 1
     ubm_config['num_iters'] = 1
 
-    vtln = VtlnProcessor(min_warp=0.99, max_warp=1,
-                         num_iters=1, ubm_config=ubm_config)
-    vtln.process(utterances)
+    config = get_default_config('mfcc', with_vtln=True)
+    config['cmvn']['with_vad'] = False
+    config['vtln']['ubm_config'] = ubm_config
+    config['vtln']['min_warp'] = 0.99
+    config['vtln']['max_warp'] = 1
+    config['vtln']['num_iters'] = 1
+
+    vtln = VtlnProcessor(**config['vtln'])
+    ubm = DiagUbmProcessor(2, num_iters_init=1, num_iters=1,
+                           num_frames=100, vad_config={
+                               'energy_threshold': 0})
+    ubm.process(utterances)
+    vtln.process(utterances, ubm=ubm)
+
+    ubm.process(utterances)
+    config['vtln']['by_speaker'] = False
+    extract_features(config, utterances)
