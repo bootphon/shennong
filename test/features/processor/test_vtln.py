@@ -10,13 +10,13 @@ import kaldi.matrix
 
 
 def test_params():
-    assert len(VtlnProcessor().get_params()) == 12
+    assert len(VtlnProcessor().get_params()) == 13
 
     params = {'by_speaker': False, 'num_iters': 3, 'warp_step': 0.5}
     p = VtlnProcessor(**params)
 
     params_out = p.get_params()
-    assert len(params_out) == 12
+    assert len(params_out) == 13
     for k, v in params.items():
         assert params_out[k] == v
     assert p.get_params() == params_out
@@ -24,7 +24,7 @@ def test_params():
     p = VtlnProcessor()
     p.set_params(**params_out)
     params_out == p.get_params()
-    assert len(params_out) == 12
+    assert len(params_out) == 13
     for k, v in params.items():
         assert params_out[k] == v
     assert p.get_params() == params_out
@@ -54,7 +54,6 @@ def test_params():
     assert 'Unknown parameters given for UBM config' in str(err.value)
 
 
-# TODO: save and load warps. Also transforms ????
 @pytest.mark.parametrize('chosen_class', [0, 1])
 def test_load_save(tmpdir, chosen_class):
     dim = 4

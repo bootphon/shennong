@@ -14,6 +14,7 @@ import kaldi.util.io
 import kaldi.transform
 from math import sqrt
 import numpy as np
+import yaml
 
 from shennong.features.processor.diagubm import DiagUbmProcessor, Timer
 from shennong.features.postprocessor.vad import VadPostProcessor
@@ -71,7 +72,7 @@ class VtlnProcessor(BaseProcessor):
                  min_warp=0.85, max_warp=1.25, warp_step=0.01,
                  logdet_scale=0.0, norm_type='offset', njobs=1,
                  subsample=5, extract_config=None,
-                 ubm_config=None, num_gauss=64):
+                 ubm_config=None, num_gauss=64, warps_path=None):
         self.by_speaker = by_speaker
         self.num_iters = num_iters
         self.min_warp = min_warp
@@ -81,6 +82,7 @@ class VtlnProcessor(BaseProcessor):
         self.norm_type = norm_type
         self.subsample = subsample
         self.njobs = njobs
+        self.warps_path = warps_path
 
         if extract_config is None:
             config = get_default_config(
@@ -208,6 +210,16 @@ class VtlnProcessor(BaseProcessor):
         if not value.keys() <= ubm_keys:
             raise ValueError('Unknown parameters given for UBM config')
         self._ubm_config = copy.deepcopy(value)
+
+    @property
+    def warps_path(self):
+        return self._warps_path
+
+    @warps_path.setter
+    def warps_path(self, value):
+        if not isinstance(value, str) and value is not None:
+            raise TypeError(f'Invalid warp path {value}')
+        self._warps_path = value
 
     @classmethod
     def load(cls, path):
@@ -498,6 +510,21 @@ class VtlnProcessor(BaseProcessor):
         """
         utterances, utt2speak = _check_utterances(
             raw_utterances, self.by_speaker)
+
+        # Load precomputed warps
+        if self.warps_path is not None and os.path.isfile(self.warps_path):
+            try:
+                with open(self.warps_path) as warps:
+                    warps = yaml.load(warps, Loader=yaml.FullLoader)
+            except yaml.YAMLError as err:
+                raise ValueError(
+                    'Error in VTLN warps file when loading: {}'.format(err))
+            utt_id = [utt[0] for utt in utterances]
+            if not set(utt_id) <= warps.keys():
+                raise ValueError('Warps do not correspond')
+            return {utt: warps[utt] for utt in utt_id}
+
+        # UBM-GMM
         if ubm is None:
             ubm = DiagUbmProcessor(**self.ubm_config)
             ubm.process(utterances)
@@ -580,5 +607,15 @@ class VtlnProcessor(BaseProcessor):
             transforms = {utt: transforms[spk]
                           for utt, spk in utt2speak.items()}
             warps = {utt: warps[spk] for utt, spk in utt2speak.items()}
+
+        # Saving computed warps
+        if self.warps_path is not None:
+            try:
+                with open(self.warps_path, 'w') as f:
+                    yaml.dump(warps, f)
+            except yaml.YAMLError as err:
+                raise ValueError(
+                    'Error in VTLN warps file when saving: {}'.format(err))
+
         self._log.info("Done training LVTLN model.")
         return warps

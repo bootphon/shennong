@@ -1,3 +1,6 @@
+# %%
+"""Test of the module shennong.features.diagubm"""
+
 import pytest
 import os
 import numpy as np
@@ -108,14 +111,19 @@ def test_initialize(features_collection):
         ubm.initialize_gmm(fc)
     assert 'Features do not have positive variance' in str(err.value)
 
+    dim = features_collection[list(features_collection.keys())[0]].ndims
     ubm.initialize_gmm(features_collection)
+    assert isinstance(ubm.gmm, kaldi.gmm.DiagGmm)
+    assert ubm.num_gauss == 2
+    assert ubm.gmm.num_gauss() == ubm.num_gauss
+    assert ubm.gmm.get_means().shape == (ubm.num_gauss, dim)
+    ubm.gmm.gconsts()
 
 
 def test_gaussian_selection():
-    ubm = DiagUbmProcessor(2, num_iters_init=1, num_iters=1,
-                           num_frames=100)
+    ubm = DiagUbmProcessor(8, num_iters_init=1, num_iters=1)
     fc = FeaturesCollection(f1=Features(
-        np.random.random((10, 2)), np.ones((10,))))
+        np.random.random((50, 2)), np.arange(50)))
 
     with pytest.raises(TypeError) as err:
         ubm.gaussian_selection(fc)
@@ -139,12 +147,17 @@ def test_gaussian_selection():
     ubm.gaussian_selection(fc)
     ubm.gaussian_selection(fc)
 
+    assert ubm.selection.keys() == fc.keys()
+    assert len(ubm.selection['f1']) == fc['f1'].nframes
+    assert len(ubm.selection['f1'][0]) == ubm.num_gauss
+    for gselect in ubm.selection['f1']:
+        assert sorted(gselect) == list(range(ubm.num_gauss))
+
 
 def test_gaussian_selection_to_post():
-    ubm = DiagUbmProcessor(2, num_iters_init=1, num_iters=1,
-                           num_frames=100)
+    ubm = DiagUbmProcessor(8, num_iters_init=1, num_iters=1)
     fc = FeaturesCollection(f1=Features(
-        np.random.random((10, 2)), np.ones((10,))))
+        np.random.random((50, 2)), np.arange(50)))
     ubm.initialize_gmm(fc)
     with pytest.raises(ValueError) as err:
         ubm.gaussian_selection_to_post(fc)
@@ -164,7 +177,7 @@ def test_gaussian_selection_to_post():
 
     ubm.selection = None
     ubm.gaussian_selection(fc)
-    ubm.gaussian_selection_to_post(fc, min_post=10)
+    return ubm.gaussian_selection_to_post(fc, min_post=10)
 
 
 def test_accumulate(features_collection):
@@ -225,3 +238,8 @@ def test_process(wav_file, wav_file_float32, wav_file_8k):
                            num_frames=100, vad_config={
                                'energy_threshold': 0})
     ubm.process(utterances)
+
+
+post = test_gaussian_selection_to_post()
+
+# %%

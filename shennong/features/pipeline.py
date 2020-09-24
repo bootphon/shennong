@@ -181,10 +181,7 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
         config['delta'] = _Manager.get_processor_params('delta')
 
     if with_vtln:
-        if isinstance(with_vtln, str):
-            config['vtln'] = {'warps_path': with_vtln}
-        else:
-            config['vtln'] = _Manager.get_processor_params('vtln')
+        config['vtln'] = _Manager.get_processor_params('vtln')
 
     if to_yaml:
         return _get_config_to_yaml(config, comments=yaml_commented)
@@ -418,15 +415,6 @@ def _init_config(config, log=get_logger()):
     if 'pitch' in config and 'postprocessing' not in config['pitch']:
         config['pitch']['postprocessing'] = {}
 
-    if 'vtln' in config and 'warps_path' in config['vtln']:
-        if not os.path.isfile(config['vtln']['warps_path']):
-            raise ValueError('invalid path to VTLN warp factors file')
-        try:
-            with open(config['vtln']['warps_path']) as warps:
-                yaml.load(warps, Loader=yaml.FullLoader)
-        except yaml.YAMLError as err:
-            raise ValueError('error in VTLN warp factors file: {}'.format(err))
-
     # log message describing the pipeline configuration
     msg = []
     if 'pitch' in config:
@@ -533,17 +521,8 @@ def _extract_features(config, utterances, njobs=1, log=get_logger()):
 
     # vtln : compute vtln warps or load pre-computed warps
     if 'vtln' in config:
-        if 'warps_path' in config['vtln']:
-            log.debug('Loading pre-computed VTLN warps')
-            with open(config['vtln']['warps_path']) as warps:
-                manager.warps = yaml.load(warps, Loader=yaml.FullLoader)
-        else:
-            log.debug('Computing VTLN warps')
-            manager.warps = manager.get_vtln_processor(
-                'vtln').process(utterances)
-            if 'save_path' in config['vtln']:
-                with open(config['vtln']['save_path'], 'w') as f:
-                    yaml.dump(manager.warps, f)
+        manager.warps = manager.get_vtln_processor(
+            'vtln').process(utterances)
 
     # cmvn : two passes. 1st with features pitch and cmvn
     # accumulation, 2nd with cmvn application and delta
