@@ -247,3 +247,4 @@ def test_process(wav_file, wav_file_float32, wav_file_8k):
                            num_frames=100, vad_config={
                                'energy_threshold': 0})
     ubm.process(utterances)
+    #  TODO: quoi tester ?

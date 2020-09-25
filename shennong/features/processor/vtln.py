@@ -1,27 +1,58 @@
-"""Extraction of VTLN warp factors from speech signals.
+"""Extraction of VTLN warp factors from utterances.
+
+Uses the Kaldi implmentation of Linear Vocal Tract Length Normalization
+(see [kaldi_lvtln]_).
 
 Examples
 --------
 
 >>> from shennong.features.processor.vtln import VtlnProcessor
+>>> wav = './test/data/test.wav'
+>>> utterances = [('utt1', wav, 'spk1', 0, 1), ('utt2', wav, 'spk1', 1, 1.5)]
+
+Initialize the VTLN model. Other options can be specified at construction,
+or after:
+
+>>> vtln = VtlnProcessor(by_speaker=True)
+>>> vtln.num_iters = 10
+
+Returns the computed warps for each utterance. If the `by_speaker` property is
+True, the warps have been computed for each speaker, and each utterance
+from the same speaker is mapped to the same warp factor.
+
+>>> warps = vtln.process(utterances)
+
+Those warps can be passed individually in the `process` method of
+`MfccProcessor`, `FilterbankProcessor`, `PlpProcessor` and
+`SpectrogramProcessor` to warp the corresponding feature.
+
+The features can also be warped directly via the pipeline.
+
+>>> from shennong.features.pipeline import get_default_config, extract_features
+>>> config = get_default_config('mfcc', with_vtln=True)
+>>> warped_features = extract_features(config, utterances)
+
+References
+----------
+.. [kaldi_lvtln] https://kaldi-asr.org/doc/transform.html#transform_lvtln
 """
-import os
+from math import sqrt
+import numpy as np
 import copy
+import os
+import yaml
 import kaldi.matrix
 import kaldi.matrix.common
 import kaldi.matrix.functions
 import kaldi.util.io
 import kaldi.transform
-from math import sqrt
-import numpy as np
-import yaml
 
-from shennong.features.processor.diagubm import DiagUbmProcessor, Timer
-from shennong.features.postprocessor.vad import VadPostProcessor
-from shennong.features.postprocessor.cmvn import SlidingWindowCmvnPostProcessor
 from shennong.base import BaseProcessor
 from shennong.features.features import FeaturesCollection, Features
 from shennong.features.pipeline import extract_features, get_default_config, _extract_features_warp, _Utterance
+from shennong.features.processor.diagubm import DiagUbmProcessor, Timer
+from shennong.features.postprocessor.vad import VadPostProcessor
+from shennong.features.postprocessor.cmvn import SlidingWindowCmvnPostProcessor
 
 
 def _check_utterances(raw_utterances, by_speaker):
@@ -73,7 +104,7 @@ class VtlnProcessor(BaseProcessor):
                  min_warp=0.85, max_warp=1.25, warp_step=0.01,
                  logdet_scale=0.0, norm_type='offset', njobs=1,
                  subsample=5, extract_config=None,
-                 ubm_config=None, num_gauss=64, warps_path=None):
+                 ubm_config=None, num_gauss=64):
         self.by_speaker = by_speaker
         self.num_iters = num_iters
         self.min_warp = min_warp
@@ -83,7 +114,6 @@ class VtlnProcessor(BaseProcessor):
         self.norm_type = norm_type
         self.subsample = subsample
         self.njobs = njobs
-        self.warps_path = warps_path
 
         if extract_config is None:
             config = get_default_config(
@@ -101,6 +131,8 @@ class VtlnProcessor(BaseProcessor):
             self.ubm_config = ubm_config
 
         self.lvtln = None
+        self.transforms = None
+        self.warps = None
 
     @property
     def name(self):  # pragma: nocover
@@ -212,16 +244,6 @@ class VtlnProcessor(BaseProcessor):
             raise ValueError('Unknown parameters given for UBM config')
         self._ubm_config = copy.deepcopy(value)
 
-    @property
-    def warps_path(self):
-        return self._warps_path
-
-    @warps_path.setter
-    def warps_path(self, value):
-        if not isinstance(value, str) and value is not None:
-            raise TypeError(f'Invalid warp path {value}')
-        self._warps_path = value
-
     @classmethod
     def load(cls, path):
         """Load the LVTLN from a binary file"""
@@ -234,6 +256,19 @@ class VtlnProcessor(BaseProcessor):
         vtln.lvtln.read(ki.stream(), binary=True)
         return vtln
 
+    @classmethod
+    def load_warps(cls, path):
+        """Load precomputed warps"""
+        if not os.path.isfile(path):
+            raise OSError('{}: file not found'.format(path))
+        try:
+            with open(path) as f:
+                warps = yaml.load(f, Loader=yaml.FullLoader)
+        except yaml.YAMLError as err:
+            raise ValueError(
+                'Error in VTLN warps file when loading: {}'.format(err))
+        return warps
+
     def save(self, path):
         """Save the LVTLN to a binary file"""
         if os.path.isfile(path):
@@ -244,6 +279,19 @@ class VtlnProcessor(BaseProcessor):
         ki = kaldi.util.io.xopen(path, mode='wb')
         self.lvtln.write(ki.stream(), binary=True)
 
+    def save_warps(self, path):
+        """Save the computed warps"""
+        if os.path.isfile(path):
+            raise OSError('{}: file already exists'.format(path))
+        if not isinstance(self.warps, dict):
+            raise TypeError('Warps not computed')
+        try:
+            with open(path, 'w') as f:
+                yaml.dump(self.warps, f)
+        except yaml.YAMLError as err:
+            raise ValueError(
+                'Error in VTLN warps file when saving: {}'.format(err))
+
     @Timer(name='Train lvtln special')
     def compute_mapping_transform(self, feats_untransformed,
                                   feats_transformed,
@@ -252,6 +300,8 @@ class VtlnProcessor(BaseProcessor):
         """"Set one of the transforms in lvtln to the minimum-squared-error solution
         to mapping feats_untransformed to feats_transformed; posteriors may
         optionally be used to downweight/remove silence.
+
+        Adapted from [kaldi_train_lvtln_special]_
 
         Parameters
         ----------
@@ -277,7 +327,7 @@ class VtlnProcessor(BaseProcessor):
 
         References
         ----------
-        kaldi train lvtln special
+        .. [kaldi_train_lvtln_special] https://kaldi-asr.org/doc/gmm-train-lvtln-special_8cc.html
         """
         # Normalize diagonal of variance to be the
         # same before and after transform.
@@ -383,16 +433,22 @@ class VtlnProcessor(BaseProcessor):
         the supplied set of speakers (utt2speak option).
         Reads posteriors indicating Gaussian indexes in the UBM.
 
+        Adapted from [kaldi_global_est_lvtln_trans]_
+
         Parameters
         ----------
         ubm : DiagUbmProcessor
-            [description]
+            The Universal Background Model.
         feats_collection : FeaturesCollection
-            [description]
-        posteriors : List[List[Tuple[int, float]]]
-            [description]
+            The untransformed features.
+        posteriors : dict of List[List[Tuple[int, float]]]
+            The posteriors indicating Gaussian indexes in the UBM.
         utt2speak : dict of str, optional
-            [description]
+            If provided, map each utterance to a speaker.
+
+        References
+        ----------
+        .. [kaldi_global_est_lvtln_trans] https://kaldi-asr.org/doc/gmm-global-est-lvtln-trans_8cc.html
         """
         transforms = {}
         warps = {}
@@ -489,7 +545,7 @@ class VtlnProcessor(BaseProcessor):
 
     @Timer('Fit')
     def process(self, raw_utterances, ubm=None):
-        """[summary]
+        """Compute the VTLN warp factors for the given utterances.
 
         Parameters
         ----------
@@ -501,7 +557,7 @@ class VtlnProcessor(BaseProcessor):
             * 4-uple: ``<utterance-id> <wav-file> <tstart> <tstop>``
             * 5-uple: ``<utterance-id> <wav-file> <speaker-id> <tstart> <tstop>``
         ubm : DiagUbmProcessor
-            [description]
+            If provided, uses this UBM instead of computing a new one.
 
         Returns
         -------
@@ -511,19 +567,6 @@ class VtlnProcessor(BaseProcessor):
         """
         utterances, utt2speak = _check_utterances(
             raw_utterances, self.by_speaker)
-
-        # Load precomputed warps
-        if self.warps_path is not None and os.path.isfile(self.warps_path):
-            try:
-                with open(self.warps_path) as warps:
-                    warps = yaml.load(warps, Loader=yaml.FullLoader)
-            except yaml.YAMLError as err:
-                raise ValueError(
-                    'Error in VTLN warps file when loading: {}'.format(err))
-            utt_id = [utt[0] for utt in utterances]
-            if not set(utt_id) <= warps.keys():
-                raise ValueError('Warps do not correspond')
-            return {utt: warps[utt] for utt in utt_id}
 
         # UBM-GMM
         if ubm is None:
@@ -558,7 +601,6 @@ class VtlnProcessor(BaseProcessor):
         else:
             orig_features = raw_mfcc
         # Select voiced frames
-        print(vad.keys(), orig_features.keys())
         orig_features = orig_features.trim(vad)
         orig_features = FeaturesCollection(  # Subsample
             {utt: feats.copy(n=self.subsample)
@@ -588,7 +630,7 @@ class VtlnProcessor(BaseProcessor):
 
         self._log.info('Computing initial LVTLN transforms')
         posteriors = ubm.gaussian_selection_to_post(orig_features)
-        transforms, warps = self.estimate(
+        self.transforms, self.warps = self.estimate(
             ubm, orig_features, posteriors, utt2speak)
 
         for i in range(self.num_iters):
@@ -596,8 +638,8 @@ class VtlnProcessor(BaseProcessor):
             features = FeaturesCollection()
             for utt, feats in orig_features.items():
                 ind = utt if utt2speak is None else utt2speak[utt]
-                linear_part = transforms[ind][:, : feats.ndims]
-                offset = transforms[ind][:, feats.ndims]
+                linear_part = self.transforms[ind][:, : feats.ndims]
+                offset = self.transforms[ind][:, feats.ndims]
                 data = np.dot(feats.data, linear_part.numpy().T) + \
                     offset.numpy()
                 features[utt] = Features(data, feats.times, feats.properties)
@@ -610,22 +652,14 @@ class VtlnProcessor(BaseProcessor):
             # Now update the LVTLN transforms (and warps)
             self._log.info(f'Re-estimating LVTLN transforms on pass {i+1}')
             posteriors = ubm.gaussian_selection_to_post(features)
-            transforms, warps = self.estimate(
+            self.transforms, self.warps = self.estimate(
                 ubm, orig_features, posteriors, utt2speak)
 
         if utt2speak is not None:
-            transforms = {utt: transforms[spk]
+            self.transforms = {utt: self.transforms[spk]
+                               for utt, spk in utt2speak.items()}
+            self.warps = {utt: self.warps[spk]
                           for utt, spk in utt2speak.items()}
-            warps = {utt: warps[spk] for utt, spk in utt2speak.items()}
-
-        # Saving computed warps
-        if self.warps_path is not None:
-            try:
-                with open(self.warps_path, 'w') as f:
-                    yaml.dump(warps, f)
-            except yaml.YAMLError as err:
-                raise ValueError(
-                    'Error in VTLN warps file when saving: {}'.format(err))
 
         self._log.info("Done training LVTLN model.")
-        return warps
+        return self.warps

@@ -1,7 +1,7 @@
 """Provides the DiagUbmClass to train a Universal Background Model
 - Gaussian Mixture Model (UBM-GMM) with diagonal covariances
 
-Uses the kaldi implementation of GMM (see [kaldi_gmm]_)
+Uses the kaldi implementation of GMM (see [kaldi_gmm]_).
 
 Examples
 --------
@@ -17,14 +17,13 @@ can be specified at construction, or after:
 >>> ubm = DiagUbmProcessor(num_gauss, num_iters_init=10)
 >>> ubm.num_iters = 3
 
-Process
+Process the utterances to update the model.
+>>> ubm.process(utterances)
 
->>> ubm.process(num_gauss)
-
+Each gaussian of the model has as many dimensions as the features.
 >>> import kaldi.gmm
 >>> isinstance(ubm.gmm, kaldi.gmm.DiagGmm)
 True
-
 >>> means = ubm.gmm.get_means()
 >>> means.num_rows == num_gauss
 True
@@ -259,15 +258,6 @@ class DiagUbmProcessor(BaseProcessor):
         self._options.remove_low_count_gaussians = bool(value)
 
     @property
-    def seed(self):
-        """Random seed"""
-        return self._state.seed
-
-    @seed.setter
-    def seed(self, value):
-        self._state.seed = int(value)
-
-    @property
     def extract_config(self):
         """Features extraction configuration"""
         return self._extract_config
@@ -293,6 +283,15 @@ class DiagUbmProcessor(BaseProcessor):
         if not value.keys() <= vad_keys:
             raise ValueError('Unknown parameters given for VAD config')
         self._vad_config = copy.deepcopy(value)
+
+    @property
+    def seed(self):
+        """Random seed"""
+        return self._state.seed
+
+    @seed.setter
+    def seed(self, value):
+        self._state.seed = int(value)
 
     @classmethod
     def load(cls, path):
@@ -421,7 +420,7 @@ class DiagUbmProcessor(BaseProcessor):
 
     @Timer(name='Init gmm from random frames')
     def _init_from_random_frames(self, feats):
-        """GMM initialization.
+        """GMM initialization from random frames.
 
         Parameters
         ----------
@@ -534,20 +533,30 @@ class DiagUbmProcessor(BaseProcessor):
         """Given features and Gaussian-selection (gselect) information for
         a diagonal-covariance GMM, output per-frame posteriors for the selected
         indices.  Also supports pruning the posteriors if they are below
-        a stated threshold (and renormalizing the rest to sum to one)
+        a stated threshold (and renormalizing the rest to sum to one).
+
+        Adapted from [kaldi_gselect_to_post]_
 
         Parameters
         ----------
         feats_collection : FeaturesCollection
-            [description]
+            The collection of features to use to get the posteriors.
         min_post : int, optional
             Optional, posteriors below this threshold will be pruned away
-            and the rest will be renormalized
+            and the rest will be renormalized.
 
         Returns
         -------
-        posteriors : List[List[Tuple[int, float]]]
-            [description]
+        posteriors : dict of List[List[Tuple[int, float]]]
+            For each utterance, the posteriors are a list of size the number
+            of frames of the corresponding features. For each frame, we have
+            a list of tuples corresponding to the gaussians in the gaussian
+            selection for this frame and their log-likelihood (if the
+            log-likelihood is positive).
+
+        References
+        ----------
+        .. [kaldi_gselect_to_post] https://kaldi-asr.org/doc/gmm-global-gselect-to-post_8cc.html
         """
         if not isinstance(self.selection, dict):
             raise ValueError('Gaussian selection has not been done')
@@ -619,7 +628,7 @@ class DiagUbmProcessor(BaseProcessor):
         Returns
         -------
         gmm_accs : AccumDiagGmm
-            accumulated stats
+            The accumulated stats.
 
         References
         ----------
@@ -691,8 +700,9 @@ class DiagUbmProcessor(BaseProcessor):
         """
         if not isinstance(self.gmm, kaldi.gmm.DiagGmm):
             raise TypeError('GMM not initialized')
-        if mixup is not None:
-            pass  # TODO: vérifier tout ca
+        if mixup is not None and mixup <= self.num_gauss:
+            raise ValueError(
+                'Mixup parameter must be greater than the number of gaussians')
         update_flags = GmmUpdateFlags.MEANS + \
             GmmUpdateFlags.VARIANCES + \
             GmmUpdateFlags.WEIGHTS
@@ -702,7 +712,7 @@ class DiagUbmProcessor(BaseProcessor):
         self._log.debug(f'Overall objective function improvement is'
                         f' {objf_impr/count} per frame over {count} frames')
         if mixup is not None:
-            self.gmm.split(mixup, perturb_factor)
+            self.gmm.split(int(mixup), perturb_factor)
 
     @Timer(name='Fit')
     def process(self, utterances):
