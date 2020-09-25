@@ -510,6 +510,47 @@ def _init_utterances(utts_index, log=get_logger()):
     return utterances
 
 
+def _check_utterances(raw_utterances, by_speaker):
+    utt2speak = {} if by_speaker else None
+    if isinstance(raw_utterances, dict):
+        utterances = []
+        entries = next(iter(raw_utterances.items()))[1]
+        provided = list(map(lambda x: x is None, entries))
+        for index, utt in raw_utterances.items():
+            if not isinstance(index, str) or not isinstance(utt, _Utterance):
+                raise TypeError('Invalid dict of utterances')
+            if list(map(lambda x: x is None, utt)) != provided:
+                raise ValueError('Unconsistent utterances')
+            if by_speaker:
+                if utt.speaker is None:
+                    raise ValueError(
+                        'Requested speaker-adapted VTLN, but speaker'
+                        ' information is missing ')
+                utt2speak[index] = utt.speaker
+            utterances.append(
+                (index,)+tuple(info for info in utt if info is not None))
+    else:
+        if not isinstance(raw_utterances, list):
+            raise TypeError('Invalid utterances format')
+        utterances = raw_utterances
+        if by_speaker:
+            utts = list((u,) if isinstance(u, str)
+                        else u for u in raw_utterances)
+            index_format = set(len(u) for u in utts)
+            if not len(index_format) == 1:
+                raise ValueError(
+                    'the wavs index is not homogeneous, entries'
+                    'have different lengths: {}'.format(
+                        ', '.join(str(t) for t in index_format)))
+            index_format = list(index_format)[0]
+            if index_format in [1, 2, 4]:
+                raise ValueError(
+                    'Requested speaker-adapted VTLN, but speaker'
+                    'information is missing ')
+            utt2speak = {utt[0]: utt[2] for utt in raw_utterances}
+    return {'utterances': utterances, 'utt2speak': utt2speak}
+
+
 def _extract_features(config, utterances, njobs=1, log=get_logger()):
     # the manager will instanciate the pipeline components
     manager = _Manager(config, utterances, log=log)
@@ -522,7 +563,8 @@ def _extract_features(config, utterances, njobs=1, log=get_logger()):
     # vtln : compute vtln warps or load pre-computed warps
     if 'vtln' in config:
         manager.warps = manager.get_vtln_processor(
-            'vtln').process(utterances)
+            'vtln').process(**_check_utterances(
+                utterances, config['vtln']['by_speaker']))
 
     # cmvn : two passes. 1st with features pitch and cmvn
     # accumulation, 2nd with cmvn application and delta

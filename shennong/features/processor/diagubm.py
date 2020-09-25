@@ -34,6 +34,7 @@ References
 ----------
 
 .. [kaldi_gmm] https://kaldi-asr.org/doc/model.html
+
 """
 
 import copy
@@ -50,68 +51,7 @@ from shennong.features.pipeline import get_default_config, extract_features
 from shennong.features.postprocessor.vad import VadPostProcessor
 from shennong.features.postprocessor.cmvn import SlidingWindowCmvnPostProcessor
 from shennong.features.features import FeaturesCollection
-
-# -----------WILL BE REMOVED--------------
-from shennong.utils import get_logger
-from dataclasses import dataclass, field
-import time
-from typing import Callable, ClassVar, Dict, Optional
-from contextlib import ContextDecorator
-
-
-# https://realpython.com/python-timer
-class TimerError(Exception):
-    """A custom exception used to report errors in use of Timer class"""
-
-
-@dataclass
-class Timer(ContextDecorator):
-    timers: ClassVar[Dict[str, float]] = dict()
-    name: Optional[str] = None
-    text: str = " {:0.4f} seconds"
-    logger: Optional[Callable[[str], None]] = get_logger().info
-    _start_time: Optional[float] = field(default=None, init=False, repr=False)
-
-    def __post_init__(self) -> None:
-        """Add timer to dict of timers after initialization"""
-        if self.name is not None:
-            self.text = self.name + self.text
-            self.timers.setdefault(self.name, 0)
-
-    def __enter__(self):
-        """Start a new timer as a context manager"""
-        self.start()
-        return self
-
-    def __exit__(self, *exc_info):
-        """Stop the context manager timer"""
-        self.stop()
-
-    def start(self) -> None:
-        """Start a new timer"""
-        if self._start_time is not None:
-            raise TimerError("Timer is running. Use .stop() to stop it")
-
-        self._start_time = time.perf_counter()
-
-    def stop(self) -> float:
-        """Stop the timer, and report the elapsed time"""
-        if self._start_time is None:
-            raise TimerError("Timer is not running. Use .start() to start it")
-
-        # Calculate elapsed time
-        elapsed_time = time.perf_counter() - self._start_time
-        self._start_time = None
-
-        # Report elapsed time
-        if self.logger:
-            self.logger(self.text.format(elapsed_time))
-        if self.name:
-            self.timers[self.name] += elapsed_time
-
-        return elapsed_time
-
-# ------------END OF REMOVING-----------------
+from shennong.utils import Timer
 
 
 class DiagUbmProcessor(BaseProcessor):
@@ -349,8 +289,7 @@ class DiagUbmProcessor(BaseProcessor):
             f' {self.num_iters_init} iterations, using at most'
             f' {self.num_frames} frames of data')
 
-        self._log.debug(
-            f'Reading features (will keep {self.num_frames} frames)')
+        self._log.debug('Reading features')
         num_read, dim = 0, 0
         feats = kaldi.matrix.Matrix()
         for utt in feats_collection.keys():
@@ -420,7 +359,9 @@ class DiagUbmProcessor(BaseProcessor):
 
     @Timer(name='Init gmm from random frames')
     def _init_from_random_frames(self, feats):
-        """GMM initialization from random frames.
+        """Initialize the GMM parameters by setting the variance to the global
+        variance of the features, and the means to distinct randomly chosen
+        frames.
 
         Parameters
         ----------
@@ -730,10 +671,10 @@ class DiagUbmProcessor(BaseProcessor):
             * 5-uple: `<utterance-id> <wav-file> <speaker-id> <tstart> <tstop>`
         """
         cmvn_config = self.extract_config.pop('sliding_window_cmvn', None)
-        raw_mfcc = extract_features(self.extract_config, utterances)
+        raw_features = extract_features(self.extract_config, utterances)
         # Compute VAD decision
         vad = {}
-        for utt, mfcc in raw_mfcc.items():
+        for utt, mfcc in raw_features.items():
             this_vad = VadPostProcessor(
                 **self.vad_config).process(mfcc)
             vad[utt] = this_vad.data.reshape(
@@ -742,11 +683,11 @@ class DiagUbmProcessor(BaseProcessor):
         features = FeaturesCollection()
         if cmvn_config is not None:
             proc = SlidingWindowCmvnPostProcessor(**cmvn_config)
-            for utt, mfcc in raw_mfcc.items():
+            for utt, mfcc in raw_features.items():
                 features[utt] = proc.process(mfcc)
             self.extract_config['sliding_window_cmvn'] = cmvn_config
         else:
-            features = raw_mfcc
+            features = raw_features
         # Select voiced frames
         features = features.trim(vad)
 

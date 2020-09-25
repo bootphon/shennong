@@ -13,11 +13,11 @@ Examples
 Initialize the VTLN model. Other options can be specified at construction,
 or after:
 
->>> vtln = VtlnProcessor(by_speaker=True)
+>>> vtln = VtlnProcessor(min_warp=0.95, max_warp=1.05)
 >>> vtln.num_iters = 10
 
-Returns the computed warps for each utterance. If the `by_speaker` property is
-True, the warps have been computed for each speaker, and each utterance
+Returns the computed warps for each utterance. If the `utt2speak` argument
+is given, the warps have been computed for each speaker, and each utterance
 from the same speaker is mapped to the same warp factor.
 
 >>> warps = vtln.process(utterances)
@@ -35,7 +35,9 @@ The features can also be warped directly via the pipeline.
 References
 ----------
 .. [kaldi_lvtln] https://kaldi-asr.org/doc/transform.html#transform_lvtln
+
 """
+
 from math import sqrt
 import numpy as np
 import copy
@@ -49,63 +51,22 @@ import kaldi.transform
 
 from shennong.base import BaseProcessor
 from shennong.features.features import FeaturesCollection, Features
-from shennong.features.pipeline import extract_features, get_default_config, _extract_features_warp, _Utterance
-from shennong.features.processor.diagubm import DiagUbmProcessor, Timer
+from shennong.features.pipeline import extract_features, get_default_config, _extract_features_warp
+from shennong.features.processor.diagubm import DiagUbmProcessor
 from shennong.features.postprocessor.vad import VadPostProcessor
 from shennong.features.postprocessor.cmvn import SlidingWindowCmvnPostProcessor
-
-
-def _check_utterances(raw_utterances, by_speaker):
-    utt2speak = {} if by_speaker else None
-    if isinstance(raw_utterances, dict):
-        utterances = []
-        entries = next(iter(raw_utterances.items()))[1]
-        provided = list(map(lambda x: x is None, entries))
-        for index, utt in raw_utterances.items():
-            if not isinstance(index, str) or not isinstance(utt, _Utterance):
-                raise TypeError('Invalid dict of utterances')
-            if list(map(lambda x: x is None, utt)) != provided:
-                raise ValueError('Unconsistent utterances')
-            if by_speaker:
-                if utt.speaker is None:
-                    raise ValueError(
-                        'Requested speaker-adapted VTLN, but speaker'
-                        ' information is missing ')
-                utt2speak[index] = utt.speaker
-            utterances.append(
-                (index,)+tuple(info for info in utt if info is not None))
-    else:
-        if not isinstance(raw_utterances, list):
-            raise TypeError('Invalid utterances format')
-        utterances = raw_utterances
-        if by_speaker:
-            utts = list((u,) if isinstance(u, str)
-                        else u for u in raw_utterances)
-            index_format = set(len(u) for u in utts)
-            if not len(index_format) == 1:
-                raise ValueError(
-                    'the wavs index is not homogeneous, entries'
-                    'have different lengths: {}'.format(
-                        ', '.join(str(t) for t in index_format)))
-            index_format = list(index_format)[0]
-            if index_format in [1, 2, 4]:
-                raise ValueError(
-                    'Requested speaker-adapted VTLN, but speaker'
-                    'information is missing ')
-            utt2speak = {utt[0]: utt[2] for utt in raw_utterances}
-    return utterances, utt2speak
+from shennong.utils import Timer
 
 
 class VtlnProcessor(BaseProcessor):
     """VTLN model
     """
 
-    def __init__(self, by_speaker=True, num_iters=15,
-                 min_warp=0.85, max_warp=1.25, warp_step=0.01,
+    def __init__(self, num_iters=15, min_warp=0.85,
+                 max_warp=1.25, warp_step=0.01,
                  logdet_scale=0.0, norm_type='offset', njobs=1,
                  subsample=5, extract_config=None,
                  ubm_config=None, num_gauss=64):
-        self.by_speaker = by_speaker
         self.num_iters = num_iters
         self.min_warp = min_warp
         self.max_warp = max_warp
@@ -137,15 +98,6 @@ class VtlnProcessor(BaseProcessor):
     @property
     def name(self):  # pragma: nocover
         return 'vtln'
-
-    @property
-    def by_speaker(self):
-        """Compute the warps for each speaker, or each utterance"""
-        return self._by_speaker
-
-    @by_speaker.setter
-    def by_speaker(self, value):
-        self._by_speaker = bool(value)
 
     @property
     def num_iters(self):
@@ -544,7 +496,7 @@ class VtlnProcessor(BaseProcessor):
         return transforms, warps
 
     @Timer('Fit')
-    def process(self, raw_utterances, ubm=None):
+    def process(self, utterances, ubm=None, utt2speak=None):
         """Compute the VTLN warp factors for the given utterances.
 
         Parameters
@@ -565,9 +517,6 @@ class VtlnProcessor(BaseProcessor):
             Warps computed for each speaker or each utterance.
             If by speaker: same warp for all utterances of this spk.
         """
-        utterances, utt2speak = _check_utterances(
-            raw_utterances, self.by_speaker)
-
         # UBM-GMM
         if ubm is None:
             ubm = DiagUbmProcessor(**self.ubm_config)
@@ -576,6 +525,7 @@ class VtlnProcessor(BaseProcessor):
             if ubm.gmm is None:
                 raise ValueError('Given UBM-GMM has not been trained')
             self.ubm_config = ubm.get_params()
+
         self._log.info('Initializing base LVTLN transforms')
         dim = ubm.gmm.dim()
         num_classes = int(1.5 + (self.max_warp-self.min_warp)/self.warp_step)
@@ -606,6 +556,7 @@ class VtlnProcessor(BaseProcessor):
             {utt: feats.copy(n=self.subsample)
              for utt, feats in orig_features.items()})
 
+        # Computing base transforms
         featsub_unwarped = extract_features(
             self.extract_config, utterances, njobs=self.njobs).trim(vad)
         featsub_unwarped = FeaturesCollection(
