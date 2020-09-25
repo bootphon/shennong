@@ -1,4 +1,3 @@
-# %%
 """Test of the module shennong.features.diagubm"""
 
 import pytest
@@ -177,7 +176,15 @@ def test_gaussian_selection_to_post():
 
     ubm.selection = None
     ubm.gaussian_selection(fc)
-    return ubm.gaussian_selection_to_post(fc, min_post=10)
+    posteriors = ubm.gaussian_selection_to_post(
+        fc, min_post=10)
+    assert posteriors.keys() == fc.keys()
+    assert len(posteriors['f1']) == fc['f1'].nframes
+    for frame in range(fc['f1'].nframes):
+        gaussians, loglikes = zip(*posteriors['f1'][frame])
+        assert len(gaussians) == len(set(gaussians))
+        assert set(gaussians) <= set(ubm.selection['f1'][frame])
+        assert sum(loglikes) == pytest.approx(1, abs=1e-4)
 
 
 def test_accumulate(features_collection):
@@ -208,6 +215,7 @@ def test_accumulate(features_collection):
 
     weights = {'f1': np.random.rand(10)}
     ubm.accumulate(fc, weights)
+    # TODO: plus de tests pour gmm_accs ?
 
 
 def test_estimate():
@@ -226,6 +234,7 @@ def test_estimate():
 
     ubm.initialize_gmm(fc)
     ubm.estimate(gmm_accs, mixup=8)
+    # TODO que tester en plus ?
 
 
 def test_process(wav_file, wav_file_float32, wav_file_8k):
@@ -238,8 +247,3 @@ def test_process(wav_file, wav_file_float32, wav_file_8k):
                            num_frames=100, vad_config={
                                'energy_threshold': 0})
     ubm.process(utterances)
-
-
-post = test_gaussian_selection_to_post()
-
-# %%

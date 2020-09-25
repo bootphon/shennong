@@ -18,6 +18,7 @@ import yaml
 
 from shennong.features.processor.diagubm import DiagUbmProcessor, Timer
 from shennong.features.postprocessor.vad import VadPostProcessor
+from shennong.features.postprocessor.cmvn import SlidingWindowCmvnPostProcessor
 from shennong.base import BaseProcessor
 from shennong.features.features import FeaturesCollection, Features
 from shennong.features.pipeline import extract_features, get_default_config, _extract_features_warp, _Utterance
@@ -87,7 +88,7 @@ class VtlnProcessor(BaseProcessor):
         if extract_config is None:
             config = get_default_config(
                 'mfcc', with_pitch=False, with_cmvn=False,
-                with_sliding_window_cmvn=True)
+                with_sliding_window_cmvn=True, with_delta=True)
             config['sliding_window_cmvn']['cmn_window'] = 300
             config['delta']['window'] = 3
             self.extract_config = config
@@ -539,21 +540,30 @@ class VtlnProcessor(BaseProcessor):
         self.lvtln = kaldi.transform.lvtln.LinearVtln.new(
             dim, num_classes, default_class)
 
-        orig_features = extract_features(
-            self.extract_config, utterances, njobs=self.njobs)
+        cmvn_config = self.extract_config.pop('sliding_window_cmvn', None)
+        raw_mfcc = extract_features(self.extract_config, utterances)
         # Compute VAD decision
         vad = {}
-        for utt in orig_features.keys():
+        for utt, mfcc in raw_mfcc.items():
             this_vad = VadPostProcessor(
-                **ubm.vad_config).process(orig_features[utt])
+                **ubm.vad_config).process(mfcc)
             vad[utt] = this_vad.data.reshape(
                 (this_vad.shape[0],)).astype(bool)
+        # Apply cmvn sliding
+        orig_features = FeaturesCollection()
+        if cmvn_config is not None:
+            proc = SlidingWindowCmvnPostProcessor(**cmvn_config)
+            for utt, mfcc in raw_mfcc.items():
+                orig_features[utt] = proc.process(mfcc)
+        else:
+            orig_features = raw_mfcc
+        # Select voiced frames
+        print(vad.keys(), orig_features.keys())
         orig_features = orig_features.trim(vad)
         orig_features = FeaturesCollection(  # Subsample
             {utt: feats.copy(n=self.subsample)
              for utt, feats in orig_features.items()})
 
-        cmvn_config = self.extract_config.pop('sliding_window_cmvn', None)
         featsub_unwarped = extract_features(
             self.extract_config, utterances, njobs=self.njobs).trim(vad)
         featsub_unwarped = FeaturesCollection(

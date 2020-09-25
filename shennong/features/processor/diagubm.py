@@ -49,6 +49,7 @@ from kaldi.gmm import GmmUpdateFlags
 from shennong.base import BaseProcessor
 from shennong.features.pipeline import get_default_config, extract_features
 from shennong.features.postprocessor.vad import VadPostProcessor
+from shennong.features.postprocessor.cmvn import SlidingWindowCmvnPostProcessor
 from shennong.features.features import FeaturesCollection
 
 # -----------WILL BE REMOVED--------------
@@ -438,7 +439,8 @@ class DiagUbmProcessor(BaseProcessor):
         num_frames = feats.num_rows
         dim = feats.num_cols
         if num_frames < 10*num_gauss:
-            raise ValueError(f'Too few frames to train on {num_frames}')
+            raise ValueError(
+                f'Too few frames to train on ({num_frames} frames)')
         mean, var = kaldi.matrix.Vector(dim), kaldi.matrix.Vector(dim)
         for i in range(num_frames):
             mean.add_vec_(1.0/num_frames, feats.row(i))
@@ -585,6 +587,7 @@ class DiagUbmProcessor(BaseProcessor):
                     if loglikes[j] != 0:
                         post[i].append((this_gselect[j], loglikes[j]))
                         tot_posts += 1
+                assert len(post[i]) != 0
             posteriors[utt] = post
             self._log.debug(f'Likelihood per frame for utt {utt} was'
                             f' {this_tot_loglike/num_frames} per frame'
@@ -716,14 +719,25 @@ class DiagUbmProcessor(BaseProcessor):
             * 4-uple: `<utterance-id> <wav-file> <tstart> <tstop>`
             * 5-uple: `<utterance-id> <wav-file> <speaker-id> <tstart> <tstop>`
         """
-        features = extract_features(
-            self.extract_config, utterances, njobs=self.njobs)
+        cmvn_config = self.extract_config.pop('sliding_window_cmvn', None)
+        raw_mfcc = extract_features(self.extract_config, utterances)
+        # Compute VAD decision
         vad = {}
-        for utt in features.keys():
+        for utt, mfcc in raw_mfcc.items():
             this_vad = VadPostProcessor(
-                **self.vad_config).process(features[utt])
+                **self.vad_config).process(mfcc)
             vad[utt] = this_vad.data.reshape(
                 (this_vad.shape[0],)).astype(bool)
+        # Apply cmvn sliding
+        features = FeaturesCollection()
+        if cmvn_config is not None:
+            proc = SlidingWindowCmvnPostProcessor(**cmvn_config)
+            for utt, mfcc in raw_mfcc.items():
+                features[utt] = proc.process(mfcc)
+            self.extract_config['sliding_window_cmvn'] = cmvn_config
+        else:
+            features = raw_mfcc
+        # Select voiced frames
         features = features.trim(vad)
 
         self.initialize_gmm(features)
