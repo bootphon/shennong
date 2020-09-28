@@ -280,7 +280,8 @@ class DiagUbmProcessor(BaseProcessor):
 
         References
         ----------
-        .. [kaldi_init] https://kaldi-asr.org/doc/gmm-global-init-from-feats_8cc.html
+        .. [kaldi_init]
+            https://kaldi-asr.org/doc/gmm-global-init-from-feats_8cc.html
         """
         num_gauss_init = int(self.initial_gauss_proportion*self.num_gauss)
         self._log.info(
@@ -490,7 +491,8 @@ class DiagUbmProcessor(BaseProcessor):
 
         References
         ----------
-        .. [kaldi_gselect_to_post] https://kaldi-asr.org/doc/gmm-global-gselect-to-post_8cc.html
+        .. [kaldi_gselect_to_post]
+            https://kaldi-asr.org/doc/gmm-global-gselect-to-post_8cc.html
         """
         if not isinstance(self.selection, dict):
             raise ValueError('Gaussian selection has not been done')

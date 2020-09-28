@@ -49,9 +49,9 @@ import kaldi.matrix.functions
 import kaldi.util.io
 import kaldi.transform
 
+import shennong.features.pipeline as pipeline
 from shennong.base import BaseProcessor
 from shennong.features.features import FeaturesCollection, Features
-from shennong.features.pipeline import extract_features, get_default_config, _extract_features_warp
 from shennong.features.processor.diagubm import DiagUbmProcessor
 from shennong.features.postprocessor.vad import VadPostProcessor
 from shennong.features.postprocessor.cmvn import SlidingWindowCmvnPostProcessor
@@ -78,7 +78,7 @@ class VtlnProcessor(BaseProcessor):
         self.by_speaker = by_speaker
 
         if extract_config is None:
-            config = get_default_config(
+            config = pipeline.get_default_config(
                 'mfcc', with_pitch=False, with_cmvn=False,
                 with_sliding_window_cmvn=True, with_delta=True)
             config['sliding_window_cmvn']['cmn_window'] = 300
@@ -253,6 +253,31 @@ class VtlnProcessor(BaseProcessor):
             raise ValueError(
                 'Error in VTLN warps file when saving: {}'.format(err))
 
+    def _check_utterances(self, utterances):
+        """Check the format of the utterances. If the ``by_speaker``
+        attribute is True, returns a dictionnary mapping each utterance
+        to a speaker.
+        """
+        if not isinstance(utterances, list):
+            raise TypeError('Invalid utterances format')
+        utts = list((u,) if isinstance(u, str)
+                    else u for u in utterances)
+        index_format = set(len(u) for u in utts)
+        if not len(index_format) == 1:
+            raise ValueError(
+                'the wavs index is not homogeneous, entries'
+                ' have different lengths: {}'.format(
+                    ', '.join(str(t) for t in index_format)))
+        if self.by_speaker:
+            index_format = list(index_format)[0]
+            if index_format in [1, 2, 4]:
+                raise ValueError(
+                    'Requested speaker-adapted VTLN, but speaker'
+                    ' information is missing')
+            return {utt[0]: utt[2] for utt in utterances}
+        else:
+            return None
+
     @Timer(name='Train lvtln special')
     def compute_mapping_transform(self, feats_untransformed,
                                   feats_transformed,
@@ -286,7 +311,8 @@ class VtlnProcessor(BaseProcessor):
 
         References
         ----------
-        .. [kaldi_train_lvtln_special] https://kaldi-asr.org/doc/gmm-train-lvtln-special_8cc.html
+        .. [kaldi_train_lvtln_special]
+            https://kaldi-asr.org/doc/gmm-train-lvtln-special_8cc.html
         """
         # Normalize diagonal of variance to be the
         # same before and after transform.
@@ -400,7 +426,8 @@ class VtlnProcessor(BaseProcessor):
 
         References
         ----------
-        .. [kaldi_global_est_lvtln_trans] https://kaldi-asr.org/doc/gmm-global-est-lvtln-trans_8cc.html
+        .. [kaldi_global_est_lvtln_trans]
+            https://kaldi-asr.org/doc/gmm-global-est-lvtln-trans_8cc.html
         """
         if not isinstance(self.lvtln, kaldi.transform.lvtln.LinearVtln):
             raise TypeError('VTLN not initialized')
@@ -496,7 +523,7 @@ class VtlnProcessor(BaseProcessor):
         return transforms, warps
 
     @Timer('Fit')
-    def process(self, utterances, utt2speak=None, ubm=None):
+    def process(self, utterances, ubm=None):
         """Compute the VTLN warp factors for the given utterances.
 
         Parameters
@@ -505,12 +532,9 @@ class VtlnProcessor(BaseProcessor):
             The utterances can be defined in one of the following format:
             * 1-uple (or str): ``<wav-file>``
             * 2-uple: ``<utterance-id> <wav-file>``
-            * 3-uple: ``<utterance-id> <wav-file> <speaker-id>``
+            * 3-uple: ``<utterance-id> <wav-file> <spk-id>``
             * 4-uple: ``<utterance-id> <wav-file> <tstart> <tstop>``
-            * 5-uple: ``<utterance-id> <wav-file> <speaker-id> <tstart> <tstop>``
-        utt2speak: dict[str, str]
-            If provided, map each utterance to a speaker. Overidden by the
-            ``by_speaker`` attribute.
+            * 5-uple: ``<utterance-id> <wav-file> <spk-id> <tstart> <tstop>``
         ubm : DiagUbmProcessor
             If provided, uses this UBM instead of computing a new one.
 
@@ -520,8 +544,8 @@ class VtlnProcessor(BaseProcessor):
             Warps computed for each speaker or each utterance.
             If by speaker: same warp for all utterances of this speaker.
         """
-        if not self.by_speaker:
-            utt2speak = None
+        # Utterances
+        utt2speak = self._check_utterances(utterances)
 
         # UBM-GMM
         if ubm is None:
@@ -540,7 +564,7 @@ class VtlnProcessor(BaseProcessor):
             dim, num_classes, default_class)
 
         cmvn_config = self.extract_config.pop('sliding_window_cmvn', None)
-        raw_mfcc = extract_features(self.extract_config, utterances)
+        raw_mfcc = pipeline.extract_features(self.extract_config, utterances)
         # Compute VAD decision
         vad = {}
         for utt, mfcc in raw_mfcc.items():
@@ -563,14 +587,14 @@ class VtlnProcessor(BaseProcessor):
              for utt, feats in orig_features.items()})
 
         # Computing base transforms
-        featsub_unwarped = extract_features(
+        featsub_unwarped = pipeline.extract_features(
             self.extract_config, utterances, njobs=self.njobs).trim(vad)
         featsub_unwarped = FeaturesCollection(
             {utt: feats.copy(n=self.subsample)
              for utt, feats in featsub_unwarped.items()})
         for c in range(num_classes):
             this_warp = self.min_warp + c*self.warp_step
-            featsub_warped = _extract_features_warp(
+            featsub_warped = pipeline._extract_features_warp(
                 self.extract_config, utterances, this_warp,
                 njobs=self.njobs).trim(vad)
             featsub_warped = FeaturesCollection(

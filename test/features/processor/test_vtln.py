@@ -1,13 +1,12 @@
 import pytest
 import os
 import numpy as np
+import kaldi.transform.lvtln
+import kaldi.matrix
 
 from shennong.features.processor.vtln import VtlnProcessor
 from shennong.features.processor.diagubm import DiagUbmProcessor
 from shennong.features.features import Features, FeaturesCollection
-import shennong.features.pipeline as pipeline
-import kaldi.transform.lvtln
-import kaldi.matrix
 
 
 def test_params():
@@ -195,10 +194,7 @@ def test_estimate(by_speaker):
 
 
 def test_process(wav_file, wav_file_float32, wav_file_8k):
-    utterances = [
-        ('s1a', wav_file, 's1', 0, 1),
-        ('s2a', wav_file_float32, 's2', 1, 1.2),
-        ('s1b', wav_file_8k, 's1', 1, 3)]
+
     ubm_config = DiagUbmProcessor(8).get_params()
     ubm_config['vad_config']['energy_threshold'] = 0
     ubm_config['num_iters_init'] = 1
@@ -212,13 +208,32 @@ def test_process(wav_file, wav_file_float32, wav_file_8k):
 
     vtln = VtlnProcessor(**vtln_config)
     ubm = DiagUbmProcessor(**ubm_config)
+
+    with pytest.raises(TypeError) as err:
+        vtln.process({'s1a': (wav_file, 's1', 0, 1)}, ubm=ubm)
+    assert 'Invalid utterances format' in str(err.value)
+
+    utterances = [('s1a', wav_file, 's1', 0, 1), ('s2a', wav_file_float32)]
+    with pytest.raises(ValueError) as err:
+        vtln.process(utterances, ubm=ubm)
+    assert 'the wavs index is not homogeneous' in str(err.value)
+
+    utterances = [('s1a', wav_file), ('s2a', wav_file_float32)]
+    with pytest.raises(ValueError) as err:
+        vtln.process(utterances, ubm=ubm)
+    assert 'Requested speaker-adapted VTLN' in str(err.value)
+
+    utterances = [
+        ('s1a', wav_file, 's1', 0, 1),
+        ('s2a', wav_file_float32, 's2', 1, 1.2),
+        ('s1b', wav_file_8k, 's1', 1, 3)]
+
     with pytest.raises(ValueError) as err:
         vtln.process(utterances, ubm=ubm)
     assert 'Given UBM-GMM has not been trained' in str(err.value)
 
     ubm.process(utterances)
-    warps = vtln.process(utterances, ubm=ubm, utt2speak={
-        's1a': 's1', 's1b': 's1', 's2a': 's2'})
+    warps = vtln.process(utterances, ubm=ubm)
     assert isinstance(warps, dict)
     assert set(warps.keys()) == set(['s1a', 's1b', 's2a'])
     assert warps['s1a'] == warps['s1b']
