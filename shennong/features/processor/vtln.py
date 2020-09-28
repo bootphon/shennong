@@ -66,7 +66,7 @@ class VtlnProcessor(BaseProcessor):
                  max_warp=1.25, warp_step=0.01,
                  logdet_scale=0.0, norm_type='offset', njobs=1,
                  subsample=5, extract_config=None,
-                 ubm_config=None, num_gauss=64):
+                 ubm_config=None, num_gauss=64, by_speaker=True):
         self.num_iters = num_iters
         self.min_warp = min_warp
         self.max_warp = max_warp
@@ -75,6 +75,7 @@ class VtlnProcessor(BaseProcessor):
         self.norm_type = norm_type
         self.subsample = subsample
         self.njobs = njobs
+        self.by_speaker = by_speaker
 
         if extract_config is None:
             config = get_default_config(
@@ -172,6 +173,14 @@ class VtlnProcessor(BaseProcessor):
         self._njobs = int(value)
 
     @property
+    def by_speaker(self):
+        return self._by_speaker
+
+    @by_speaker.setter
+    def by_speaker(self, value):
+        self._by_speaker = bool(value)
+
+    @property
     def extract_config(self):
         return self._extract_config
 
@@ -216,7 +225,7 @@ class VtlnProcessor(BaseProcessor):
         try:
             with open(path) as f:
                 warps = yaml.load(f, Loader=yaml.FullLoader)
-        except yaml.YAMLError as err:
+        except yaml.YAMLError as err:  # pragma: nocover
             raise ValueError(
                 'Error in VTLN warps file when loading: {}'.format(err))
         return warps
@@ -240,7 +249,7 @@ class VtlnProcessor(BaseProcessor):
         try:
             with open(path, 'w') as f:
                 yaml.dump(self.warps, f)
-        except yaml.YAMLError as err:
+        except yaml.YAMLError as err:  # pragma: nocover
             raise ValueError(
                 'Error in VTLN warps file when saving: {}'.format(err))
 
@@ -248,7 +257,7 @@ class VtlnProcessor(BaseProcessor):
     def compute_mapping_transform(self, feats_untransformed,
                                   feats_transformed,
                                   class_idx, warp,
-                                  weights_collection=None, posteriors=None):
+                                  weights=None):
         """"Set one of the transforms in lvtln to the minimum-squared-error solution
         to mapping feats_untransformed to feats_transformed; posteriors may
         optionally be used to downweight/remove silence.
@@ -265,11 +274,9 @@ class VtlnProcessor(BaseProcessor):
             Rank of warp considered.
         warp : float, optional
             Warp considered.
-        weights_collection : dict of arrays, optional
+        weights : dict of arrays, optional
             For each features in the collection, an array of weights to
             apply on the features frames. Unweighted by default.
-        posteriors : dict of arrays, optional
-            Posteriors may "optionally be used to downweight/remove silence
 
         Raises
         ------
@@ -284,6 +291,8 @@ class VtlnProcessor(BaseProcessor):
         # Normalize diagonal of variance to be the
         # same before and after transform.
         # We are not normalizing the full covariance
+        if not isinstance(self.lvtln, kaldi.transform.lvtln.LinearVtln):
+            raise TypeError('VTLN not initialized')
         dim = self.lvtln.dim()
         Q = kaldi.matrix.packed.SpMatrix(dim+1)
         l = kaldi.matrix.Matrix(dim, dim+1)
@@ -304,24 +313,15 @@ class VtlnProcessor(BaseProcessor):
                                  f'rows, {x_feats.num_cols} vs '
                                  f'{y_feats.num_cols} columns, {dim} dim')
 
-            weights = kaldi.matrix.Vector(x_feats.num_rows)
-            if weights_collection is None and posteriors is not None:
-                if utt not in posteriors:
-                    raise ValueError(f'No posteriors for utterance {utt}')
-                post = posteriors[utt]
-                if len(post) != x_feats.num_rows:
-                    raise ValueError('Mismatch in size of posterior')
-                for i in range(len(post)):
-                    for j in range(len(post[i])):
-                        weights[i] += post[i][j][1]
-            elif weights_collection is not None:
-                if utt not in weights_collection:
+            this_weights = kaldi.matrix.Vector(x_feats.num_rows)
+            if weights is not None:
+                if utt not in weights:
                     raise ValueError(f'No weights for utterance {utt}')
-                weights.copy_(weights_collection[utt])
+                this_weights.copy_(kaldi.matrix.SubVector(weights[utt]))
             else:
-                weights.add_(1)
+                this_weights.add_(1)
             for i in range(x_feats.num_rows):
-                weight = weights[i]
+                weight = this_weights[i]
                 x_row = kaldi.matrix.SubVector(x_feats.row(i))
                 y_row = kaldi.matrix.SubVector(y_feats.row(i))
                 xplus_row_dbl = kaldi.matrix.Vector(x_row)
@@ -402,6 +402,8 @@ class VtlnProcessor(BaseProcessor):
         ----------
         .. [kaldi_global_est_lvtln_trans] https://kaldi-asr.org/doc/gmm-global-est-lvtln-trans_8cc.html
         """
+        if not isinstance(self.lvtln, kaldi.transform.lvtln.LinearVtln):
+            raise TypeError('VTLN not initialized')
         transforms = {}
         warps = {}
         tot_lvtln_impr, tot_t = 0.0, 0.0
@@ -416,8 +418,7 @@ class VtlnProcessor(BaseProcessor):
                 # Accumulate stats over all utterances of the current speaker
                 for utt in spk2utt2feats[spk]:
                     if utt not in posteriors:
-                        raise ValueError(
-                            f'Did not find posterior for utterance {utt}')
+                        raise ValueError(f'No posterior for utterance {utt}')
                     feats = kaldi.matrix.SubMatrix(
                         spk2utt2feats[spk][utt].data)
                     post = posteriors[utt]
@@ -453,8 +454,7 @@ class VtlnProcessor(BaseProcessor):
         else:  # per utterance adaptation
             for utt in feats_collection:
                 if utt not in posteriors:
-                    raise ValueError(
-                        f'Did not find posterior for utterance {utt}')
+                    raise ValueError(f'No posterior for utterance {utt}')
                 feats = kaldi.matrix.Matrix(feats_collection[utt].data)
                 post = posteriors[utt]
                 if len(post) != feats.num_rows:
@@ -496,7 +496,7 @@ class VtlnProcessor(BaseProcessor):
         return transforms, warps
 
     @Timer('Fit')
-    def process(self, utterances, ubm=None, utt2speak=None):
+    def process(self, utterances, utt2speak=None, ubm=None):
         """Compute the VTLN warp factors for the given utterances.
 
         Parameters
@@ -517,6 +517,9 @@ class VtlnProcessor(BaseProcessor):
             Warps computed for each speaker or each utterance.
             If by speaker: same warp for all utterances of this spk.
         """
+        if not self.by_speaker:
+            utt2speak = None
+
         # UBM-GMM
         if ubm is None:
             ubm = DiagUbmProcessor(**self.ubm_config)
