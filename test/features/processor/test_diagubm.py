@@ -4,6 +4,7 @@ import pytest
 import os
 import numpy as np
 
+import shennong.features.pipeline as pipeline
 from shennong.features.postprocessor.vad import VadPostProcessor
 from shennong.features.processor.diagubm import DiagUbmProcessor
 from shennong.features.features import Features, FeaturesCollection
@@ -219,22 +220,23 @@ def test_accumulate(features_collection):
 
 
 def test_estimate():
-    ubm = DiagUbmProcessor(2, num_iters_init=1, num_iters=1,
-                           num_frames=100)
+    ubm = DiagUbmProcessor(4, num_iters_init=1, num_iters=1)
     fc = FeaturesCollection(f1=Features(
-        np.random.random((10, 2)), np.ones((10,))))
+        np.random.random((20, 2)), np.arange(20)))
     ubm.initialize_gmm(fc)
     gmm_accs = ubm.accumulate(fc)
 
-    ubm = DiagUbmProcessor(2, num_iters_init=1, num_iters=1,
-                           num_frames=100)
+    ubm = DiagUbmProcessor(4, num_iters_init=1, num_iters=1)
     with pytest.raises(TypeError) as err:
         ubm.estimate(gmm_accs)
     assert 'GMM not initialized' in str(err.value)
 
     ubm.initialize_gmm(fc)
+    with pytest.raises(ValueError) as err:
+        ubm.estimate(gmm_accs, mixup=2)
+    assert 'Mixup parameter must be greater than the number of gaussians' in \
+        str(err.value)
     ubm.estimate(gmm_accs, mixup=8)
-    # TODO que tester en plus ?
 
 
 def test_process(wav_file, wav_file_float32, wav_file_8k):
@@ -243,8 +245,12 @@ def test_process(wav_file, wav_file_float32, wav_file_8k):
         ('u2', wav_file_float32, 's2', 1, 1.2),
         ('u3', wav_file_8k, 's1', 1, 3)]
 
-    ubm = DiagUbmProcessor(2, num_iters_init=1, num_iters=1,
-                           num_frames=100, vad_config={
-                               'energy_threshold': 0})
+    config = {'num_iters_init': 1, 'num_iters': 1, 'num_frames': 100,
+              'vad_config': {'energy_threshold': 0}}
+    ubm = DiagUbmProcessor(2, **config)
     ubm.process(utterances)
-    #  TODO: quoi tester ?
+    config['extract_config'] = pipeline.get_default_config(
+        'mfcc', with_pitch=False, with_cmvn=False,
+        with_sliding_window_cmvn=False, with_delta=False)
+    ubm = DiagUbmProcessor(2, **config)
+    ubm.process(utterances)

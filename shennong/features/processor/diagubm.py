@@ -39,7 +39,7 @@ References
 
 import copy
 import os
-import kaldi.base.math
+import numpy as np
 import kaldi.util.io
 import kaldi.matrix
 import kaldi.matrix.common
@@ -67,8 +67,6 @@ class DiagUbmProcessor(BaseProcessor):
         self._options = kaldi.gmm.MleDiagGmmOptions()
         self._options.min_gaussian_weight = min_gaussian_weight
         self._options.remove_low_count_gaussians = remove_low_count_gaussians
-        self._state = kaldi.base.math.RandomState()
-        self._state.seed = seed
 
         self.num_gauss = num_gauss
         self.num_iters = num_iters
@@ -78,6 +76,7 @@ class DiagUbmProcessor(BaseProcessor):
         self.njobs = njobs
         self.num_frames = num_frames
         self.subsample = subsample
+        self.seed = seed
 
         if vad_config is None:
             config = VadPostProcessor().get_params()
@@ -227,11 +226,12 @@ class DiagUbmProcessor(BaseProcessor):
     @property
     def seed(self):
         """Random seed"""
-        return self._state.seed
+        return self._seed
 
     @seed.setter
     def seed(self, value):
-        self._state.seed = int(value)
+        self._seed = int(value)
+        self._rng = np.random.default_rng(self._seed)
 
     @classmethod
     def load(cls, path):
@@ -307,10 +307,9 @@ class DiagUbmProcessor(BaseProcessor):
                     feats.row(num_read-1).copy_row_from_mat_(this_feats, t)
                 else:
                     keep_prob = self.num_frames / num_read
-                    if kaldi.base.math.with_prob(keep_prob):
-                        feats.row(kaldi.base.math.rand_int(
-                            0, self.num_frames-1, self._state)
-                        ).copy_row_from_mat_(this_feats, t)
+                    if self._rng.random() <= keep_prob:
+                        feats.row(self._rng.integers(0, self.num_frames)
+                                  ).copy_row_from_mat_(this_feats, t)
         if num_read < self.num_frames:
             self._log.debug(f'Number of frames read {num_read} was less than'
                             f' target number {self.num_frames}, using all we'
@@ -389,18 +388,12 @@ class DiagUbmProcessor(BaseProcessor):
         if var.max() <= 0:
             raise ValueError(
                 f'Features do not have positive variance {var}')
-        used_frames = set()
         var.invert_elements_()  # Now inverse of variance
+        random_frames = self._rng.choice(num_frames, num_gauss, replace=False)
         for g in range(num_gauss):
-            random_frame = kaldi.base.math.rand_int(
-                0, num_frames-1, self._state)
-            while random_frame in used_frames:
-                random_frame = kaldi.base.math.rand_int(
-                    0, num_frames-1, self._state)
-            used_frames.add(random_frame)
             self.gmm.set_component_weight(g, 1.0/num_gauss)
             self.gmm.set_component_inv_var(g, var)
-            self.gmm.set_component_mean(g, feats.row(random_frame))
+            self.gmm.set_component_mean(g, feats.row(random_frames[g]))
         self.gmm.compute_gconsts()
 
     @Timer(name='Gselect')
