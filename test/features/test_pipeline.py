@@ -253,6 +253,17 @@ def test_cmvn(utterances_index, by_speaker, with_vad):
     assert feat2.shape[1] == 13
 
 
+def test_sliding_window_cmvn(utterances_index):
+    config = pipeline.get_default_config(
+        'mfcc', with_cmvn=False, with_pitch=False,
+        with_sliding_window_cmvn=True, with_delta=False)
+    feats = pipeline.extract_features(config, utterances_index)
+    feat2 = feats[utterances_index[0][0]]
+    assert feat2.is_valid()
+    assert feat2.shape[0] == 140
+    assert feat2.shape[1] == 13
+
+
 @pytest.mark.parametrize('ext', supported_extensions().keys())
 def test_extract_features_full(ext, wav_file, wav_file_8k, wav_file_float32,
                                capsys, tmpdir):
