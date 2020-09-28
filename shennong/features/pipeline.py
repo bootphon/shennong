@@ -674,7 +674,9 @@ def _extract_single_pass_warp(utt_name, manager, warp, log=get_logger()):
 
 def _extract_features_warp(configuration, utterances_index, warp,
                            njobs=1, log=get_logger()):
-    # TODO: documentation fonction
+    """Speech features extraction pipeline when all features are warped
+    by the same factor. Used in the `process` method of the `VtlnProcessor`.
+    """
     # intialize the pipeline configuration, the list of wav files to
     # process, instanciate the pipeline processors and make all the
     # checks to ensure all is correct
@@ -792,7 +794,7 @@ class _Manager:
     def warps(self, value):
         self._warps = value
 
-    def _check_speakers(self):
+    def _check_speakers(self):  # TODO adapter avec vtln par speaker
         """Ensures the configuration is compatible with speakers information
 
         On any error raises a ValueError. Logs a warning if speakers
