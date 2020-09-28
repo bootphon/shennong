@@ -194,7 +194,7 @@ def test_estimate(by_speaker):
     assert p.min_warp <= warps[key] <= p.max_warp
 
 
-def test_train(wav_file, wav_file_float32, wav_file_8k):
+def test_process(wav_file, wav_file_float32, wav_file_8k):
     utterances = [
         ('s1a', wav_file, 's1', 0, 1),
         ('s2a', wav_file_float32, 's2', 1, 1.2),
@@ -204,15 +204,14 @@ def test_train(wav_file, wav_file_float32, wav_file_8k):
     ubm_config['num_iters_init'] = 1
     ubm_config['num_iters'] = 1
 
-    config = pipeline.get_default_config('mfcc', with_vtln=True)
-    config['cmvn']['with_vad'] = False
-    config['vtln']['ubm_config'] = ubm_config
-    config['vtln']['min_warp'] = 0.99
-    config['vtln']['max_warp'] = 1
-    config['vtln']['num_iters'] = 1
+    vtln_config = {}
+    vtln_config['ubm_config'] = ubm_config
+    vtln_config['min_warp'] = 0.99
+    vtln_config['max_warp'] = 1
+    vtln_config['num_iters'] = 1
 
-    vtln = VtlnProcessor(**config['vtln'])
-    ubm = DiagUbmProcessor(**config['vtln']['ubm_config'])
+    vtln = VtlnProcessor(**vtln_config)
+    ubm = DiagUbmProcessor(**ubm_config)
     with pytest.raises(ValueError) as err:
         vtln.process(utterances, ubm=ubm)
     assert 'Given UBM-GMM has not been trained' in str(err.value)

@@ -264,6 +264,20 @@ def test_sliding_window_cmvn(utterances_index):
     assert feat2.shape[1] == 13
 
 
+def test_vtln(utterances_index):
+    config = pipeline.get_default_config(
+        'mfcc', with_pitch=False, with_vtln=True, with_delta=False)
+    config['vtln']['ubm_config']['num_gauss'] = 4
+    config['vtln']['ubm_config']['num_iters'] = 1
+    config['vtln']['ubm_config']['num_iters_init'] = 1
+    config['vtln']['num_iters'] = 1
+    feats = pipeline.extract_features(config, utterances_index)
+    feat2 = feats[utterances_index[0][0]]
+    assert feat2.is_valid()
+    assert feat2.shape[0] == 140
+    assert feat2.shape[1] == 13
+
+
 @pytest.mark.parametrize('ext', supported_extensions().keys())
 def test_extract_features_full(ext, wav_file, wav_file_8k, wav_file_float32,
                                capsys, tmpdir):

@@ -823,8 +823,6 @@ class _Manager:
 
     @warps.setter
     def warps(self, value):
-        if value.keys() != self.utterances.keys():
-            raise ValueError('Given warps do not match utterances')
         self._warps = value
 
     def _check_speakers(self):

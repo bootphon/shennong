@@ -481,7 +481,7 @@ class DiagUbmProcessor(BaseProcessor):
 
         Returns
         -------
-        posteriors : dict of List[List[Tuple[int, float]]]
+        posteriors : dict[str, list[list[tuple[int, float]]]]
             For each utterance, the posteriors are a list of size the number
             of frames of the corresponding features. For each frame, we have
             a list of tuples corresponding to the gaussians in the gaussian
@@ -553,7 +553,7 @@ class DiagUbmProcessor(BaseProcessor):
         ----------
         feats_collection : FeaturesCollection
             The collection of features to use to accumulate stats.
-        weights_collection : dict of arrays, optional
+        weights_collection : dict[str, ndarrays], optional
             For each features in the collection, an array of weights to
             apply on the features frames, if specified we must have
             ``weights.keys() == feats_collections.keys()``.
