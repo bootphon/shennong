@@ -5,7 +5,7 @@ import numpy as np
 from shennong.features.processor.vtln import VtlnProcessor
 from shennong.features.processor.diagubm import DiagUbmProcessor
 from shennong.features.features import Features, FeaturesCollection
-from shennong.features.pipeline import extract_features, get_default_config
+import shennong.features.pipeline as pipeline
 import kaldi.transform.lvtln
 import kaldi.matrix
 
@@ -119,59 +119,79 @@ def test_load_save_warps(tmpdir):
 
 
 def test_compute_mapping_transform():
-    vtln = VtlnProcessor()
+    p = VtlnProcessor()
     fu = FeaturesCollection(f1=Features(
         np.random.random((20, 2)), np.arange(20)))
     with pytest.raises(TypeError) as err:
-        vtln.compute_mapping_transform(fu, fu, 0, 1)
+        p.compute_mapping_transform(fu, fu, 0, 1)
     assert 'VTLN not initialized' in str(err.value)
 
-    vtln.lvtln = kaldi.transform.lvtln.LinearVtln.new(2, 2, 0)
+    p.lvtln = kaldi.transform.lvtln.LinearVtln.new(2, 2, 0)
     fu = FeaturesCollection(f1=Features(
         np.random.random((20, 2)), np.arange(20)))
     with pytest.raises(ValueError) as err:
-        vtln.compute_mapping_transform(fu, FeaturesCollection(), 0, 1)
+        p.compute_mapping_transform(fu, FeaturesCollection(), 0, 1)
     assert 'No transformed features for key f1' in str(err.value)
 
     ft = FeaturesCollection(f1=Features(
         np.random.random((10, 2)), np.arange(10)))
     with pytest.raises(ValueError) as err:
-        vtln.compute_mapping_transform(fu, ft, 0, 1)
+        p.compute_mapping_transform(fu, ft, 0, 1)
     assert 'Number of rows and/or columns differs' in str(err.value)
 
     ft = FeaturesCollection(f1=Features(
         np.random.random((20, 2)), np.arange(20)))
     with pytest.raises(ValueError) as err:
-        vtln.compute_mapping_transform(fu, ft, 0, 1, weights={})
+        p.compute_mapping_transform(fu, ft, 0, 1, weights={})
     assert 'No weights for utterance f1' in str(err.value)
 
-    vtln.compute_mapping_transform(
-        fu, ft, 0, 1, weights={'f1': np.random.rand(20)})
+    p.compute_mapping_transform(
+        fu, ft, 0, 1.15, weights={'f1': np.random.rand(20)})
+    t = kaldi.matrix.Matrix(2, 2)
+    p.lvtln.get_transform(0, t)
+    assert not np.array_equal(t.numpy(), np.eye(2))
+    p.lvtln.get_transform(1, t)
+    assert np.array_equal(t.numpy(), np.eye(2))
+    assert p.lvtln.get_warp(0) == pytest.approx(1.15, abs=1e-6)
+    assert p.lvtln.get_warp(1) == pytest.approx(1, abs=1e-6)
 
 
-@pytest.mark.parametrize('utt2speak', [None, {'f1': '1'}])
-def test_estimate(utt2speak):
-    vtln = VtlnProcessor()
-    ubm = DiagUbmProcessor(2, num_iters_init=1, num_iters=1,
+@pytest.mark.parametrize('by_speaker', [True, False])
+def test_estimate(by_speaker):
+    utt2speak = {'f1': '1'} if by_speaker else None
+    p = VtlnProcessor()
+    dim = 2
+    ubm = DiagUbmProcessor(4, num_iters_init=1, num_iters=1,
                            vad_config={'energy_threshold': 0})
     fc = FeaturesCollection(f1=Features(
-        np.random.random((20, 2)), np.arange(20)))
+        np.random.random((20, dim)), np.arange(20)))
     ubm.initialize_gmm(fc)
     ubm.gaussian_selection(fc)
     posteriors = ubm.gaussian_selection_to_post(fc)
 
     with pytest.raises(TypeError) as err:
-        vtln.estimate(ubm, fc, posteriors, utt2speak)
+        p.estimate(ubm, fc, posteriors, utt2speak)
     assert 'VTLN not initialized' in str(err.value)
-    vtln.lvtln = kaldi.transform.lvtln.LinearVtln.new(2, 2, 0)
+    p.lvtln = kaldi.transform.lvtln.LinearVtln.new(dim, 2, 0)
 
     with pytest.raises(ValueError) as err:
-        vtln.estimate(ubm, fc, {}, utt2speak)
+        p.estimate(ubm, fc, {}, utt2speak)
     assert 'No posterior for utterance f1' in str(err.value)
 
     with pytest.raises(ValueError) as err:
-        vtln.estimate(ubm, fc, {'f1': [[(0, 1)]]}, utt2speak)
+        p.estimate(ubm, fc, {'f1': [[(0, 1)]]}, utt2speak)
     assert 'Posterior has wrong size' in str(err.value)
+
+    transforms, warps = p.estimate(ubm, fc, posteriors, utt2speak)
+    assert isinstance(transforms, dict)
+    key = '1' if by_speaker else 'f1'
+    assert list(transforms.keys()) == [key]
+    assert isinstance(transforms[key], kaldi.matrix.Matrix)
+    assert transforms[key].shape == (dim, dim+1)
+    assert isinstance(warps, dict)
+    assert list(warps.keys()) == [key]
+    assert isinstance(warps[key], float)
+    assert p.min_warp <= warps[key] <= p.max_warp
 
 
 def test_train(wav_file, wav_file_float32, wav_file_8k):
@@ -184,7 +204,7 @@ def test_train(wav_file, wav_file_float32, wav_file_8k):
     ubm_config['num_iters_init'] = 1
     ubm_config['num_iters'] = 1
 
-    config = get_default_config('mfcc', with_vtln=True)
+    config = pipeline.get_default_config('mfcc', with_vtln=True)
     config['cmvn']['with_vad'] = False
     config['vtln']['ubm_config'] = ubm_config
     config['vtln']['min_warp'] = 0.99
@@ -192,17 +212,20 @@ def test_train(wav_file, wav_file_float32, wav_file_8k):
     config['vtln']['num_iters'] = 1
 
     vtln = VtlnProcessor(**config['vtln'])
-    ubm = DiagUbmProcessor(2, num_iters_init=1, num_iters=1,
-                           num_frames=100, vad_config={
-                               'energy_threshold': 0})
+    ubm = DiagUbmProcessor(**config['vtln']['ubm_config'])
     with pytest.raises(ValueError) as err:
         vtln.process(utterances, ubm=ubm)
     assert 'Given UBM-GMM has not been trained' in str(err.value)
 
     ubm.process(utterances)
-    vtln.process(utterances, ubm=ubm, utt2speak={
-                 's1a': 's1', 's1b': 's1', 's2a': 's2'})
-    ubm.process(utterances)
-    config['vtln']['by_speaker'] = False
-    del config['vtln']['extract_config']['sliding_window_cmvn']
-    extract_features(config, utterances)
+    warps = vtln.process(utterances, ubm=ubm, utt2speak={
+        's1a': 's1', 's1b': 's1', 's2a': 's2'})
+    assert isinstance(warps, dict)
+    assert set(warps.keys()) == set(['s1a', 's1b', 's2a'])
+    assert warps['s1a'] == warps['s1b']
+
+    vtln.by_speaker = False
+    vtln.extract_config.pop('sliding_window_cmvn', None)
+    warps = vtln.process(utterances)
+    assert isinstance(warps, dict)
+    assert set(warps.keys()) == set(['s1a', 's1b', 's2a'])

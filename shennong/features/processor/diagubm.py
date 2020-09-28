@@ -61,7 +61,7 @@ class DiagUbmProcessor(BaseProcessor):
     def __init__(self, num_gauss,
                  num_iters=4, num_gselect=15, initial_gauss_proportion=0.5,
                  num_iters_init=20, njobs=1, num_frames=500000,
-                 subsample=5, min_gaussian_weight=0.0001,
+                 subsample=5, min_gaussian_weight=1e-4,
                  remove_low_count_gaussians=False, seed=0,
                  extract_config=None, vad_config=None):
         self._options = kaldi.gmm.MleDiagGmmOptions()

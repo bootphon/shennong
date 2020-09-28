@@ -100,8 +100,7 @@ def test_initialize(features_collection):
     f2 = Features(np.random.random((10, 4)), np.ones((10,)))
     fc = FeaturesCollection(f1=f1, f2=f2)
 
-    ubm = DiagUbmProcessor(2, num_iters_init=4, num_iters=1,
-                           num_frames=10)
+    ubm = DiagUbmProcessor(2, num_iters_init=4, num_iters=1)
     with pytest.raises(ValueError) as err:
         ubm.initialize_gmm(fc)
     assert 'Features have unconsistent dims' in str(err.value)
@@ -189,8 +188,7 @@ def test_gaussian_selection_to_post():
 
 
 def test_accumulate(features_collection):
-    ubm = DiagUbmProcessor(2, num_iters_init=1, num_iters=1,
-                           num_frames=100)
+    ubm = DiagUbmProcessor(2, num_iters_init=1, num_iters=1)
     with pytest.raises(TypeError) as err:
         ubm.accumulate(features_collection)
     assert 'GMM not initialized' in str(err.value)
@@ -215,8 +213,8 @@ def test_accumulate(features_collection):
     assert 'Wrong size for weights' in str(err.value)
 
     weights = {'f1': np.random.rand(10)}
-    ubm.accumulate(fc, weights)
-    # TODO: plus de tests pour gmm_accs ?
+    gmm_accs = ubm.accumulate(fc, weights)
+    assert isinstance(gmm_accs, kaldi.gmm.AccumDiagGmm)
 
 
 def test_estimate():

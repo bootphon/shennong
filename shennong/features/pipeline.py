@@ -339,7 +339,6 @@ def _get_config_to_yaml(config, comments=True):  # TODO: adapt with VTLN
         else:
             param = line.split(': ')[0].strip()
             default = line.split(': ')[1].strip()
-
             if processor == 'cmvn' and param == 'by_speaker':
                 docstring = (
                     'If false, do normalization by utterance, '
