@@ -274,7 +274,7 @@ class VtlnProcessor(BaseProcessor):
             Rank of warp considered.
         warp : float, optional
             Warp considered.
-        weights : dict of arrays, optional
+        weights : dict[str, ndarrays], optional
             For each features in the collection, an array of weights to
             apply on the features frames. Unweighted by default.
 
@@ -393,9 +393,9 @@ class VtlnProcessor(BaseProcessor):
             The Universal Background Model.
         feats_collection : FeaturesCollection
             The untransformed features.
-        posteriors : dict of List[List[Tuple[int, float]]]
+        posteriors : dict[str, list[list[tuple[int, float]]]]
             The posteriors indicating Gaussian indexes in the UBM.
-        utt2speak : dict of str, optional
+        utt2speak : dict[str, str], optional
             If provided, map each utterance to a speaker.
 
         References
@@ -501,21 +501,24 @@ class VtlnProcessor(BaseProcessor):
 
         Parameters
         ----------
-        utts_index : list of tuples
+        utts_index : list[tuple]
             The utterances can be defined in one of the following format:
             * 1-uple (or str): ``<wav-file>``
             * 2-uple: ``<utterance-id> <wav-file>``
             * 3-uple: ``<utterance-id> <wav-file> <speaker-id>``
             * 4-uple: ``<utterance-id> <wav-file> <tstart> <tstop>``
             * 5-uple: ``<utterance-id> <wav-file> <speaker-id> <tstart> <tstop>``
+        utt2speak: dict[str, str]
+            If provided, map each utterance to a speaker. Overidden by the
+            ``by_speaker`` attribute.
         ubm : DiagUbmProcessor
             If provided, uses this UBM instead of computing a new one.
 
         Returns
         -------
-        warps : dict of float
+        warps : dict[str, float]
             Warps computed for each speaker or each utterance.
-            If by speaker: same warp for all utterances of this spk.
+            If by speaker: same warp for all utterances of this speaker.
         """
         if not self.by_speaker:
             utt2speak = None

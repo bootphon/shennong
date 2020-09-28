@@ -510,7 +510,7 @@ def _init_utterances(utts_index, log=get_logger()):
     return utterances
 
 
-def _check_utterances(raw_utterances, by_speaker):
+def _utterances_for_vtln(raw_utterances, by_speaker):
     utt2speak = {} if by_speaker else None
     if isinstance(raw_utterances, dict):
         utterances = []
@@ -563,7 +563,7 @@ def _extract_features(config, utterances, njobs=1, log=get_logger()):
     # vtln : compute vtln warps or load pre-computed warps
     if 'vtln' in config:
         manager.warps = manager.get_vtln_processor(
-            'vtln').process(**_check_utterances(
+            'vtln').process(**_utterances_for_vtln(
                 utterances, config['vtln']['by_speaker']))
 
     # cmvn : two passes. 1st with features pitch and cmvn
