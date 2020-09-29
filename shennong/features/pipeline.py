@@ -329,9 +329,8 @@ def _get_config_to_yaml(config, comments=True):
     for line in config.split('\n'):
         offset = len(line.split(': ')[0]) - len(line.split(': ')[0].strip())
         diff = prev_offset - offset
-        while diff > 0:
+        for _ in range(diff//2):
             processors.pop()
-            diff -= 2
         if line.endswith(':'):
             processor = line[:-1].strip()
             # special case of pitch_postprocessor
