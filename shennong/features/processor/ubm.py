@@ -6,7 +6,7 @@ Uses the kaldi implementation of GMM (see [kaldi_gmm]_).
 Examples
 --------
 
->>> from shennong.features.processor.diagubm import DiagUbmProcessor
+>>> from shennong.features.processor.ubm import DiagUbmProcessor
 >>> wav = './test/data/test.wav'
 >>> utterances = [('utt1', wav, 'spk1', 0, 1), ('utt2', wav, 'spk1', 1, 1.5)]
 
@@ -61,9 +61,9 @@ class DiagUbmProcessor(BaseProcessor):
     def __init__(self, num_gauss,
                  num_iters=4, num_gselect=15, initial_gauss_proportion=0.5,
                  num_iters_init=20, njobs=1, num_frames=500000,
-                 subsample=5, min_gaussian_weight=1e-4,
+                 subsample=5, min_gaussian_weight=np.float32(1e-4),
                  remove_low_count_gaussians=False, seed=0,
-                 extract_config=None, vad_config=None):
+                 features=None, vad=None):
         self._options = kaldi.gmm.MleDiagGmmOptions()
         self._options.min_gaussian_weight = min_gaussian_weight
         self._options.remove_low_count_gaussians = remove_low_count_gaussians
@@ -78,22 +78,22 @@ class DiagUbmProcessor(BaseProcessor):
         self.subsample = subsample
         self.seed = seed
 
-        if vad_config is None:
+        if vad is None:
             config = VadPostProcessor().get_params()
             config['energy_threshold'] = 5.5
-            self.vad_config = config
+            self.vad = config
         else:
-            self.vad_config = vad_config
+            self.vad = vad
 
-        if extract_config is None:
+        if features is None:
             config = get_default_config(
                 'mfcc', with_pitch=False, with_cmvn=False,
                 with_sliding_window_cmvn=True)
             config['sliding_window_cmvn']['cmn_window'] = 300
             config['delta']['window'] = 3
-            self.extract_config = config
+            self.features = config
         else:
-            self.extract_config = extract_config
+            self.features = features
 
         self.gmm = None
         self.selection = None
@@ -197,31 +197,31 @@ class DiagUbmProcessor(BaseProcessor):
         self._options.remove_low_count_gaussians = bool(value)
 
     @property
-    def extract_config(self):
+    def features(self):
         """Features extraction configuration"""
-        return self._extract_config
+        return self._features
 
-    @extract_config.setter
-    def extract_config(self, value):
+    @features.setter
+    def features(self, value):
         if not isinstance(value, dict):
             raise TypeError('Features configuration must be a dict')
         if 'mfcc' not in value:
             raise ValueError('Need mfcc features to train UBM-GMM')
-        self._extract_config = copy.deepcopy(value)
+        self._features = copy.deepcopy(value)
 
     @property
-    def vad_config(self):
+    def vad(self):
         """VAD configuration for the UBM-GMM"""
-        return self._vad_config
+        return self._vad
 
-    @vad_config.setter
-    def vad_config(self, value):
+    @vad.setter
+    def vad(self, value):
         if not isinstance(value, dict):
             raise TypeError('VAD configuration must be a dict')
         vad_keys = VadPostProcessor().get_params().keys()
         if not value.keys() <= vad_keys:
             raise ValueError('Unknown parameters given for VAD config')
-        self._vad_config = copy.deepcopy(value)
+        self._vad = copy.deepcopy(value)
 
     @property
     def seed(self):
@@ -362,6 +362,8 @@ class DiagUbmProcessor(BaseProcessor):
         """Initialize the GMM parameters by setting the variance to the global
         variance of the features, and the means to distinct randomly chosen
         frames.
+
+        Auxiliary method to :func:`initialize_gmm`.
 
         Parameters
         ----------
@@ -659,19 +661,19 @@ class DiagUbmProcessor(BaseProcessor):
         ----------
         utterances : list of tuples
             The utterances can be defined in one of the following format:
-            * 1-uple (or str): <wav-file>`
+            * 1-uple (or str): `<wav-file>`
             * 2-uple: `<utterance-id> <wav-file>`
             * 3-uple: `<utterance-id> <wav-file> <speaker-id>`
             * 4-uple: `<utterance-id> <wav-file> <tstart> <tstop>`
             * 5-uple: `<utterance-id> <wav-file> <speaker-id> <tstart> <tstop>`
         """
-        cmvn_config = self.extract_config.pop('sliding_window_cmvn', None)
-        raw_features = extract_features(self.extract_config, utterances)
+        cmvn_config = self.features.pop('sliding_window_cmvn', None)
+        raw_features = extract_features(self.features, utterances)
         # Compute VAD decision
         vad = {}
         for utt, mfcc in raw_features.items():
             this_vad = VadPostProcessor(
-                **self.vad_config).process(mfcc)
+                **self.vad).process(mfcc)
             vad[utt] = this_vad.data.reshape(
                 (this_vad.shape[0],)).astype(bool)
         # Apply cmvn sliding
@@ -680,7 +682,7 @@ class DiagUbmProcessor(BaseProcessor):
             proc = SlidingWindowCmvnPostProcessor(**cmvn_config)
             for utt, mfcc in raw_features.items():
                 features[utt] = proc.process(mfcc)
-            self.extract_config['sliding_window_cmvn'] = cmvn_config
+            self.features['sliding_window_cmvn'] = cmvn_config
         else:
             features = raw_features
         # Select voiced frames

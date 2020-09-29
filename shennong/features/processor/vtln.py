@@ -52,7 +52,7 @@ import kaldi.transform
 import shennong.features.pipeline as pipeline
 from shennong.base import BaseProcessor
 from shennong.features.features import FeaturesCollection, Features
-from shennong.features.processor.diagubm import DiagUbmProcessor
+from shennong.features.processor.ubm import DiagUbmProcessor
 from shennong.features.postprocessor.vad import VadPostProcessor
 from shennong.features.postprocessor.cmvn import SlidingWindowCmvnPostProcessor
 from shennong.utils import Timer
@@ -65,8 +65,8 @@ class VtlnProcessor(BaseProcessor):
     def __init__(self, num_iters=15, min_warp=0.85,
                  max_warp=1.25, warp_step=0.01,
                  logdet_scale=0.0, norm_type='offset', njobs=1,
-                 subsample=5, extract_config=None,
-                 ubm_config=None, num_gauss=64, by_speaker=True):
+                 subsample=5, features=None,
+                 ubm=None, by_speaker=True):
         self.num_iters = num_iters
         self.min_warp = min_warp
         self.max_warp = max_warp
@@ -77,20 +77,21 @@ class VtlnProcessor(BaseProcessor):
         self.njobs = njobs
         self.by_speaker = by_speaker
 
-        if extract_config is None:
+        if features is None:
             config = pipeline.get_default_config(
                 'mfcc', with_pitch=False, with_cmvn=False,
                 with_sliding_window_cmvn=True, with_delta=True)
             config['sliding_window_cmvn']['cmn_window'] = 300
             config['delta']['window'] = 3
-            self.extract_config = config
+            self.features = config
         else:
-            self.extract_config = extract_config
+            self.features = features
 
-        if ubm_config is None:
-            self.ubm_config = DiagUbmProcessor(num_gauss).get_params()
+        if ubm is None:
+            default_num_gauss = 64
+            self.ubm = DiagUbmProcessor(default_num_gauss).get_params()
         else:
-            self.ubm_config = ubm_config
+            self.ubm = ubm
 
         self.lvtln = None
         self.transforms = None
@@ -133,7 +134,7 @@ class VtlnProcessor(BaseProcessor):
         return self._warp_step
 
     @warp_step.setter
-    def warp_step(self, value):  # TODO CHECK WITH MAX WARP AND MIN WARP
+    def warp_step(self, value):
         self._warp_step = float(value)
 
     @property
@@ -158,6 +159,8 @@ class VtlnProcessor(BaseProcessor):
 
     @property
     def subsample(self):
+        """When computing base LVTLN transforms, use every n frames
+         (a speedup)"""
         return self._subsample
 
     @subsample.setter
@@ -166,6 +169,7 @@ class VtlnProcessor(BaseProcessor):
 
     @property
     def njobs(self):
+        """Number of threads to use while extracting features."""
         return self._njobs
 
     @njobs.setter
@@ -174,6 +178,7 @@ class VtlnProcessor(BaseProcessor):
 
     @property
     def by_speaker(self):
+        """Compute the warps for each speaker, or each utterance"""
         return self._by_speaker
 
     @by_speaker.setter
@@ -181,29 +186,31 @@ class VtlnProcessor(BaseProcessor):
         self._by_speaker = bool(value)
 
     @property
-    def extract_config(self):
-        return self._extract_config
+    def features(self):
+        """Features extraction configuration"""
+        return self._features
 
-    @extract_config.setter
-    def extract_config(self, value):
+    @features.setter
+    def features(self, value):
         if not isinstance(value, dict):
             raise TypeError('Features extraction configuration must be a dict')
         if 'mfcc' not in value:
             raise ValueError('Need mfcc features to train VTLN model')
-        self._extract_config = copy.deepcopy(value)
+        self._features = copy.deepcopy(value)
 
     @property
-    def ubm_config(self):
-        return self._ubm_config
+    def ubm(self):
+        "Diagonal UBM-GMM configuration"
+        return self._ubm
 
-    @ubm_config.setter
-    def ubm_config(self, value):
+    @ubm.setter
+    def ubm(self, value):
         if not isinstance(value, dict):
             raise TypeError('UBM configuration must be a dict')
         ubm_keys = DiagUbmProcessor(2).get_params().keys()
         if not value.keys() <= ubm_keys:
             raise ValueError('Unknown parameters given for UBM config')
-        self._ubm_config = copy.deepcopy(value)
+        self._ubm = copy.deepcopy(value)
 
     @classmethod
     def load(cls, path):
@@ -549,12 +556,12 @@ class VtlnProcessor(BaseProcessor):
 
         # UBM-GMM
         if ubm is None:
-            ubm = DiagUbmProcessor(**self.ubm_config)
+            ubm = DiagUbmProcessor(**self.ubm)
             ubm.process(utterances)
         else:
             if ubm.gmm is None:
                 raise ValueError('Given UBM-GMM has not been trained')
-            self.ubm_config = ubm.get_params()
+            self.ubm = ubm.get_params()
 
         self._log.info('Initializing base LVTLN transforms')
         dim = ubm.gmm.dim()
@@ -563,13 +570,12 @@ class VtlnProcessor(BaseProcessor):
         self.lvtln = kaldi.transform.lvtln.LinearVtln.new(
             dim, num_classes, default_class)
 
-        cmvn_config = self.extract_config.pop('sliding_window_cmvn', None)
-        raw_mfcc = pipeline.extract_features(self.extract_config, utterances)
+        cmvn_config = self.features.pop('sliding_window_cmvn', None)
+        raw_mfcc = pipeline.extract_features(self.features, utterances)
         # Compute VAD decision
         vad = {}
         for utt, mfcc in raw_mfcc.items():
-            this_vad = VadPostProcessor(
-                **ubm.vad_config).process(mfcc)
+            this_vad = VadPostProcessor(**ubm.vad).process(mfcc)
             vad[utt] = this_vad.data.reshape(
                 (this_vad.shape[0],)).astype(bool)
         # Apply cmvn sliding
@@ -588,14 +594,14 @@ class VtlnProcessor(BaseProcessor):
 
         # Computing base transforms
         featsub_unwarped = pipeline.extract_features(
-            self.extract_config, utterances, njobs=self.njobs).trim(vad)
+            self.features, utterances, njobs=self.njobs).trim(vad)
         featsub_unwarped = FeaturesCollection(
             {utt: feats.copy(n=self.subsample)
              for utt, feats in featsub_unwarped.items()})
         for c in range(num_classes):
             this_warp = self.min_warp + c*self.warp_step
-            featsub_warped = pipeline._extract_features_warp(
-                self.extract_config, utterances, this_warp,
+            featsub_warped = pipeline.extract_features_warp(
+                self.features, utterances, this_warp,
                 njobs=self.njobs).trim(vad)
             featsub_warped = FeaturesCollection(
                 {utt: feats.copy(n=self.subsample)
@@ -604,7 +610,7 @@ class VtlnProcessor(BaseProcessor):
                 featsub_unwarped, featsub_warped, c, this_warp)
         del featsub_warped, featsub_unwarped, vad
         if cmvn_config is not None:
-            self.extract_config['sliding_window_cmvn'] = cmvn_config
+            self.features['sliding_window_cmvn'] = cmvn_config
 
         self._log.info('Computing Gaussian selection info')
         ubm.gaussian_selection(orig_features)

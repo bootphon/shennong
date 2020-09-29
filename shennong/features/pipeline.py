@@ -1,5 +1,4 @@
 # coding: utf-8
-
 """High-level functions for a complete features extraction pipeline
 
 This module exposes two main functions :func:`get_default_config` that
@@ -72,6 +71,7 @@ dict_keys(['pipeline', 'mfcc', 'speaker', 'audio', 'pitch'])
 import collections
 import datetime
 import importlib
+from re import sub
 import joblib
 import numpy as np
 import os
@@ -284,7 +284,7 @@ def _check_environment(njobs, log=get_logger()):
             'OMP_NUM_THREADS=1 to disable this warning', njobs)
 
 
-def _get_config_to_yaml(config, comments=True):  # TODO: adapt with VTLN
+def _get_config_to_yaml(config, comments=True):
     """Converts a configuration from dict to a yaml string
 
     Auxiliary method to :func:`get_default_config`.
@@ -324,14 +324,20 @@ def _get_config_to_yaml(config, comments=True):  # TODO: adapt with VTLN
 
     # incrust the parameters docstrings as comments in the yaml
     config_commented = []
-    processor = None
+    processors = []
+    prev_offset = 0
     for line in config.split('\n'):
+        offset = len(line.split(': ')[0]) - len(line.split(': ')[0].strip())
+        diff = prev_offset - offset
+        while diff > 0:
+            processors.pop()
+            diff -= 2
         if line.endswith(':'):
             processor = line[:-1].strip()
             # special case of pitch_postprocessor
             if processor == 'postprocessing':
                 processor = 'pitch_post'
-
+            processors.append(processor)
             if processor == 'vad':
                 config_commented.append(
                     "  # The vad options are not used if 'with_vad' is false")
@@ -339,6 +345,8 @@ def _get_config_to_yaml(config, comments=True):  # TODO: adapt with VTLN
         else:
             param = line.split(': ')[0].strip()
             default = line.split(': ')[1].strip()
+            processor = processors[-1]
+            # print(processor, param, default, offset, prev_offset)
             if processor == 'cmvn' and param == 'by_speaker':
                 docstring = (
                     'If false, do normalization by utterance, '
@@ -352,11 +360,11 @@ def _get_config_to_yaml(config, comments=True):  # TODO: adapt with VTLN
                 docstring = _Manager.get_docstring(
                     processor, param, default)
 
-            offset = 4 if processor in ('vad', 'pitch_post') else 2
             config_commented += [
                 ' ' * offset + '# ' + w
                 for w in textwrap.wrap(docstring, width=68 - offset)]
             config_commented.append(line)
+        prev_offset = offset
 
     return '\n'.join(config_commented) + '\n'
 
@@ -672,8 +680,8 @@ def _extract_single_pass_warp(utt_name, manager, warp, log=get_logger()):
     return utt_name, features
 
 
-def _extract_features_warp(configuration, utterances_index, warp,
-                           njobs=1, log=get_logger()):
+def extract_features_warp(configuration, utterances_index, warp,
+                          njobs=1, log=get_logger()):
     """Speech features extraction pipeline when all features are warped
     by the same factor. Used in the `process` method of the `VtlnProcessor`.
     """
@@ -723,6 +731,7 @@ class _Manager:
         'plp': ('processor', 'PlpProcessor'),
         'rastaplp': ('processor', 'RastaPlpProcessor'),
         'spectrogram': ('processor', 'SpectrogramProcessor'),
+        'ubm': ('processor', 'DiagUbmProcessor'),
         'vtln': ('processor', 'VtlnProcessor'),
         'cmvn': ('postprocessor', 'CmvnPostProcessor'),
         'delta': ('postprocessor', 'DeltaPostProcessor'),

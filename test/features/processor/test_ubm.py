@@ -1,4 +1,4 @@
-"""Test of the module shennong.features.diagubm"""
+"""Test of the module shennong.features.ubm"""
 
 import pytest
 import os
@@ -6,7 +6,7 @@ import numpy as np
 
 import shennong.features.pipeline as pipeline
 from shennong.features.postprocessor.vad import VadPostProcessor
-from shennong.features.processor.diagubm import DiagUbmProcessor
+from shennong.features.processor.ubm import DiagUbmProcessor
 from shennong.features.features import Features, FeaturesCollection
 import kaldi.gmm
 import kaldi.matrix
@@ -37,23 +37,23 @@ def test_params():
     assert 'Number of gaussians must be at least 2' in str(err.value)
 
     with pytest.raises(TypeError) as err:
-        p = DiagUbmProcessor(2, extract_config=0)
+        p = DiagUbmProcessor(2, features=0)
     assert 'Features configuration must be a dict' in str(err.value)
 
-    wrong_config = DiagUbmProcessor(2).get_params()['extract_config']
+    wrong_config = DiagUbmProcessor(2).get_params()['features']
     del wrong_config['mfcc']
     with pytest.raises(ValueError) as err:
-        p.extract_config = wrong_config
+        p.features = wrong_config
     assert 'Need mfcc features to train UBM-GMM' in str(err.value)
 
     with pytest.raises(TypeError) as err:
-        p = DiagUbmProcessor(2, vad_config=0)
+        p = DiagUbmProcessor(2, vad=0)
     assert 'VAD configuration must be a dict' in str(err.value)
 
     wrong_config = VadPostProcessor().get_params()
     wrong_config['wrong'] = 0
     with pytest.raises(ValueError) as err:
-        p.vad_config = wrong_config
+        p.vad = wrong_config
     assert 'Unknown parameters given for VAD config' in str(err.value)
 
 
@@ -244,10 +244,10 @@ def test_process(wav_file, wav_file_float32, wav_file_8k):
         ('u3', wav_file_8k, 's1', 1, 3)]
 
     config = {'num_iters_init': 1, 'num_iters': 1, 'num_frames': 100,
-              'vad_config': {'energy_threshold': 0}}
+              'vad': {'energy_threshold': 0}}
     ubm = DiagUbmProcessor(2, **config)
     ubm.process(utterances)
-    config['extract_config'] = pipeline.get_default_config(
+    config['features'] = pipeline.get_default_config(
         'mfcc', with_pitch=False, with_cmvn=False,
         with_sliding_window_cmvn=False, with_delta=False)
     ubm = DiagUbmProcessor(2, **config)

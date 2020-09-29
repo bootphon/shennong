@@ -5,18 +5,18 @@ import kaldi.transform.lvtln
 import kaldi.matrix
 
 from shennong.features.processor.vtln import VtlnProcessor
-from shennong.features.processor.diagubm import DiagUbmProcessor
+from shennong.features.processor.ubm import DiagUbmProcessor
 from shennong.features.features import Features, FeaturesCollection
 
 
 def test_params():
-    assert len(VtlnProcessor().get_params()) == 12
+    assert len(VtlnProcessor().get_params()) == 11
 
     params = {'by_speaker': False, 'num_iters': 3, 'warp_step': 0.5}
     p = VtlnProcessor(**params)
 
     params_out = p.get_params()
-    assert len(params_out) == 12
+    assert len(params_out) == 11
     for k, v in params.items():
         assert params_out[k] == v
     assert p.get_params() == params_out
@@ -24,7 +24,7 @@ def test_params():
     p = VtlnProcessor()
     p.set_params(**params_out)
     params_out == p.get_params()
-    assert len(params_out) == 12
+    assert len(params_out) == 11
     for k, v in params.items():
         assert params_out[k] == v
     assert p.get_params() == params_out
@@ -33,24 +33,24 @@ def test_params():
         p = VtlnProcessor(norm_type='wrong')
     assert 'Invalid norm type' in str(err.value)
 
-    wrong_config = VtlnProcessor().get_params()['extract_config']
+    wrong_config = VtlnProcessor().get_params()['features']
     del wrong_config['mfcc']
     with pytest.raises(ValueError) as err:
-        p.extract_config = wrong_config
+        p.features = wrong_config
     assert 'Need mfcc features to train VTLN model' in str(err.value)
 
     with pytest.raises(TypeError) as err:
-        p = VtlnProcessor(extract_config=0)
+        p = VtlnProcessor(features=0)
     assert 'Features extraction configuration must be a dict' in str(err.value)
 
     with pytest.raises(TypeError) as err:
-        p = VtlnProcessor(1, ubm_config=0)
+        p = VtlnProcessor(1, ubm=0)
     assert 'UBM configuration must be a dict' in str(err.value)
 
     wrong_config = DiagUbmProcessor(2).get_params()
     wrong_config['wrong'] = 0
     with pytest.raises(ValueError) as err:
-        p.ubm_config = wrong_config
+        p.ubm = wrong_config
     assert 'Unknown parameters given for UBM config' in str(err.value)
 
 
@@ -161,7 +161,7 @@ def test_estimate(by_speaker):
     p = VtlnProcessor()
     dim = 2
     ubm = DiagUbmProcessor(4, num_iters_init=1, num_iters=1,
-                           vad_config={'energy_threshold': 0})
+                           vad={'energy_threshold': 0})
     fc = FeaturesCollection(f1=Features(
         np.random.random((20, dim)), np.arange(20)))
     ubm.initialize_gmm(fc)
@@ -196,12 +196,12 @@ def test_estimate(by_speaker):
 def test_process(wav_file, wav_file_float32, wav_file_8k):
 
     ubm_config = DiagUbmProcessor(8).get_params()
-    ubm_config['vad_config']['energy_threshold'] = 0
+    ubm_config['vad']['energy_threshold'] = 0
     ubm_config['num_iters_init'] = 1
     ubm_config['num_iters'] = 1
 
     vtln_config = {}
-    vtln_config['ubm_config'] = ubm_config
+    vtln_config['ubm'] = ubm_config
     vtln_config['min_warp'] = 0.99
     vtln_config['max_warp'] = 1
     vtln_config['num_iters'] = 1
@@ -239,7 +239,7 @@ def test_process(wav_file, wav_file_float32, wav_file_8k):
     assert warps['s1a'] == warps['s1b']
 
     vtln.by_speaker = False
-    vtln.extract_config.pop('sliding_window_cmvn', None)
+    vtln.features.pop('sliding_window_cmvn', None)
     warps = vtln.process(utterances)
     assert isinstance(warps, dict)
     assert set(warps.keys()) == set(['s1a', 's1b', 's2a'])
