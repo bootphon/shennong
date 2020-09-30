@@ -1,4 +1,4 @@
-"""Provides the DiagUbmClass to train a Universal Background Model
+"""Provides the DiagUbmProcessor class to train a Universal Background Model
 - Gaussian Mixture Model (UBM-GMM) with diagonal covariances
 
 Uses the kaldi implementation of GMM (see [kaldi_gmm]_).
