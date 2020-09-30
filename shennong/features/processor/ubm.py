@@ -51,6 +51,7 @@ from shennong.features.pipeline import get_default_config, extract_features
 from shennong.features.postprocessor.vad import VadPostProcessor
 from shennong.features.postprocessor.cmvn import SlidingWindowCmvnPostProcessor
 from shennong.features.features import FeaturesCollection
+from shennong.utils import Timer
 
 
 class DiagUbmProcessor(BaseProcessor):
@@ -260,6 +261,7 @@ class DiagUbmProcessor(BaseProcessor):
         ki = kaldi.util.io.xopen(path, mode='wb')
         self.gmm.write(ki.stream(), binary=True)
 
+    @Timer(name='Global init')
     def initialize_gmm(self, feats_collection):
         """Initializes a single diagonal GMM and does multiple iterations of
         training.
@@ -355,6 +357,7 @@ class DiagUbmProcessor(BaseProcessor):
                 self.gmm.split(next_num_gauss, 0.1)
                 cur_num_gauss = next_num_gauss
 
+    @Timer(name='Init gmm from random frames')
     def _init_from_random_frames(self, feats):
         """Initialize the GMM parameters by setting the variance to the global
         variance of the features, and the means to distinct randomly chosen
@@ -396,6 +399,7 @@ class DiagUbmProcessor(BaseProcessor):
             self.gmm.set_component_mean(g, feats.row(random_frames[g]))
         self.gmm.compute_gconsts()
 
+    @Timer(name='Gselect')
     def gaussian_selection(self, feats_collection):
         """Precompute Gaussian indices for pruning
         For each frame, gives a list of the n best Gaussian indices
@@ -459,6 +463,7 @@ class DiagUbmProcessor(BaseProcessor):
         self._log.debug(f'Done {num_done} utterances, average UBM log-'
                         f'likelihood is {tot_like/tot_t} over {tot_t} frames')
 
+    @Timer(name="Global gselect to post")
     def gaussian_selection_to_post(self,
                                    feats_collection,
                                    min_post=None):
@@ -542,6 +547,7 @@ class DiagUbmProcessor(BaseProcessor):
                         f' entries per frame over {tot_frames} frames')
         return posteriors
 
+    @Timer(name='Global acc stats')
     def accumulate(self, feats_collection, weights_collection=None):
         """Accumulate stats for training a diagonal-covariance GMM.
 
@@ -610,6 +616,7 @@ class DiagUbmProcessor(BaseProcessor):
             f' {tot_weight} weighted frames')
         return gmm_accs
 
+    @Timer(name='Global est')
     def estimate(self, gmm_accs, mixup=None, perturb_factor=0.01):
         """Estimate a diagonal-covariance GMM from the accumulated stats.
 
@@ -645,6 +652,7 @@ class DiagUbmProcessor(BaseProcessor):
         if mixup is not None:
             self.gmm.split(int(mixup), perturb_factor)
 
+    @Timer(name='Fit')
     def process(self, utterances):
         """Initialize the GMM, which sets the means to random data points and
         then does some iterations of EM. Train for a few iterations in parallel

@@ -55,6 +55,7 @@ from shennong.features.features import FeaturesCollection, Features
 from shennong.features.processor.ubm import DiagUbmProcessor
 from shennong.features.postprocessor.vad import VadPostProcessor
 from shennong.features.postprocessor.cmvn import SlidingWindowCmvnPostProcessor
+from shennong.utils import Timer
 
 
 class VtlnProcessor(BaseProcessor):
@@ -284,6 +285,7 @@ class VtlnProcessor(BaseProcessor):
         else:
             return None
 
+    @Timer(name='Train lvtln special')
     def compute_mapping_transform(self, feats_untransformed,
                                   feats_transformed,
                                   class_idx, warp,
@@ -408,6 +410,7 @@ class VtlnProcessor(BaseProcessor):
         self.lvtln.set_transform(class_idx, A)
         self.lvtln.set_warp(class_idx, warp)
 
+    @Timer('Global est lvtln trans')
     def estimate(self, ubm,
                  feats_collection,
                  posteriors, utt2speak=None):
@@ -526,6 +529,7 @@ class VtlnProcessor(BaseProcessor):
         self._log.debug(message)
         return transforms, warps
 
+    @Timer('Fit')
     def process(self, utterances, ubm=None):
         """Compute the VTLN warp factors for the given utterances.
 
