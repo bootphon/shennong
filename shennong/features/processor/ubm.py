@@ -61,7 +61,7 @@ class DiagUbmProcessor(BaseProcessor):
     def __init__(self, num_gauss,
                  num_iters=4, num_gselect=15, initial_gauss_proportion=0.5,
                  num_iters_init=20, njobs=1, num_frames=500000,
-                 subsample=5, min_gaussian_weight=np.float32(1e-4),
+                 subsample=5, min_gaussian_weight=1e-4,
                  remove_low_count_gaussians=False, seed=0,
                  features=None, vad=None):
         self._options = kaldi.gmm.MleDiagGmmOptions()
@@ -181,7 +181,7 @@ class DiagUbmProcessor(BaseProcessor):
     @property
     def min_gaussian_weight(self):
         """Minimum weight below which a Gaussian is not updated"""
-        return self._options.min_gaussian_weight
+        return np.float32(self._options.min_gaussian_weight)
 
     @min_gaussian_weight.setter
     def min_gaussian_weight(self, value):

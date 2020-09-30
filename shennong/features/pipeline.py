@@ -328,8 +328,7 @@ def _get_config_to_yaml(config, comments=True):
     prev_offset = 0
     for line in config.split('\n'):
         offset = len(line.split(': ')[0]) - len(line.split(': ')[0].strip())
-        diff = prev_offset - offset
-        for _ in range(diff//2):
+        for _ in range((prev_offset - offset)//2):
             processors.pop()
         if line.endswith(':'):
             processor = line[:-1].strip()
@@ -802,7 +801,7 @@ class _Manager:
     def warps(self, value):
         self._warps = value
 
-    def _check_speakers(self):  # TODO adapter avec vtln par speaker
+    def _check_speakers(self):
         """Ensures the configuration is compatible with speakers information
 
         On any error raises a ValueError. Logs a warning if speakers

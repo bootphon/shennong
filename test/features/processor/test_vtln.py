@@ -232,6 +232,12 @@ def test_process(wav_file, wav_file_float32, wav_file_8k):
         vtln.process(utterances, ubm=ubm)
     assert 'Given UBM-GMM has not been trained' in str(err.value)
 
+    vtln.min_warp = 10
+    with pytest.raises(ValueError) as err:
+        vtln.process(utterances, ubm=ubm)
+    assert 'Min warp > max warp' in str(err.value)
+    vtln.min_warp = 0.99
+
     ubm.process(utterances)
     warps = vtln.process(utterances, ubm=ubm)
     assert isinstance(warps, dict)

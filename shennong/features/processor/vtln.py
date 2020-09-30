@@ -554,6 +554,11 @@ class VtlnProcessor(BaseProcessor):
         # Utterances
         utt2speak = self._check_utterances(utterances)
 
+        # Min / max warp
+        if self.min_warp > self.max_warp:
+            raise ValueError(
+                f'Min warp > max warp: {self.min_warp} > {self.max_warp}')
+
         # UBM-GMM
         if ubm is None:
             ubm = DiagUbmProcessor(**self.ubm)
