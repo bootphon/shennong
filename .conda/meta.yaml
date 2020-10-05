@@ -32,7 +32,7 @@ requirements:
     - joblib
     - numpy
     - pip
-    - pykaldi  # [linux]
+    - shennong-pykaldi  # [linux]
     - pyparsing
     - pyyaml
     - scipy
