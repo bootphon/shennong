@@ -13,7 +13,7 @@ Examples
 Initialize the UBM-GMM with a given number of gaussians. Other options
 can be specified at construction, or after:
 
->>> num_gauss = 32
+>>> num_gauss = 4
 >>> ubm = DiagUbmProcessor(num_gauss, num_iters_init=10)
 >>> ubm.num_iters = 3
 
@@ -685,11 +685,14 @@ class DiagUbmProcessor(BaseProcessor):
         features = FeaturesCollection(  # Subsample features collection
             {utt: feats.copy(n=self.subsample)
              for utt, feats in features.items()})
+
+        remove_low_count_gaussians = self.remove_low_count_gaussians
+        self.remove_low_count_gaussians = False
+
         for i in range(self.num_iters):
             self._log.info(f'Training pass {i+1}')
             gmm_accs = self.accumulate(features)
             if i == self.num_iters-1:
-                self.remove_low_count_gaussians = True
+                self.remove_low_count_gaussians = remove_low_count_gaussians
             self.estimate(gmm_accs)
-        self.remove_low_count_gaussians = False
         self._log.info("Done training UBM.")

@@ -13,7 +13,7 @@ Examples
 Initialize the VTLN model. Other options can be specified at construction,
 or after:
 
->>> vtln = VtlnProcessor(min_warp=0.95, max_warp=1.05)
+>>> vtln = VtlnProcessor(min_warp=0.95, max_warp=1.05, ubm={'num_gauss': 4})
 >>> vtln.num_iters = 10
 
 Returns the computed warps for each utterance. If the `utt2speak` argument
@@ -30,6 +30,7 @@ The features can also be warped directly via the pipeline.
 
 >>> from shennong.features.pipeline import get_default_config, extract_features
 >>> config = get_default_config('mfcc', with_vtln=True)
+>>> config['vtln']['ubm']['num_gauss'] = 4
 >>> warped_features = extract_features(config, utterances)
 
 References
@@ -43,6 +44,7 @@ import numpy as np
 import copy
 import os
 import yaml
+import warnings
 import kaldi.matrix
 import kaldi.matrix.common
 import kaldi.matrix.functions
@@ -572,7 +574,9 @@ class VtlnProcessor(BaseProcessor):
             dim, num_classes, default_class)
 
         cmvn_config = self.features.pop('sliding_window_cmvn', None)
-        raw_mfcc = pipeline.extract_features(self.features, utterances)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            raw_mfcc = pipeline.extract_features(self.features, utterances)
         # Compute VAD decision
         vad = {}
         for utt, mfcc in raw_mfcc.items():
@@ -594,16 +598,20 @@ class VtlnProcessor(BaseProcessor):
              for utt, feats in orig_features.items()})
 
         # Computing base transforms
-        featsub_unwarped = pipeline.extract_features(
-            self.features, utterances, njobs=self.njobs).trim(vad)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            featsub_unwarped = pipeline.extract_features(
+                self.features, utterances, njobs=self.njobs).trim(vad)
         featsub_unwarped = FeaturesCollection(
             {utt: feats.copy(n=self.subsample)
              for utt, feats in featsub_unwarped.items()})
         for c in range(num_classes):
             this_warp = self.min_warp + c*self.warp_step
-            featsub_warped = pipeline.extract_features_warp(
-                self.features, utterances, this_warp,
-                njobs=self.njobs).trim(vad)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                featsub_warped = pipeline.extract_features_warp(
+                    self.features, utterances, this_warp,
+                    njobs=self.njobs).trim(vad)
             featsub_warped = FeaturesCollection(
                 {utt: feats.copy(n=self.subsample)
                  for utt, feats in featsub_warped.items()})
