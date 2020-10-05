@@ -39,12 +39,10 @@ References
 
 """
 
-from math import sqrt
 import numpy as np
 import copy
 import os
 import yaml
-import warnings
 import kaldi.matrix
 import kaldi.matrix.common
 import kaldi.matrix.functions
@@ -53,6 +51,7 @@ import kaldi.transform
 
 import shennong.features.pipeline as pipeline
 from shennong.base import BaseProcessor
+from shennong.utils import get_logger
 from shennong.features.features import FeaturesCollection, Features
 from shennong.features.processor.ubm import DiagUbmProcessor
 from shennong.features.postprocessor.vad import VadPostProcessor
@@ -405,7 +404,7 @@ class VtlnProcessor(BaseProcessor):
                     kaldi.matrix.common.MatrixTransposeType.NO_TRANS,
                     w_i, 0.0))/beta \
                 - (kaldi.matrix.functions.vec_vec(w_i, sum_xplus)/beta)**2
-            scale = sqrt(x_var/y_var)
+            scale = np.sqrt(x_var/y_var)
             A.row(i).scale_(scale)
         self.lvtln.set_transform(class_idx, A)
         self.lvtln.set_warp(class_idx, warp)
@@ -574,9 +573,8 @@ class VtlnProcessor(BaseProcessor):
             dim, num_classes, default_class)
 
         cmvn_config = self.features.pop('sliding_window_cmvn', None)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            raw_mfcc = pipeline.extract_features(self.features, utterances)
+        get_logger(level='error')  # disable logger for features extraction
+        raw_mfcc = pipeline.extract_features(self.features, utterances)
         # Compute VAD decision
         vad = {}
         for utt, mfcc in raw_mfcc.items():
@@ -598,20 +596,16 @@ class VtlnProcessor(BaseProcessor):
              for utt, feats in orig_features.items()})
 
         # Computing base transforms
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            featsub_unwarped = pipeline.extract_features(
-                self.features, utterances, njobs=self.njobs).trim(vad)
+        featsub_unwarped = pipeline.extract_features(
+            self.features, utterances, njobs=self.njobs).trim(vad)
         featsub_unwarped = FeaturesCollection(
             {utt: feats.copy(n=self.subsample)
              for utt, feats in featsub_unwarped.items()})
         for c in range(num_classes):
             this_warp = self.min_warp + c*self.warp_step
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                featsub_warped = pipeline.extract_features_warp(
-                    self.features, utterances, this_warp,
-                    njobs=self.njobs).trim(vad)
+            featsub_warped = pipeline.extract_features_warp(
+                self.features, utterances, this_warp,
+                njobs=self.njobs).trim(vad)
             featsub_warped = FeaturesCollection(
                 {utt: feats.copy(n=self.subsample)
                  for utt, feats in featsub_warped.items()})
@@ -620,6 +614,7 @@ class VtlnProcessor(BaseProcessor):
         del featsub_warped, featsub_unwarped, vad
         if cmvn_config is not None:
             self.features['sliding_window_cmvn'] = cmvn_config
+        get_logger()
 
         self._log.info('Computing Gaussian selection info')
         ubm.gaussian_selection(orig_features)

@@ -47,6 +47,7 @@ import kaldi.gmm
 from kaldi.gmm import GmmUpdateFlags
 
 from shennong.base import BaseProcessor
+from shennong.utils import get_logger
 from shennong.features.pipeline import get_default_config, extract_features
 from shennong.features.postprocessor.vad import VadPostProcessor
 from shennong.features.postprocessor.cmvn import SlidingWindowCmvnPostProcessor
@@ -284,9 +285,8 @@ class DiagUbmProcessor(BaseProcessor):
         num_gauss_init = int(self.initial_gauss_proportion*self.num_gauss)
         self._log.info(
             f'Initializing model from E-M in memory. Starting from'
-            f' {num_gauss_init}, reaching {self.num_gauss} in'
-            f' {self.num_iters_init} iterations, using at most'
-            f' {self.num_frames} frames of data')
+            f' {num_gauss_init} gaussians, reaching {self.num_gauss} in'
+            f' {self.num_iters_init} iterations')
 
         self._log.debug('Reading features')
         num_read, dim = 0, 0
@@ -659,7 +659,9 @@ class DiagUbmProcessor(BaseProcessor):
             * 4-uple: `<utterance-id> <wav-file> <tstart> <tstop>`
             * 5-uple: `<utterance-id> <wav-file> <speaker-id> <tstart> <tstop>`
         """
-        cmvn_config = self.features.pop('sliding_window_cmvn', None)
+        cmvn = self.features.pop('sliding_window_cmvn', None)
+        self._log.info('Extracting features')
+        get_logger(level='error')  # disable logger for features extraction
         raw_features = extract_features(self.features, utterances)
         # Compute VAD decision
         vad = {}
@@ -670,15 +672,16 @@ class DiagUbmProcessor(BaseProcessor):
                 (this_vad.shape[0],)).astype(bool)
         # Apply cmvn sliding
         features = FeaturesCollection()
-        if cmvn_config is not None:
-            proc = SlidingWindowCmvnPostProcessor(**cmvn_config)
+        if cmvn is not None:
+            proc = SlidingWindowCmvnPostProcessor(**cmvn)
             for utt, mfcc in raw_features.items():
                 features[utt] = proc.process(mfcc)
-            self.features['sliding_window_cmvn'] = cmvn_config
+            self.features['sliding_window_cmvn'] = cmvn
         else:
             features = raw_features
         # Select voiced frames
         features = features.trim(vad)
+        get_logger()
 
         self.initialize_gmm(features)
         self._log.info(f'Will train for {self.num_iters} iterations')
