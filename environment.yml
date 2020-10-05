@@ -11,7 +11,7 @@ dependencies:
   - joblib
   - numpy
   - pip
-  - pykaldi
+  - shennong-pykaldi
   - pyparsing
   - pytest>=5.0
   - pytest-cov
