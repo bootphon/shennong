@@ -686,7 +686,7 @@ class DiagUbmProcessor(BaseProcessor):
         self.initialize_gmm(features)
         self._log.info(f'Will train for {self.num_iters} iterations')
         features = FeaturesCollection(  # Subsample features collection
-            {utt: feats.copy(n=self.subsample)
+            {utt: feats.copy(subsample=self.subsample)
              for utt, feats in features.items()})
 
         remove_low_count_gaussians = self.remove_low_count_gaussians

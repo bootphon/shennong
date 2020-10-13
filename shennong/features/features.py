@@ -183,7 +183,7 @@ class Features:
 
         return True
 
-    def copy(self, dtype=None, n=1):
+    def copy(self, dtype=None, subsample=None):
         """Returns a copy of the features
 
         Allocates new arrays for data, times and properties
@@ -193,24 +193,40 @@ class Features:
         dtype : type, optional
             When specified converts the data and times arrays to the
             requested `dtype`
-        n : int, optional
-            When specified subsample the features every n frames.
+        subsample : int, optional
+            When specified subsample the features every `subsample` frames.
+            When not specified do not do subsampling.
+
+        Raises
+        ------
+        ValueError if `subsample` is defined but is not a strictly positive
+        integer
+
         Returns
         -------
         features : Features
            A new instance of Features copied from this one.
 
         """
+        # by default we do not subsample
+        if subsample is None:
+            subsample = 1
+        else:
+            if not isinstance(subsample, int) or subsample <= 0:
+                raise ValueError(
+                    f'subsample must be a strictly positive integer, '
+                    f'it is: {subsample}')
+
         if dtype:
             return Features(
-                self.data[0:self.nframes:n].astype(dtype),
-                self.times[0:self.nframes:n].astype(dtype),
+                self.data[0:self.nframes:subsample].astype(dtype),
+                self.times[0:self.nframes:subsample].astype(dtype),
                 properties=copy.deepcopy(self.properties),
                 validate=False)
 
         return Features(
-            self.data[0:self.nframes:n].copy(),
-            self.times[0:self.nframes:n].copy(),
+            self.data[0:self.nframes:subsample].copy(),
+            self.times[0:self.nframes:subsample].copy(),
             properties=copy.deepcopy(self.properties),
             validate=False)
 

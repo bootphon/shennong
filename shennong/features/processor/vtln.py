@@ -592,14 +592,14 @@ class VtlnProcessor(BaseProcessor):
         # Select voiced frames
         orig_features = orig_features.trim(vad)
         orig_features = FeaturesCollection(  # Subsample
-            {utt: feats.copy(n=self.subsample)
+            {utt: feats.copy(subsample=self.subsample)
              for utt, feats in orig_features.items()})
 
         # Computing base transforms
         featsub_unwarped = pipeline.extract_features(
             self.features, utterances, njobs=self.njobs).trim(vad)
         featsub_unwarped = FeaturesCollection(
-            {utt: feats.copy(n=self.subsample)
+            {utt: feats.copy(subsample=self.subsample)
              for utt, feats in featsub_unwarped.items()})
         for c in range(num_classes):
             this_warp = self.min_warp + c*self.warp_step
@@ -607,7 +607,7 @@ class VtlnProcessor(BaseProcessor):
                 self.features, utterances, this_warp,
                 njobs=self.njobs).trim(vad)
             featsub_warped = FeaturesCollection(
-                {utt: feats.copy(n=self.subsample)
+                {utt: feats.copy(subsample=self.subsample)
                  for utt, feats in featsub_warped.items()})
             self.compute_mapping_transform(
                 featsub_unwarped, featsub_warped, c, this_warp)
