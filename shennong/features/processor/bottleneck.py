@@ -104,7 +104,6 @@ import pkg_resources
 import warnings
 
 import numpy as np
-import scipy as sp
 import scipy.linalg as spl
 import scipy.fftpack
 

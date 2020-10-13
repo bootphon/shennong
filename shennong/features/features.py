@@ -124,9 +124,7 @@ class Features:
             return True
 
         # quick tests on attributes
-        if self.shape != other.shape:
-            return False
-        if self.dtype != other.dtype:
+        if self.shape != other.shape or self.dtype != other.dtype:
             return False
 
         # properties equality
@@ -344,28 +342,28 @@ class Features:
                     'features differs number of frames, and '
                     'greater than tolerance: |{} - {}| > {}'.format(
                         self.nframes, other.nframes, tolerance))
-            else:
-                self._log.warning(
-                    'features differs in number of frames, but '
-                    'within tolerance (|%s - %s| <= %s), trim the longest one',
-                    self.nframes, other.nframes, tolerance)
-                need_trim = True
+
+            self._log.warning(
+                'features differs in number of frames, but '
+                'within tolerance (|%s - %s| <= %s), trim the longest one',
+                self.nframes, other.nframes, tolerance)
+            need_trim = True
 
         # trim the longest features to the size of the shortest one
-        d1 = self.data
-        d2 = other.data
-        t1 = self.times
-        t2 = other.times
+        data1 = self.data
+        data2 = other.data
+        times1 = self.times
+        times2 = other.times
         if need_trim:
             if self.nframes > other.nframes:
-                d1 = d1[:-diff]
-                t1 = t1[:-diff]
+                data1 = data1[:-diff]
+                times1 = times1[:-diff]
             else:
-                d2 = d2[:-diff]
-                t2 = t2[:-diff]
+                data2 = data2[:-diff]
+                times2 = times2[:-diff]
 
         # ensures time axis is shared accross the two features
-        if not np.allclose(t1, t2):
+        if not np.allclose(times1, times2):
             raise ValueError('times are not equal')
 
         # merge properties of the two features
@@ -378,11 +376,12 @@ class Features:
         if 'pipeline' in other_properties:
             for k in other_properties['pipeline']:
                 properties['pipeline'].append(k)
-                c = properties['pipeline'][-1]['columns']
+                columns = properties['pipeline'][-1]['columns']
                 properties['pipeline'][-1]['columns'] = [
-                    c[0] + self.ndims, c[1] + self.ndims]
+                    columns[0] + self.ndims, columns[1] + self.ndims]
 
-        return Features(np.hstack((d1, d2)), t1, properties=properties)
+        return Features(
+            np.hstack((data1, data2)), times1, properties=properties)
 
 
 class FeaturesCollection(dict):
@@ -494,8 +493,8 @@ class FeaturesCollection(dict):
                 .format(', '.join(sorted(undefined_utts))))
 
         reverse_index = collections.defaultdict(list)
-        for k, v in index.items():
-            reverse_index[v].append(k)
+        for key, value in index.items():
+            reverse_index[value].append(key)
 
         return {k: FeaturesCollection({item: self[item] for item in items})
                 for k, items in reverse_index.items()}
@@ -522,12 +521,14 @@ class FeaturesCollection(dict):
         """
         if vad.keys() != self.keys():
             raise ValueError('Vad keys are different from this keys.')
+
         for key in vad.keys():
             if vad[key].dtype != np.dtype('bool'):
                 raise ValueError('Vad arrays must be arrays of bool.')
             if vad[key].shape[0] != self[key].nframes:
                 raise ValueError(
                     'Vad arrays length must be equal to the number of frames.')
+
         return FeaturesCollection({
             k: Features(
                 self[k].data[vad[k]],
