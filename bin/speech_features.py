@@ -14,10 +14,10 @@ Simple exemple
 Features extraction basically involves three steps:
 
 1. Configure an extraction pipeline. For exemple this defines a full
-   pipeline for MFCCs extraction (with CMVN, but without delta nor
-   pitch) and writes it to the file ``config.yaml``::
+   pipeline for MFCCs extraction (with CMVN, but without delta, pitch nor
+   VTLN) and writes it to the file ``config.yaml``::
 
-     speech-features config mfcc --no-pitch --no-delta -o config.yaml
+     speech-features config mfcc --no-pitch --no-delta --no-vtln -o config.yaml
 
    You can then edit the file ``config.yaml`` to modify the
    parameters.
@@ -163,6 +163,9 @@ def parser_config(subparsers, epilog):
         '--no-delta', action='store_true',
         help='Configure without deltas extraction')
 
+    group.add_argument(
+        '--no-vtln', action='store_true',
+        help='Configure without VTLN')
 
 def command_config(args):
     config = pipeline.get_default_config(
@@ -170,7 +173,8 @@ def command_config(args):
         to_yaml=True, yaml_commented=not args.no_comments,
         with_pitch=not args.no_pitch,
         with_cmvn=not args.no_cmvn,
-        with_delta=not args.no_delta)
+        with_delta=not args.no_delta,
+        with_vtln=not args.no_vtln)
 
     output = sys.stdout if not args.output else open(args.output, 'w')
     output.write(config)
