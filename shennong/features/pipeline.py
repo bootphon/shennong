@@ -430,6 +430,9 @@ def _init_config(config, log=get_logger()):
         by = 'speaker' if config['cmvn']['by_speaker'] else 'utterance'
         vad = ' with vad' if config['cmvn']['with_vad'] else ''
         msg.append('cmvn by {}{}'.format(by, vad))
+    if 'vtln' in config:
+        by = 'speaker' if config['vtln']['by_speaker'] else 'utterance'
+        msg.append('vtln by {}'.format(by))
     log.info(
         'pipeline configured for %s features extraction%s',
         features[0], ' with {}'.format(', '.join(msg)) if msg else '')
