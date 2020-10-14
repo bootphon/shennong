@@ -102,6 +102,14 @@ def test_copy(mfcc):
     assert mfcc2.times is mfcc.times
     assert mfcc2.properties is mfcc.properties
 
+    # subsample must be a strictly positive integer
+    with pytest.raises(ValueError):
+        mfcc2 = mfcc.copy(subsample=9.12)
+    with pytest.raises(ValueError):
+        mfcc2 = mfcc.copy(subsample=0)
+    with pytest.raises(ValueError):
+        mfcc2 = mfcc.copy(subsample=-10)
+
 
 def test_concatenate(mfcc):
     mfcc2 = mfcc.concatenate(mfcc)
