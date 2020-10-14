@@ -663,6 +663,7 @@ class DiagUbmProcessor(BaseProcessor):
         self._log.info('Extracting features')
         get_logger(level='error')  # disable logger for features extraction
         raw_features = extract_features(self.features, utterances)
+
         # Compute VAD decision
         vad = {}
         for utt, mfcc in raw_features.items():
@@ -670,6 +671,7 @@ class DiagUbmProcessor(BaseProcessor):
                 **self.vad).process(mfcc)
             vad[utt] = this_vad.data.reshape(
                 (this_vad.shape[0],)).astype(bool)
+
         # Apply cmvn sliding
         features = FeaturesCollection()
         if cmvn is not None:
@@ -679,6 +681,7 @@ class DiagUbmProcessor(BaseProcessor):
             self.features['sliding_window_cmvn'] = cmvn
         else:
             features = raw_features
+
         # Select voiced frames
         features = features.trim(vad)
         get_logger()

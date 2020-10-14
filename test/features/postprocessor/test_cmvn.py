@@ -4,7 +4,8 @@ import pytest
 import numpy as np
 
 from shennong.features import Features, FeaturesCollection
-from shennong.features.postprocessor.cmvn import CmvnPostProcessor, apply_cmvn, SlidingWindowCmvnPostProcessor
+from shennong.features.postprocessor.cmvn import (
+    CmvnPostProcessor, apply_cmvn, SlidingWindowCmvnPostProcessor)
 
 
 def test_params():
@@ -229,8 +230,8 @@ def test_sliding_cmvn(mfcc, norm_vars, center):
 
     with pytest.raises(ValueError) as err:
         proc.ndims
-    assert 'output dimension for sliding window CMVN processor depends on input' in str(
-        err.value)
+    message = 'dimension for sliding window CMVN processor depends on input'
+    assert message in str(err.value)
 
     scmvn = proc.process(mfcc)
     assert scmvn.shape == mfcc.shape

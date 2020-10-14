@@ -6,11 +6,12 @@ Those fonctions are not designed to be used by the end-user.
 
 import logging
 import multiprocessing
-import numpy as np
 import os
-import pkg_resources
 import re
 import sys
+
+import numpy as np
+import pkg_resources
 
 
 _logger = logging.getLogger()
@@ -117,10 +118,10 @@ def get_njobs(njobs, log=null_logger()):
     max_njobs = multiprocessing.cpu_count()
     if njobs is None:
         return max_njobs
-    elif njobs <= 0:
+    if njobs <= 0:
         raise ValueError(
             'njobs must be strictly positive, it is {}'.format(njobs))
-    elif njobs > max_njobs:
+    if njobs > max_njobs:
         log.warning(
             'asking %d CPU cores but reducing to %d (max available)',
             njobs, max_njobs)
@@ -132,7 +133,7 @@ def list2array(x):
     """Converts lists in `x` into numpy arrays"""
     if isinstance(x, list):
         return np.asarray(x)
-    elif isinstance(x, dict):
+    if isinstance(x, dict):
         return {k: list2array(v) for k, v in x.items()}
     return x
 
@@ -143,7 +144,7 @@ def array2list(x):
         return {
             k: array2list(v)
             for k, v in x.items()}
-    elif isinstance(x, np.ndarray):
+    if isinstance(x, np.ndarray):
         return x.tolist()
     return x
 
@@ -217,7 +218,7 @@ def list_files_with_extension(
     return sorted(matched)
 
 
-class CatchExceptions(object):
+class CatchExceptions:
     """Decorator wrapping a function in a try/except block
 
     When an exception occurs, display a user friendly message on
@@ -233,7 +234,6 @@ class CatchExceptions(object):
         The function to wrap in a try/except block
 
     """
-
     def __init__(self, function):
         self.function = function
 

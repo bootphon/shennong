@@ -82,15 +82,16 @@ import distutils.spawn
 import functools
 import logging
 import os
-import numpy as np
 import re
-import scipy.signal
-import scipy.io.wavfile
 import shlex
 import subprocess
 import tempfile
 import warnings
 import wave
+
+import numpy as np
+import scipy.signal
+import scipy.io.wavfile
 
 
 class Audio:
@@ -220,8 +221,7 @@ class Audio:
         except ValueError as err:  # wav may contain floating points samples
             if cls._soxi_binary:
                 return cls._scan_sox(wav_file)
-            else:  # pragma: nocover
-                raise err
+            raise err  # pragma: nocover
 
     @classmethod
     def _scan_sox(cls, wav_file):
@@ -413,7 +413,8 @@ class Audio:
             self.save(orig)
 
             command = shlex.split(
-                f'{self._sox_binary} -D -V2 {orig} {dest} rate -h {sample_rate}')
+                f'{self._sox_binary} -D -V2 {orig} {dest} '
+                f'rate -h {sample_rate}')
 
             try:
                 subprocess.run(command, check=True)

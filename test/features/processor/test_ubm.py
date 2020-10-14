@@ -232,8 +232,9 @@ def test_estimate():
     ubm.initialize_gmm(fc)
     with pytest.raises(ValueError) as err:
         ubm.estimate(gmm_accs, mixup=2)
-    assert 'Mixup parameter must be greater than the number of gaussians' in \
-        str(err.value)
+
+    message = 'Mixup parameter must be greater than the number of gaussians'
+    assert message in str(err.value)
     ubm.estimate(gmm_accs, mixup=8)
 
 

@@ -39,10 +39,11 @@ References
 
 """
 
-import numpy as np
 import copy
 import os
 import yaml
+
+import numpy as np
 import kaldi.matrix
 import kaldi.matrix.common
 import kaldi.matrix.functions
@@ -61,7 +62,6 @@ from shennong.features.postprocessor.cmvn import SlidingWindowCmvnPostProcessor
 class VtlnProcessor(BaseProcessor):
     """VTLN model
     """
-
     def __init__(self, num_iters=15, min_warp=0.85,
                  max_warp=1.25, warp_step=0.01,
                  logdet_scale=0.0, norm_type='offset', njobs=1,
@@ -219,9 +219,9 @@ class VtlnProcessor(BaseProcessor):
             raise OSError('{}: file not found'.format(path))
 
         vtln = VtlnProcessor()
-        ki = kaldi.util.io.xopen(path, mode='rb')
         vtln.lvtln = kaldi.transform.lvtln.LinearVtln.new(0, 1, 0)
-        vtln.lvtln.read(ki.stream(), binary=True)
+        with kaldi.util.io.xopen(path, mode='rb') as handler:
+            vtln.lvtln.read(handler.stream(), binary=True)
         return vtln
 
     @classmethod
@@ -230,8 +230,7 @@ class VtlnProcessor(BaseProcessor):
         if not os.path.isfile(path):
             raise OSError('{}: file not found'.format(path))
         try:
-            with open(path) as f:
-                warps = yaml.load(f, Loader=yaml.FullLoader)
+            warps = yaml.load(open(path, 'r'), Loader=yaml.FullLoader)
         except yaml.YAMLError as err:  # pragma: nocover
             raise ValueError(
                 'Error in VTLN warps file when loading: {}'.format(err))
@@ -244,8 +243,8 @@ class VtlnProcessor(BaseProcessor):
         if not isinstance(self.lvtln, kaldi.transform.lvtln.LinearVtln):
             raise TypeError('VTLN not initialized')
 
-        ki = kaldi.util.io.xopen(path, mode='wb')
-        self.lvtln.write(ki.stream(), binary=True)
+        with kaldi.util.io.xopen(path, mode='wb') as handler:
+            self.lvtln.write(handler.stream(), binary=True)
 
     def save_warps(self, path):
         """Save the computed warps"""
@@ -254,16 +253,17 @@ class VtlnProcessor(BaseProcessor):
         if not isinstance(self.warps, dict):
             raise TypeError('Warps not computed')
         try:
-            with open(path, 'w') as f:
-                yaml.dump(self.warps, f)
+            yaml.dump(self.warps, open(path, 'w'))
         except yaml.YAMLError as err:  # pragma: nocover
             raise ValueError(
                 'Error in VTLN warps file when saving: {}'.format(err))
 
     def _check_utterances(self, utterances):
-        """Check the format of the utterances. If the ``by_speaker``
-        attribute is True, returns a dictionnary mapping each utterance
-        to a speaker.
+        """Check the format of the utterances.
+
+        If the ``by_speaker`` attribute is True, returns a dictionnary mapping
+        each utterance to a speaker.
+
         """
         if not isinstance(utterances, list):
             raise TypeError('Invalid utterances format')
@@ -275,6 +275,7 @@ class VtlnProcessor(BaseProcessor):
                 'the wavs index is not homogeneous, entries'
                 ' have different lengths: {}'.format(
                     ', '.join(str(t) for t in index_format)))
+
         if self.by_speaker:
             index_format = list(index_format)[0]
             if index_format in [1, 2, 4]:
@@ -282,8 +283,8 @@ class VtlnProcessor(BaseProcessor):
                     'Requested speaker-adapted VTLN, but speaker'
                     ' information is missing')
             return {utt[0]: utt[2] for utt in utterances}
-        else:
-            return None
+
+        return None
 
     def compute_mapping_transform(self, feats_untransformed,
                                   feats_transformed,
@@ -319,10 +320,10 @@ class VtlnProcessor(BaseProcessor):
         ----------
         .. [kaldi_train_lvtln_special]
             https://kaldi-asr.org/doc/gmm-train-lvtln-special_8cc.html
+
         """
-        # Normalize diagonal of variance to be the
-        # same before and after transform.
-        # We are not normalizing the full covariance
+        # Normalize diagonal of variance to be the same before and after
+        # transform. We are not normalizing the full covariance
         if not isinstance(self.lvtln, kaldi.transform.lvtln.LinearVtln):
             raise TypeError('VTLN not initialized')
         dim = self.lvtln.dim()
@@ -433,6 +434,7 @@ class VtlnProcessor(BaseProcessor):
         ----------
         .. [kaldi_global_est_lvtln_trans]
             https://kaldi-asr.org/doc/gmm-global-est-lvtln-trans_8cc.html
+
         """
         if not isinstance(self.lvtln, kaldi.transform.lvtln.LinearVtln):
             raise TypeError('VTLN not initialized')
@@ -467,14 +469,15 @@ class VtlnProcessor(BaseProcessor):
                             this_post[j] = post[i][j][1]
                         spk_stats.accumulate_from_posteriors_preselect(
                             ubm.gmm, gselect, feats.row(i), this_post)
+
                 # Compute the transform
                 transform = kaldi.matrix.Matrix(
                     self.lvtln.dim(), self.lvtln.dim()+1)
-                class_idx, logdet_out, objf_impr, count = \
+                class_idx, _, objf_impr, count = (
                     self.lvtln.compute_transform(spk_stats,
                                                  self.norm_type,
                                                  self.logdet_scale,
-                                                 transform)
+                                                 transform))
                 class_counts[class_idx] += 1
                 transforms[spk] = transform
                 warps[spk] = self.lvtln.get_warp(class_idx)
@@ -589,6 +592,7 @@ class VtlnProcessor(BaseProcessor):
                 orig_features[utt] = proc.process(mfcc)
         else:
             orig_features = raw_mfcc
+
         # Select voiced frames
         orig_features = orig_features.trim(vad)
         orig_features = FeaturesCollection(  # Subsample

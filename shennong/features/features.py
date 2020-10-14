@@ -197,8 +197,8 @@ class Features:
 
         Raises
         ------
-        ValueError if `subsample` is defined but is not a strictly positive
-        integer
+        ValueError
+            If `subsample` is defined but is not a strictly positive integer.
 
         Returns
         -------

@@ -71,13 +71,13 @@ dict_keys(['pipeline', 'mfcc', 'speaker', 'audio', 'pitch'])
 import collections
 import datetime
 import importlib
-from re import sub
-import joblib
-import numpy as np
 import os
 import re
 import textwrap
 import yaml
+
+import numpy as np
+import joblib
 
 from shennong.audio import Audio
 from shennong.features import FeaturesCollection
@@ -703,8 +703,9 @@ def extract_features_warp(configuration, utterances_index, warp,
     return FeaturesCollection(**{k: v for k, v in _Parallel(
         'features extraction with warp {}'.format(warp), log,
         n_jobs=njobs, verbose=verbose, prefer='threads')(
-        joblib.delayed(_extract_single_pass_warp)(
-            utterance, manager, warp, log=log) for utterance in utterances)})
+            joblib.delayed(_extract_single_pass_warp)(
+                utterance, manager, warp, log=log)
+            for utterance in utterances)})
 
 
 class _Manager:
@@ -756,7 +757,7 @@ class _Manager:
         self._wavs_metadata = {w: Audio.scan(w) for w in wavs}
 
         # make sure all the wavs are compatible with the pipeline
-        log.info(f'scanning {len(self._utterances)} utterances...')
+        log.info('scanning %s utterances...', len(self._utterances))
         self._check_wavs()
 
         # the features type to be extracted
@@ -765,20 +766,20 @@ class _Manager:
 
         # get some framing parameters constant for all processors
         # (retrieve them from a features processor instance)
-        p = self.get_features_processor(next(iter(self.utterances.keys())))
-        self.frame_length = p.frame_length
-        self.frame_shift = p.frame_shift
+        proc = self.get_features_processor(next(iter(self.utterances.keys())))
+        self.frame_length = proc.frame_length
+        self.frame_shift = proc.frame_shift
 
         # if CMVN by speaker, instanciate a CMVN processor by speaker
         # here, else instanciate a processor per utterance
         if 'cmvn' in self.config:
             if self.config['cmvn']['by_speaker']:
                 self._cmvn_processors = {
-                    spk: self.get_processor_class('cmvn')(p.ndims)
+                    spk: self.get_processor_class('cmvn')(proc.ndims)
                     for spk in self.speakers}
             else:
                 self._cmvn_processors = {
-                    utt: self.get_processor_class('cmvn')(p.ndims)
+                    utt: self.get_processor_class('cmvn')(proc.ndims)
                     for utt in self.utterances}
 
     @property
@@ -980,8 +981,8 @@ class _Manager:
         if self.config['cmvn']['by_speaker']:
             speaker = self.utterances[utterance].speaker
             return self._cmvn_processors[speaker]
-        else:
-            return self._cmvn_processors[utterance]
+
+        return self._cmvn_processors[utterance]
 
     def get_sliding_window_cmvn_processor(self, utterrance):
         """Instanciates and returns a sliding-window CMVN processor"""

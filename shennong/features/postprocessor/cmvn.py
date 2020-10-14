@@ -1,15 +1,18 @@
 """Cepstral mean variance normalization (CMVN) on speech features
 
-The :class:`CmvnPostProcessor` class is used for accumulating CMVN
-statistics and applying CMVN on features using accumulated
-statistics. Uses the Kaldi implementation (see [kaldi-cmvn]_):
+* The :class:`CmvnPostProcessor` class is used for accumulating CMVN
+  statistics and applying CMVN on features using accumulated
+  statistics. Uses the Kaldi implementation (see [kaldi-cmvn]_):
 
-    :class:`Features` --> CmvnPostProcessor --> :class:`Features`
+      :class:`Features` --> CmvnPostProcessor --> :class:`Features`
 
-The :class:`SlidingWindowCmvnPostProcessor` class is used to
-apply sliding window CMVN. Uses the Kaldi implementation:
+* The :class:`SlidingWindowCmvnPostProcessor` class is used to apply sliding
+  window CMVN. With that class, each window is normalized independantly. Uses
+  the Kaldi implementation:
 
-    :class: `Features` --> SlidingWindowCmvnPostProcessor --> :class:`Features`
+      :class:`Features` --> SlidingWindowCmvnPostProcessor
+      --> :class:`Features`
+
 Examples
 --------
 
@@ -55,14 +58,14 @@ True
 True
 
 Apply sliding-window normalization to the features:
->>> from shennong.features.postprocessor.cmvn import SlidingWindowCmvnPostProcessor
->>> processor = SlidingWindowCmvnPostProcessor()
+
+>>> from shennong.features.postprocessor.cmvn import \
+        SlidingWindowCmvnPostProcessor
+>>> processor = SlidingWindowCmvnPostProcessor(normalize_variance=True)
 >>> window_size = 40
 >>> processor.cmn_window = window_size
 >>> processor.min_window = window_size
->>> processor.normalize_variance = True
->>> processor.center = True
->>> slidcmvn = processor.process(mfcc)
+>>> sliding_cmvn = processor.process(mfcc)
 
 Each frame of the original features has been normalized with statistics
 computed in the window:
@@ -70,7 +73,7 @@ computed in the window:
 >>> frame = 70
 >>> window = mfcc.data[frame-window_size//2:frame+window_size//2, :]
 >>> norm_mfcc = (mfcc.data[frame,:] - window.mean(axis=0)) / window.std(axis=0)
->>> np.all(np.isclose(slidcmvn.data[frame, :], norm_mfcc, atol=1e-6))
+>>> np.all(np.isclose(sliding_cmvn.data[frame, :], norm_mfcc, atol=1e-6))
 True
 
 References
@@ -378,10 +381,22 @@ def apply_cmvn(feats_collection, by_collection=True, norm_vars=True,
 class SlidingWindowCmvnPostProcessor(FeaturesPostProcessor):
     """Compute sliding-window normalization on speech features
 
-    """
+    Parameters
+    ----------
+    center : bool, optional
+        Whether to center the window on the current frame, default to True
+    cmn_window : int, optional
+        Window size for average CMN computation, default to 600
+    min_window : int, optional
+        Minimum CMN window used at start of decoding, default to 100
+    max_warnings : int, optional
+        Maximum warning to report per utterance, default to 5
+    normalize_variance : bool, optional
+        Whether to normalize variance to one, default to False
 
-    def __init__(self, center=True, cmn_window=600, max_warnings=5,
-                 min_window=100, normalize_variance=False):
+    """
+    def __init__(self, center=True, cmn_window=600, min_window=100,
+                 max_warnings=5, normalize_variance=False):
         self._options = kaldi.feat.functions.SlidingWindowCmnOptions()
         self.center = center
         self.cmn_window = cmn_window
@@ -417,15 +432,6 @@ class SlidingWindowCmvnPostProcessor(FeaturesPostProcessor):
         self._options.cmn_window = value
 
     @property
-    def max_warnings(self):
-        """Maximum warning to report per utterance"""
-        return self._options.max_warnings
-
-    @max_warnings.setter
-    def max_warnings(self, value):
-        self._options.max_warnings = value
-
-    @property
     def min_window(self):
         """Minimum CMN window used at start of decoding"""
         return self._options.min_window
@@ -433,6 +439,15 @@ class SlidingWindowCmvnPostProcessor(FeaturesPostProcessor):
     @min_window.setter
     def min_window(self, value):
         self._options.min_window = value
+
+    @property
+    def max_warnings(self):
+        """Maximum warning to report per utterance"""
+        return self._options.max_warnings
+
+    @max_warnings.setter
+    def max_warnings(self, value):
+        self._options.max_warnings = value
 
     @property
     def normalize_variance(self):
