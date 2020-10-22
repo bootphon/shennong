@@ -9,7 +9,7 @@ statistics. Uses the Kaldi implementation (see [kaldi-cmvn]_):
 The :class:`SlidingWindowCmvnPostProcessor` class is used to
 apply sliding window CMVN. Uses the Kaldi implementation:
 
-    :class: `Features` --> SlidingWindowCmvnPostProcessor --> :class:`Features`
+    :class:`Features` --> SlidingWindowCmvnPostProcessor --> :class:`Features`
 Examples
 --------
 
@@ -55,6 +55,7 @@ True
 True
 
 Apply sliding-window normalization to the features:
+
 >>> from shennong.features.postprocessor.cmvn import SlidingWindowCmvnPostProcessor
 >>> processor = SlidingWindowCmvnPostProcessor()
 >>> window_size = 40
@@ -69,7 +70,7 @@ computed in the window:
 
 >>> frame = 70
 >>> window = mfcc.data[frame-window_size//2:frame+window_size//2, :]
->>> norm_mfcc = (mfcc.data[frame,:] - window.mean(axis=0)) / window.std(axis=0)
+>>> norm_mfcc = (mfcc.data[frame, :] - window.mean(axis=0)) / window.std(axis=0)
 >>> np.all(np.isclose(slidcmvn.data[frame, :], norm_mfcc, atol=1e-6))
 True
 

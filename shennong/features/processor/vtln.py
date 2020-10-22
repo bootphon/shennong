@@ -1,7 +1,7 @@
 """Extraction of VTLN warp factors from utterances.
 
 Uses the Kaldi implmentation of Linear Vocal Tract Length Normalization
-(see [kaldi_lvtln]_).
+(see [kaldi-lvtln]_).
 
 Examples
 --------
@@ -16,15 +16,19 @@ or after:
 >>> vtln = VtlnProcessor(min_warp=0.95, max_warp=1.05, ubm={'num_gauss': 4})
 >>> vtln.num_iters = 10
 
-Returns the computed warps for each utterance. If the `utt2speak` argument
-is given, the warps have been computed for each speaker, and each utterance
+Returns the computed warps for each utterance. If the ``by_speaker`` property
+was set to ``True`` and the speaker information is provided with the
+utterances, the warps have been computed for each speaker, and each utterance
 from the same speaker is mapped to the same warp factor.
 
 >>> warps = vtln.process(utterances)
 
-Those warps can be passed individually in the `process` method of
-`MfccProcessor`, `FilterbankProcessor`, `PlpProcessor` and
-`SpectrogramProcessor` to warp the corresponding feature.
+Those warps can be passed individually in the :func:`process` method of
+:class:`~shennong.features.processor.mfcc.MfccProcessor`,
+:class:`~shennong.features.processor.filterbank.FilterbankProcessor`,
+:class:`~shennong.features.processor.plp.PlpProcessor` and
+:class:`~shennong.features.processor.spectrogram.SpectrogramProcessor`
+to warp the corresponding feature.
 
 The features can also be warped directly via the pipeline.
 
@@ -35,7 +39,7 @@ The features can also be warped directly via the pipeline.
 
 References
 ----------
-.. [kaldi_lvtln] https://kaldi-asr.org/doc/transform.html#transform_lvtln
+.. [kaldi-lvtln] https://kaldi-asr.org/doc/transform.html#transform_lvtln
 
 """
 
@@ -148,7 +152,7 @@ class VtlnProcessor(BaseProcessor):
 
     @property
     def norm_type(self):
-        """Type of fMLLR applied (`offset`, `none`, `diag`)"""
+        """Type of fMLLR applied (``offset``, ``none`` or ``diag``)"""
         return self._norm_type
 
     @norm_type.setter
@@ -289,11 +293,10 @@ class VtlnProcessor(BaseProcessor):
                                   feats_transformed,
                                   class_idx, warp,
                                   weights=None):
-        """"Set one of the transforms in lvtln to the minimum-squared-error solution
-        to mapping feats_untransformed to feats_transformed; posteriors may
-        optionally be used to downweight/remove silence.
+        """Set one of the transforms in lvtln to the minimum-squared-error solution
+        to mapping ``feats_untransformed`` to ``feats_transformed``.
 
-        Adapted from [kaldi_train_lvtln_special]_
+        Adapted from [kaldi-train-lvtln-special]_
 
         Parameters
         ----------
@@ -317,7 +320,7 @@ class VtlnProcessor(BaseProcessor):
 
         References
         ----------
-        .. [kaldi_train_lvtln_special]
+        .. [kaldi-train-lvtln-special]
             https://kaldi-asr.org/doc/gmm-train-lvtln-special_8cc.html
         """
         # Normalize diagonal of variance to be the
@@ -413,10 +416,10 @@ class VtlnProcessor(BaseProcessor):
                  feats_collection,
                  posteriors, utt2speak=None):
         """Estimate linear-VTLN transforms, either per utterance or for
-        the supplied set of speakers (utt2speak option).
+        the supplied set of speakers (``utt2speak`` option).
         Reads posteriors indicating Gaussian indexes in the UBM.
 
-        Adapted from [kaldi_global_est_lvtln_trans]_
+        Adapted from [kaldi-global-est-lvtln-trans]_
 
         Parameters
         ----------
@@ -431,7 +434,7 @@ class VtlnProcessor(BaseProcessor):
 
         References
         ----------
-        .. [kaldi_global_est_lvtln_trans]
+        .. [kaldi-global-est-lvtln-trans]
             https://kaldi-asr.org/doc/gmm-global-est-lvtln-trans_8cc.html
         """
         if not isinstance(self.lvtln, kaldi.transform.lvtln.LinearVtln):
@@ -532,13 +535,9 @@ class VtlnProcessor(BaseProcessor):
 
         Parameters
         ----------
-        utts_index : list[tuple]
-            The utterances can be defined in one of the following format:
-            * 1-uple (or str): ``<wav-file>``
-            * 2-uple: ``<utterance-id> <wav-file>``
-            * 3-uple: ``<utterance-id> <wav-file> <spk-id>``
-            * 4-uple: ``<utterance-id> <wav-file> <tstart> <tstop>``
-            * 5-uple: ``<utterance-id> <wav-file> <spk-id> <tstart> <tstop>``
+        utterances : list of tuples
+            The utterances can be defined in one of the format allowed in
+            :func:`~shennong.features.pipeline.extract_features`.
         ubm : DiagUbmProcessor
             If provided, uses this UBM instead of computing a new one.
 
@@ -574,7 +573,8 @@ class VtlnProcessor(BaseProcessor):
 
         cmvn_config = self.features.pop('sliding_window_cmvn', None)
         get_logger(level='error')  # disable logger for features extraction
-        raw_mfcc = pipeline.extract_features(self.features, utterances)
+        raw_mfcc = pipeline.extract_features(
+            self.features, utterances, njobs=self.njobs)
         # Compute VAD decision
         vad = {}
         for utt, mfcc in raw_mfcc.items():

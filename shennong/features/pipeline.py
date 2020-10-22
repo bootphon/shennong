@@ -681,7 +681,9 @@ def _extract_single_pass_warp(utt_name, manager, warp, log=get_logger()):
 def extract_features_warp(configuration, utterances_index, warp,
                           njobs=1, log=get_logger()):
     """Speech features extraction pipeline when all features are warped
-    by the same factor. Used in the `process` method of the `VtlnProcessor`.
+    by the same factor. Used in the
+    :func:`~shennong.features.processor.vtln.VtlnProcessor.process`
+    method of the :class:`~shennong.features.processor.vtln.VtlnProcessor`.
     """
     # intialize the pipeline configuration, the list of wav files to
     # process, instanciate the pipeline processors and make all the

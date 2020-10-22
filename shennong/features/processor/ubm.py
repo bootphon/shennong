@@ -1,7 +1,7 @@
-"""Provides the DiagUbmProcessor class to train a Universal Background Model
-- Gaussian Mixture Model (UBM-GMM) with diagonal covariances
+"""Provides the :class:`DiagUbmProcessor` class to train a Universal Background Model
+- Gaussian Mixture Model (UBM-GMM) with diagonal covariances.
 
-Uses the kaldi implementation of GMM (see [kaldi_gmm]_).
+Uses the kaldi implementation of GMM (see [kaldi-gmm]_).
 
 Examples
 --------
@@ -18,9 +18,11 @@ can be specified at construction, or after:
 >>> ubm.num_iters = 3
 
 Process the utterances to update the model.
+
 >>> ubm.process(utterances)
 
 Each gaussian of the model has as many dimensions as the features.
+
 >>> import kaldi.gmm
 >>> isinstance(ubm.gmm, kaldi.gmm.DiagGmm)
 True
@@ -33,7 +35,7 @@ True
 References
 ----------
 
-.. [kaldi_gmm] https://kaldi-asr.org/doc/model.html
+.. [kaldi-gmm] https://kaldi-asr.org/doc/model.html
 
 """
 
@@ -225,7 +227,7 @@ class DiagUbmProcessor(BaseProcessor):
 
     @property
     def seed(self):
-        """Random seed"""
+        """Random seed for initialization from random frames"""
         return self._seed
 
     @seed.setter
@@ -265,7 +267,7 @@ class DiagUbmProcessor(BaseProcessor):
         """Initializes a single diagonal GMM and does multiple iterations of
         training.
 
-        Adapted from [kaldi_init]_
+        Adapted from [kaldi-init]_
 
         Parameters
         ----------
@@ -279,7 +281,7 @@ class DiagUbmProcessor(BaseProcessor):
 
         References
         ----------
-        .. [kaldi_init]
+        .. [kaldi-init]
             https://kaldi-asr.org/doc/gmm-global-init-from-feats_8cc.html
         """
         num_gauss_init = int(self.initial_gauss_proportion*self.num_gauss)
@@ -364,14 +366,14 @@ class DiagUbmProcessor(BaseProcessor):
 
         Parameters
         ----------
-        feats : Matrix or SubMatrix
+        feats : kaldi.matrix.Matrix or kaldi.matrix.SubMatrix
             Features data from random frames.
 
         Raises
         ------
         ValueError
             If the features have too few frames to train on
-            (less than 10*`num_gauss`). If the features do not
+            (less than 10*``num_gauss``). If the features do not
             have positive variance.
         """
         num_gauss = self.gmm.num_gauss()
@@ -397,11 +399,11 @@ class DiagUbmProcessor(BaseProcessor):
         self.gmm.compute_gconsts()
 
     def gaussian_selection(self, feats_collection):
-        """Precompute Gaussian indices for pruning
+        """Precompute Gaussian indices for pruning.
         For each frame, gives a list of the n best Gaussian indices
         sorted from best to worst.
 
-        Adapted from [kaldi_gselect]_.
+        Adapted from [kaldi-gselect]_.
 
         Parameters
         ----------
@@ -410,7 +412,7 @@ class DiagUbmProcessor(BaseProcessor):
 
         References
         ----------
-        .. [kaldi_gselect] https://kaldi-asr.org/doc/gmm-gselect_8cc.html
+        .. [kaldi-gselect] https://kaldi-asr.org/doc/gmm-gselect_8cc.html
         """
         if not isinstance(self.gmm, kaldi.gmm.DiagGmm):
             raise TypeError('GMM not initialized')
@@ -459,15 +461,13 @@ class DiagUbmProcessor(BaseProcessor):
         self._log.debug(f'Done {num_done} utterances, average UBM log-'
                         f'likelihood is {tot_like/tot_t} over {tot_t} frames')
 
-    def gaussian_selection_to_post(self,
-                                   feats_collection,
-                                   min_post=None):
+    def gaussian_selection_to_post(self, feats_collection, min_post=None):
         """Given features and Gaussian-selection (gselect) information for
         a diagonal-covariance GMM, output per-frame posteriors for the selected
         indices.  Also supports pruning the posteriors if they are below
         a stated threshold (and renormalizing the rest to sum to one).
 
-        Adapted from [kaldi_gselect_to_post]_
+        Adapted from [kaldi-gselect-to-post]_
 
         Parameters
         ----------
@@ -488,7 +488,7 @@ class DiagUbmProcessor(BaseProcessor):
 
         References
         ----------
-        .. [kaldi_gselect_to_post]
+        .. [kaldi-gselect-to-post]
             https://kaldi-asr.org/doc/gmm-global-gselect-to-post_8cc.html
         """
         if not isinstance(self.selection, dict):
@@ -545,7 +545,7 @@ class DiagUbmProcessor(BaseProcessor):
     def accumulate(self, feats_collection, weights_collection=None):
         """Accumulate stats for training a diagonal-covariance GMM.
 
-        Adapted from [kaldi_acc]_
+        Adapted from [kaldi-acc]_
 
         Parameters
         ----------
@@ -559,12 +559,12 @@ class DiagUbmProcessor(BaseProcessor):
 
         Returns
         -------
-        gmm_accs : AccumDiagGmm
+        gmm_accs : kaldi.gmm.AccumDiagGmm
             The accumulated stats.
 
         References
         ----------
-        .. [kaldi_acc] https://kaldi-asr.org/doc/gmm-global-acc-stats_8cc.html
+        .. [kaldi-acc] https://kaldi-asr.org/doc/gmm-global-acc-stats_8cc.html
         """
         if not isinstance(self.gmm, kaldi.gmm.DiagGmm):
             raise TypeError('GMM not initialized')
@@ -613,11 +613,11 @@ class DiagUbmProcessor(BaseProcessor):
     def estimate(self, gmm_accs, mixup=None, perturb_factor=0.01):
         """Estimate a diagonal-covariance GMM from the accumulated stats.
 
-        Adapted from [kaldi_gmm_est]_
+        Adapted from [kaldi-gmm-est]_
 
         Parameters
         ----------
-        gmm_accs : AccumDiagGmm
+        gmm_accs : kaldi.gmm.AccumDiagGmm
             Accumulated stats
         mixup : int, optional
             Increase number of mixture components to this overall target.
@@ -627,7 +627,7 @@ class DiagUbmProcessor(BaseProcessor):
 
         References
         ----------
-        .. [kaldi_gmm_est] https://kaldi-asr.org/doc/gmm-global-est_8cc.html
+        .. [kaldi-gmm-est] https://kaldi-asr.org/doc/gmm-global-est_8cc.html
         """
         if not isinstance(self.gmm, kaldi.gmm.DiagGmm):
             raise TypeError('GMM not initialized')
@@ -652,12 +652,8 @@ class DiagUbmProcessor(BaseProcessor):
         Parameters
         ----------
         utterances : list of tuples
-            The utterances can be defined in one of the following format:
-            * 1-uple (or str): `<wav-file>`
-            * 2-uple: `<utterance-id> <wav-file>`
-            * 3-uple: `<utterance-id> <wav-file> <speaker-id>`
-            * 4-uple: `<utterance-id> <wav-file> <tstart> <tstop>`
-            * 5-uple: `<utterance-id> <wav-file> <speaker-id> <tstart> <tstop>`
+            The utterances can be defined in one of the format allowed in
+            :func:`~shennong.features.pipeline.extract_features`.
         """
         cmvn = self.features.pop('sliding_window_cmvn', None)
         self._log.info('Extracting features')
