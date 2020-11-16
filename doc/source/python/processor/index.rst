@@ -16,6 +16,7 @@ The available speech features processors are:
    bottleneck
    onehot
    pitch
+   crepepitch
    energy
    ubm
    vtln

@@ -1,10 +1,11 @@
-"""Test of the shennong.features.cmvn module"""
+"""Test of the module shennong.features.postprocessor.cmvn"""
 
 import pytest
 import numpy as np
 
 from shennong.features import Features, FeaturesCollection
-from shennong.features.postprocessor.cmvn import CmvnPostProcessor, apply_cmvn, SlidingWindowCmvnPostProcessor
+from shennong.features.postprocessor.cmvn import (
+    CmvnPostProcessor, apply_cmvn, SlidingWindowCmvnPostProcessor)
 
 
 def test_params():
@@ -229,7 +230,7 @@ def test_sliding_cmvn(mfcc, norm_vars, center):
 
     with pytest.raises(ValueError) as err:
         proc.ndims
-    assert 'output dimension for sliding window CMVN processor depends on input' in str(
+    assert 'output dimension for sliding window CMVN processor depends' in str(
         err.value)
 
     scmvn = proc.process(mfcc)

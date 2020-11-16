@@ -32,7 +32,7 @@ def null_logger():
     return _logger
 
 
-def get_logger(name=None, level='info',
+def get_logger(name='shennong', level='info',
                formatter='%(levelname)s - %(message)s'):
     """Configures and returns a logger sending messages to standard error
 

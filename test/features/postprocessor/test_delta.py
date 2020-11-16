@@ -1,4 +1,4 @@
-"""Test of the module shennong.features.delta"""
+"""Test of the module shennong.features.postprocessor.delta"""
 
 import numpy as np
 import pytest
@@ -38,4 +38,5 @@ def test_output(mfcc, order, window):
 def test_ndims():
     with pytest.raises(ValueError) as err:
         DeltaPostProcessor().ndims
-    assert 'output dimension for delta processor depends on input' in str(err.value)
+    assert 'output dimension for delta processor depends on input' in str(
+        err.value)

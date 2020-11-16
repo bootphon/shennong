@@ -71,7 +71,6 @@ dict_keys(['pipeline', 'mfcc', 'speaker', 'audio', 'pitch'])
 import collections
 import datetime
 import importlib
-from re import sub
 import joblib
 import numpy as np
 import os
@@ -95,7 +94,7 @@ def valid_features():
 
 
 def get_default_config(features, to_yaml=False, yaml_commented=True,
-                       with_pitch=True, with_cmvn=True,
+                       with_pitch=True, with_crepe_pitch=False, with_cmvn=True,
                        with_sliding_window_cmvn=False, with_delta=True,
                        with_vtln=False):
     """Returns the default configuration for the specified pipeline
@@ -120,6 +119,9 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
         effect only if ``to_yaml`` is True. Default to True.
     with_pitch : bool, optional
         Configure the pipeline for pitch extraction, default to True
+    with_crepe_pitch : bool, optional
+        Configure the pipeline for pitch extraction using CREPE model,
+        default to False.
     with_cmvn : bool, optional
         Configure the pipeline for CMVN normalization of the features,
         default to True.
@@ -129,7 +131,8 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
     with_delta : bool, optional
         Configure the pipeline for features's delta extraction,
         default to True.
-    with_vtln:
+    with_vtln : bool, optional
+        Configure the pipeline for VTLN, default to False.
     with_vad_trimming: bool, optional
         Configure the pipeline for removing silent frames, default to False.
 
@@ -168,6 +171,16 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
             if k not in ('frame_length', 'frame_shift', 'sample_rate')}
         config['pitch']['postprocessing'] = (
             _Manager.get_processor_params('pitch_post'))
+
+    if with_crepe_pitch:
+        # filter out the frame parameters, already specified for
+        # the features, and sample rate
+        config['crepe_pitch'] = {
+            k: v for k, v
+            in _Manager.get_processor_params('crepe_pitch').items()
+            if k not in ('frame_length', 'frame_shift', 'sample_rate')}
+        config['crepe_pitch']['postprocessing'] = (
+            _Manager.get_processor_params('crepe_pitch_post'))
 
     if with_cmvn:
         config['cmvn'] = {'by_speaker': True, 'with_vad': True}
@@ -334,7 +347,7 @@ def _get_config_to_yaml(config, comments=True):
             processor = line[:-1].strip()
             # special case of pitch_postprocessor
             if processor == 'postprocessing':
-                processor = 'pitch_post'
+                processor = f'{processors[-1]}_post'
             processors.append(processor)
             if processor == 'vad':
                 config_commented.append(
@@ -344,7 +357,6 @@ def _get_config_to_yaml(config, comments=True):
             param = line.split(': ')[0].strip()
             default = line.split(': ')[1].strip()
             processor = processors[-1]
-            # print(processor, param, default, offset, prev_offset)
             if processor == 'cmvn' and param == 'by_speaker':
                 docstring = (
                     'If false, do normalization by utterance, '
@@ -416,14 +428,23 @@ def _init_config(config, log=get_logger()):
         if 'with_vad' not in config['cmvn']:
             config['cmvn']['with_vad'] = True
 
+    if 'pitch' in config and 'crepe_pitch' in config:
+        raise ValueError('both default pitch and CREPE pitch are requested')
+
     # if pitch, make sure we have a 'postprocessing' entry
     if 'pitch' in config and 'postprocessing' not in config['pitch']:
         config['pitch']['postprocessing'] = {}
+
+    if 'crepe_pitch' in config and 'postprocessing' not in \
+            config['crepe_pitch']:
+        config['crepe_pitch']['postprocessing'] = {}
 
     # log message describing the pipeline configuration
     msg = []
     if 'pitch' in config:
         msg.append('pitch')
+    if 'crepe_pitch' in config:
+        msg.append('crepe pitch')
     if 'delta' in config:
         msg.append('delta')
     if 'cmvn' in config:
@@ -600,6 +621,11 @@ def _extract_pass_one(utt_name, manager, log=get_logger()):
         p1 = manager.get_pitch_processor(utt_name)
         p2 = manager.get_pitch_post_processor(utt_name)
         pitch = p2.process(p1.process(audio))
+    elif 'crepe_pitch' in manager.config:
+        log.debug('%s: extract crepe pitch', utt_name)
+        p1 = manager.get_crepe_pitch_processor(utt_name)
+        p2 = manager.get_crepe_pitch_post_processor(utt_name)
+        pitch = p2.process(p1.process(audio))
     else:
         pitch = None
 
@@ -728,6 +754,8 @@ class _Manager:
         'mfcc': ('processor', 'MfccProcessor'),
         'pitch': ('processor', 'PitchProcessor'),
         'pitch_post': ('processor', 'PitchPostProcessor'),
+        'crepe_pitch': ('processor', 'CrepePitchProcessor'),
+        'crepe_pitch_post': ('processor', 'CrepePitchPostProcessor'),
         'plp': ('processor', 'PlpProcessor'),
         'rastaplp': ('processor', 'RastaPlpProcessor'),
         'spectrogram': ('processor', 'SpectrogramProcessor'),
@@ -880,6 +908,8 @@ class _Manager:
             raise ValueError('invalid processor "{}"'.format(name))
         if name == 'pitch_post':
             name = 'pitch'
+        if name == 'crepe_pitch' or name == 'crepe_pitch_post':
+            name = 'crepepitch'
         if name == 'sliding_window_cmvn':
             name = 'cmvn'
 
@@ -1004,6 +1034,19 @@ class _Manager:
         """Instanciates and returns a pitch post-processor"""
         return self.get_processor_class('pitch_post')(
             **self.config['pitch']['postprocessing'])
+
+    def get_crepe_pitch_processor(self, utterance):
+        """Instanciates and returns a pitch processor"""
+        params = {k: v for k, v in self.config['crepe_pitch'].items()
+                  if k != 'postprocessing'}
+        params['frame_shift'] = self.frame_shift
+        params['frame_length'] = self.frame_length
+        return self.get_processor_class('crepe_pitch')(**params)
+
+    def get_crepe_pitch_post_processor(self, utterance):
+        """Instanciates and returns a pitch post-processor"""
+        return self.get_processor_class('crepe_pitch_post')(
+            **self.config['crepe_pitch']['postprocessing'])
 
     def get_delta_processor(self, utterance):
         """Instanciates and returns a delta processor"""

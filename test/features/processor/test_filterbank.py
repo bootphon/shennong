@@ -1,6 +1,4 @@
-# coding: utf-8
-
-"""Test of the module shennong.features.filterbank"""
+"""Test of the module shennong.features.processor.filterbank"""
 
 import numpy as np
 import pytest

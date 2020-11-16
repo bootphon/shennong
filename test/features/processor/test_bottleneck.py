@@ -1,4 +1,4 @@
-"""Test of the module shennong.features.bottleneck"""
+"""Test of the module shennong.features.processor.bottleneck"""
 
 import os
 import numpy as np

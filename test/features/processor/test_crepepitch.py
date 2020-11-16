@@ -1,68 +1,69 @@
-"""Test of the module shennong.features.processor.pitch"""
+"""Test of the module shennong.features.processor.crepepitch"""
 
 import numpy as np
 import pytest
-
 from shennong.audio import Audio
 from shennong.features import Features
-from shennong.features.processor.pitch import (
-    PitchProcessor, PitchPostProcessor)
+from shennong.features.processor.crepepitch import (
+    CrepePitchPostProcessor, CrepePitchProcessor)
 
 
 @pytest.fixture
 def raw_pitch(audio):
-    return PitchProcessor().process(audio)
+    return CrepePitchProcessor(model_capacity='tiny').process(audio)
 
 
-def test_pitch_params():
+def test_crepe_pitch_params():
     opts = {
-        'sample_rate': 0,
         'frame_shift': 0,
         'frame_length': 0,
-        'min_f0': 0,
-        'max_f0': 0,
-        'soft_min_f0': 0,
-        'penalty_factor': 0,
-        'lowpass_cutoff': 0,
-        'resample_freq': 0,
-        'delta_pitch': 0,
-        'nccf_ballast': 0,
-        'lowpass_filter_width': 0,
-        'upsample_filter_width': 0}
-    p = PitchProcessor(**opts)
+        'model_capacity': 'full',
+        'center': True,
+        'viterbi': True
+    }
+    p = CrepePitchProcessor(**opts)
     assert p.get_params() == opts
 
-    p = PitchProcessor()
+    p = CrepePitchProcessor()
     p.set_params(**opts)
     assert p.get_params() == opts
 
+    assert p.sample_rate == 16000
 
-def test_output(audio):
-    ndims = PitchProcessor().ndims
+    with pytest.raises(ValueError) as err:
+        p = CrepePitchProcessor(model_capacity='wrong')
+    assert 'Model capacity wrong is not recognized' in str(err.value)
+
+
+def test_output(audio, audio_8k):
+    ndims = CrepePitchProcessor().ndims
     assert ndims == 2
-    assert PitchProcessor(
+    assert CrepePitchProcessor(
+        model_capacity='tiny',
         frame_shift=0.01).process(audio).shape == (140, ndims)
-    assert PitchProcessor(
+    assert CrepePitchProcessor(
+        model_capacity='tiny',
         frame_shift=0.02).process(audio).shape == (70, ndims)
-    assert PitchProcessor(
+    assert CrepePitchProcessor(
+        model_capacity='tiny',
         frame_shift=0.02, frame_length=0.05).process(audio).shape == (69, 2)
 
-    # sample rate mismatch
-    with pytest.raises(ValueError):
-        PitchProcessor(sample_rate=8000).process(audio)
+    # resample audio when processing
+    assert CrepePitchProcessor(
+        model_capacity='tiny',
+        frame_shift=0.01).process(audio_8k).shape == (140, ndims)
 
     # only mono signals are accepted
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as err:
         data = np.random.random((1000, 2))
         stereo = Audio(data, sample_rate=16000)
-        PitchProcessor(sample_rate=stereo.sample_rate).process(stereo)
+        CrepePitchProcessor(model_capacity='tiny').process(stereo)
+    assert 'audio signal must have one channel' in str(err.value)
 
 
-def test_post_pitch_params():
+def test_post_crepe_pitch_params():
     opts = {
         'pitch_scale': 0,
-        'pov_scale': 0,
-        'pov_offset': 0,
         'delta_pitch_scale': 0,
         'delta_pitch_noise_stddev': 0,
         'normalization_left_context': 0,
@@ -73,16 +74,16 @@ def test_post_pitch_params():
         'add_normalized_log_pitch': False,
         'add_delta_pitch': False,
         'add_raw_log_pitch': False}
-    p = PitchPostProcessor(**opts)
+    p = CrepePitchPostProcessor(**opts)
     assert p.get_params() == opts
 
-    p = PitchPostProcessor()
+    p = CrepePitchPostProcessor()
     p.set_params(**opts)
     assert p.get_params() == opts
 
 
-def test_post_pitch(raw_pitch):
-    post_processor = PitchPostProcessor()
+def test_post_crepe_pitch(raw_pitch):
+    post_processor = CrepePitchPostProcessor()
     params = post_processor.get_params()
     data = post_processor.process(raw_pitch)
     assert data.shape[1] == 3
@@ -102,6 +103,19 @@ def test_post_pitch(raw_pitch):
         post_processor.process(bad_pitch)
     assert 'data shape must be (_, 2), but it is (_, 3)' in str(err.value)
 
+    bad_pitch = Features(
+        np.zeros((raw_pitch.nframes, 2)), raw_pitch.times)
+    with pytest.raises(ValueError) as err:
+        post_processor.process(bad_pitch)
+    assert 'No voiced frames' in str(err.value)
+
+    bad_pitch = Features(
+        np.random.random((raw_pitch.nframes, 2)), raw_pitch.times)
+    bad_pitch.data[:, 1] = -bad_pitch.data[:, 1]
+    with pytest.raises(ValueError) as err:
+        post_processor.process(bad_pitch)
+    assert 'Not all pitch values are positive' in str(err.value)
+
 
 @pytest.mark.parametrize('options', [
     (True, True, True, True),
@@ -109,7 +123,7 @@ def test_post_pitch(raw_pitch):
     (False, False, True, True),
     (False, False, False, False)])
 def test_post_pitch_output(raw_pitch, options):
-    p = PitchPostProcessor(
+    p = CrepePitchPostProcessor(
         add_pov_feature=options[0],
         add_normalized_log_pitch=options[1],
         add_delta_pitch=options[2],
@@ -121,8 +135,7 @@ def test_post_pitch_output(raw_pitch, options):
         assert d.shape == (raw_pitch.shape[0], sum(options))
         assert d.shape[1] == sum(options)
         assert np.array_equal(raw_pitch.times, d.times)
-        assert d.times.shape[1] == 2
-    else:  # all False not supported by Kaldi
+    else:  # all False not supported
         with pytest.raises(ValueError) as err:
             p.process(raw_pitch)
         assert 'must be True' in str(err.value)

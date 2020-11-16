@@ -10,6 +10,7 @@ The :class:`SlidingWindowCmvnPostProcessor` class is used to
 apply sliding window CMVN. Uses the Kaldi implementation:
 
     :class:`Features` --> SlidingWindowCmvnPostProcessor --> :class:`Features`
+
 Examples
 --------
 

@@ -1,4 +1,4 @@
-"""Test of the module shennong.features.ubm"""
+"""Test of the module shennong.features.processor.ubm"""
 
 import pytest
 import os

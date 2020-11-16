@@ -156,6 +156,11 @@ def parser_config(subparsers, epilog):
         help='Configure without pitch extraction')
 
     group.add_argument(
+        '--no-crepe-pitch', action='store_true',
+        help='Configure without pitch extraction with CREPE'
+    )
+
+    group.add_argument(
         '--no-cmvn', action='store_true',
         help='Configure without CMVN normalization')
 
@@ -167,11 +172,13 @@ def parser_config(subparsers, epilog):
         '--no-vtln', action='store_true',
         help='Configure without VTLN')
 
+
 def command_config(args):
     config = pipeline.get_default_config(
         args.features,
         to_yaml=True, yaml_commented=not args.no_comments,
         with_pitch=not args.no_pitch,
+        with_crepe_pitch=not args.no_crepe_pitch,
         with_cmvn=not args.no_cmvn,
         with_delta=not args.no_delta,
         with_vtln=not args.no_vtln)
