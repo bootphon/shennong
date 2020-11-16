@@ -230,7 +230,7 @@ class CrepePitchProcessor(FeaturesProcessor):
             audio = audio.resample(self.sample_rate)
 
         # tensorflow verbosity
-        if get_logger().level == logging.DEBUG:
+        if get_logger().level == logging.DEBUG:  # pragma: nocover
             os.environ["TF_CPP_MIN_LOG_LEVEL"] = "0"
             verbose = 2
         else:
@@ -356,8 +356,11 @@ class CrepePitchPostProcessor(PitchPostProcessor):
         data = crepe_pitch.data[:, 1].copy()
         nccf = []
         for y in crepe_pitch.data[:, 0]:
-            nccf.append(scipy.optimize.bisect(functools.partial(
-                lambda x, y: _nccf_to_pov(x)-y, y=y), 0, 1))
+            if y in [0, 1]:
+                nccf.append(y)
+            else:
+                nccf.append(scipy.optimize.bisect(functools.partial(
+                    lambda x, y: _nccf_to_pov(x)-y, y=y), 0, 1))
 
         first, last = np.where(~to_remove)[0][0], np.where(~to_remove)[0][-1]
         first_value, last_value = data[first], data[last]

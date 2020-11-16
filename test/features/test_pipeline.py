@@ -95,6 +95,12 @@ def test_config_bad(utterances_index):
         pipeline.extract_features(config, utterances_index)
     assert 'invalid keys in configuration' in str(err.value)
 
+    config = pipeline.get_default_config(
+        'mfcc', with_pitch=True, with_crepe_pitch=True)
+    with pytest.raises(ValueError) as err:
+        pipeline.extract_features(config, utterances_index)
+    assert 'both default pitch and CREPE pitch are requested' in str(err.value)
+
     config = pipeline.get_default_config('mfcc')
     del config['cmvn']['with_vad']
     parsed = pipeline._init_config(config)
@@ -110,6 +116,12 @@ def test_config_bad(utterances_index):
     del config['pitch']['postprocessing']
     c = pipeline._init_config(config)
     assert c['pitch']['postprocessing'] == {}
+
+    config = pipeline.get_default_config(
+        'mfcc', with_pitch=False, with_crepe_pitch=True)
+    del config['crepe_pitch']['postprocessing']
+    c = pipeline._init_config(config)
+    assert c['crepe_pitch']['postprocessing'] == {}
 
 
 def test_check_speakers(utterances_index, capsys):
@@ -222,6 +234,15 @@ def test_extract_features(utterances_index, features):
 
     config = pipeline.get_default_config(
         features, with_cmvn=False, with_pitch=True)
+    feats = pipeline.extract_features(config, utterances_index)
+    feat2 = feats[utterances_index[0][0]]
+    assert feat2.is_valid()
+    assert feat2.shape[0] == 140
+    assert feat2.shape[1] == feat1.shape[1] + 3
+
+    config = pipeline.get_default_config(
+        features, with_cmvn=False, with_pitch=False, with_crepe_pitch=True)
+    config['crepe_pitch']['model_capacity'] = 'tiny'
     feats = pipeline.extract_features(config, utterances_index)
     feat2 = feats[utterances_index[0][0]]
     assert feat2.is_valid()
