@@ -231,7 +231,7 @@ class DiagUbmProcessor(BaseProcessor):
     @seed.setter
     def seed(self, value):
         self._seed = int(value)
-        self._rng = np.random.default_rng(self._seed)
+        self._rng = np.random.RandomState(seed=self._seed)
 
     @classmethod
     def load(cls, path):
@@ -306,8 +306,8 @@ class DiagUbmProcessor(BaseProcessor):
                     feats.row(num_read-1).copy_row_from_mat_(this_feats, t)
                 else:
                     keep_prob = self.num_frames / num_read
-                    if self._rng.random() <= keep_prob:
-                        feats.row(self._rng.integers(0, self.num_frames)
+                    if self._rng.random_sample() <= keep_prob:
+                        feats.row(self._rng.randint(0, self.num_frames + 1)
                                   ).copy_row_from_mat_(this_feats, t)
         if num_read < self.num_frames:
             self._log.debug(f'Number of frames read {num_read} was less than'
