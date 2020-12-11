@@ -14,14 +14,14 @@ as post-processing pipelines. It relies on [Kaldi](https://kaldi-asr.org) for
 most of the algorithms while providing simple to use **Python API** and
 **command line interface**.
 
-* See the complete documentation at https://docs.syntheticlearner.net/shennong.
+* See the complete documentation at https://docs.cognitive-ml.fr/shennong.
 
 * See the detailed installation procedure
-  [here](https://docs.syntheticlearner.net/shennong/installation.html). On
+  [here](https://docs.cognitive-ml.fr/shennong/installation.html). On
   Linux, simply have a:
 
         conda install -c coml shennong
 
 * Implementented models include filterbanks, MFCC, PLP, bottleneck, pitch,
   delta, CMVN, VAD. See the complete list of available features
-  [here](https://docs.syntheticlearner.net/shennong/intro_features.html).
+  [here](https://docs.cognitive-ml.fr/shennong/intro_features.html).

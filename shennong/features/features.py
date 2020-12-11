@@ -470,7 +470,7 @@ class FeaturesCollection(dict):
         ----------
         index : dict
             A mapping with, for each item in this collection, the
-            sub-collection they belong to in the partitino. We must
+            sub-collection they belong to in the partition. We must
             have ``index.keys() == self.keys()``.
 
         Returns
