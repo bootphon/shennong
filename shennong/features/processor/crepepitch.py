@@ -250,12 +250,14 @@ class CrepePitchProcessor(FeaturesProcessor):
         hop_length = np.round(self.sample_rate * self.frame_shift).astype(int)
         nsamples = 1 + int((audio.shape[0] - self.frame_length *
                             self.sample_rate) / hop_length)
-
         # scipy method issues warnings we want to inhibit
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', category=FutureWarning)
             data = scipy.signal.resample(
                 np.array([confidence, frequency]).T, nsamples)
+            # hack needed beacause resample confidence
+            data[data[:, 0] < 1e-2, 0] = 0
+            data[data[:, 0] > 1, 0] = 1
 
         return Features(
             data, self.times(data.shape[0]), properties=self.get_properties())
@@ -352,21 +354,13 @@ class CrepePitchPostProcessor(PitchPostProcessor):
         if np.all(to_remove):
             raise ValueError('No voiced frames')
 
-        # Converts POV into NCCF
         data = crepe_pitch.data[:, 1].copy()
-        nccf = []
-        for y in crepe_pitch.data[:, 0]:
-            if y in [0, 1]:
-                nccf.append(y)
-            else:
-                nccf.append(scipy.optimize.bisect(functools.partial(
-                    lambda x, y: _nccf_to_pov(x)-y, y=y), 0, 1))
-
-        first, last = np.where(~to_remove)[0][0], np.where(~to_remove)[0][-1]
+        indexes_to_keep = np.where(~to_remove)[0]
+        first, last = indexes_to_keep[0], indexes_to_keep[-1]
         first_value, last_value = data[first], data[last]
 
         interp = scipy.interpolate.interp1d(
-            np.where(~to_remove)[0], data[~to_remove],
+            indexes_to_keep, data[indexes_to_keep],
             fill_value='extrapolate')
         data[to_remove] = interp(np.where(to_remove)[0])
         data[:first] = first_value
@@ -375,6 +369,15 @@ class CrepePitchPostProcessor(PitchPostProcessor):
         if not np.all(data > 0):
             raise ValueError('Not all pitch values are positive: issue with \
                 extracted pitch or interpolation')
+
+        # Converts POV into NCCF
+        nccf = []
+        for y in crepe_pitch.data[:, 0]:
+            if y in [0, 1]:
+                nccf.append(y)
+            else:
+                nccf.append(scipy.optimize.bisect(functools.partial(
+                    lambda x, y: _nccf_to_pov(x)-y, y=y), 0, 1))
 
         return super(CrepePitchPostProcessor, self).process(
             Features(np.vstack((nccf, data)).T,
