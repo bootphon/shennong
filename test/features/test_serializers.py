@@ -4,10 +4,12 @@
 
 import getpass
 import json
-import numpy as np
 import os
-import pytest
 import shutil
+import warnings
+
+import numpy as np
+import pytest
 
 from shennong.features import Features, FeaturesCollection
 from shennong.features.processor.mfcc import MfccProcessor
@@ -106,9 +108,13 @@ def test_load_invalid(tmpdir, mfcc_col):
         data['mfcc']['attributes']['_times']['__ndarray__'][2:])
     open(f, 'w').write(json.dumps(data))
 
-    with pytest.raises(ValueError) as err:
-        h.load()
-    assert 'features not valid in file' in str(err.value)
+    with warnings.catch_warnings():
+        # warns that 2 lines are missing...
+        warnings.filterwarnings('ignore')
+
+        with pytest.raises(ValueError) as err:
+            h.load()
+        assert 'features not valid in file' in str(err.value)
 
 
 def test_save_exists(tmpdir, mfcc_col):

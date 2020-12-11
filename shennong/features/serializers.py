@@ -333,6 +333,12 @@ class MatlabSerializer(FeaturesSerializer):
 
 class JsonSerializer(FeaturesSerializer):
     """Saves and loads features to/from the JSON format"""
+    def __init__(self, cls, filename):
+        super().__init__(cls, filename)
+
+        # disable the warning 'numpy serialization is experimental'
+        json_tricks.NumpyEncoder.SHOW_SCALAR_WARNING = False
+
     def _save(self, features):
         self._log.info('writing %s', self.filename)
         open(self.filename, 'wt').write(json_tricks.dumps(features, indent=4))
