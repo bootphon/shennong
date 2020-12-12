@@ -2,7 +2,8 @@
 
 .. note::
 
-   For now, only WAV files are supported for input/output.
+   All audio files supported by sox are supported (wav, mp3, ogg, etc...). See
+   http://sox.sourceforge.net/Docs/Features for details.
 
 The :class:`Audio` class allows to load, save and manipulate
 multichannels audio data. The underlying audio samples can be of one
@@ -65,8 +66,8 @@ file as an :class:`Audio` instance:
 True
 >>> os.remove('stereo.wav')
 
-Extract mono signal from a stereo one (`left` and `right` are
-instances of :class:`Audio` as well):
+Extract mono signal from a stereo one (`left` and `right` are instances of
+:class:`Audio` as well):
 
 >>> left = audio.channel(0)
 >>> right = audio.channel(1)
@@ -83,15 +84,13 @@ import functools
 import logging
 import os
 import re
-import shlex
 import subprocess
-import tempfile
 import warnings
 import wave
 
 import numpy as np
 import scipy.signal
-import scipy.io.wavfile
+import sox
 
 
 class Audio:
@@ -122,11 +121,10 @@ class Audio:
     """A structure to store wavs metadata, see :meth:`Audio.scan`"""
 
     # find the sox and soxi executables (None if not found)
-    _sox_binary = distutils.spawn.find_executable('sox')
     _soxi_binary = distutils.spawn.find_executable('soxi')
 
     def __init__(self, data, sample_rate, validate=True):
-        self._sample_rate = sample_rate
+        self._sample_rate = float(sample_rate)
 
         # force shape (n, 1) to be (n,)
         self._data = (
@@ -178,8 +176,13 @@ class Audio:
         """The numeric type of samples"""
         return self.data.dtype
 
+    @property
+    def precision(self):
+        """The number of bits per sample"""
+        return self.dtype.itemsize * 8
+
     @classmethod
-    def scan(cls, wav_file):
+    def scan(cls, filename):
         """Returns the audio metadata without loading the file
 
         Returns a Python namespace (a named tuple) `metadata` with the
@@ -196,8 +199,8 @@ class Audio:
 
         Parameters
         ----------
-        wav_file : str
-            Filename of the WAV ton wich to retrieve metadata, must be
+        filename : str
+            Audio filename on which to retrieve metadata, must be
             an existing file
 
         Returns
@@ -208,24 +211,23 @@ class Audio:
         Raises
         ------
         ValueError
-            If the `wav_file` is not a valid WAV file.
+            If the `filename` is not a valid audio file that sox can process.
 
         """
-        if not os.path.isfile(wav_file):
-            raise ValueError('{}: file not found'.format(wav_file))
+        filename = str(filename)
+        if not os.path.isfile(filename):
+            raise ValueError('{}: file not found'.format(filename))
 
-        cls._log.debug('scanning %s', wav_file)
+        cls._log.debug('scanning %s', filename)
 
         try:
-            return cls._scan_wave(wav_file)
-        except ValueError as err:  # wav may contain floating points samples
-            if cls._soxi_binary:
-                return cls._scan_sox(wav_file)
-            raise err  # pragma: nocover
+            return cls._scan_wave(filename)
+        except ValueError:  # not a wav, or wav with floats
+            return cls._scan_sox(filename)
 
     @classmethod
-    def _scan_sox(cls, wav_file):
-        """Scan the `wav_file` using soxi
+    def _scan_sox(cls, filename):
+        """Scan the `filename` using soxi
 
         Support for floating point formats, but relies on external
         `soxi` program.
@@ -233,7 +235,7 @@ class Audio:
         """
         try:
             soxi = subprocess.run(
-                [cls._soxi_binary, wav_file], check=True,
+                [cls._soxi_binary, filename], check=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 universal_newlines=True).stdout.split('\n')
@@ -249,20 +251,20 @@ class Audio:
             return cls._metawav(nchannels, sample_rate, nsamples, duration)
         except subprocess.CalledProcessError:
             raise ValueError(
-                f'cannot read file {wav_file}: is it a wav?') from None
+                f'cannot read file {filename}: is it an audio file?') from None
         except TypeError:  # pragma: nocover
             raise ValueError(
-                f'cannot read file {wav_file}: failed to parse data') from None
+                f'cannot read file {filename}: failed to parse data') from None
 
     @classmethod
-    def _scan_wave(cls, wav_file):
-        """Scan the `wav_file` using soxi
+    def _scan_wave(cls, filename):
+        """Scan the `filename` using Python wave module
 
-        Support only for integer formats but efficient implementation.
+        Support only wav file in integer formats but efficient implementation.
 
         """
         try:
-            with wave.open(wav_file, 'r') as fwav:
+            with wave.open(filename, 'r') as fwav:
                 return cls._metawav(
                     fwav.getnchannels(),
                     fwav.getframerate(),
@@ -270,7 +272,7 @@ class Audio:
                     fwav.getnframes() / fwav.getframerate())
         except wave.Error:
             raise ValueError(
-                '{}: cannot read file, is it a wav?'.format(wav_file))
+                '{}: cannot read file, is it a wav?'.format(filename))
 
     # we use a memoize cache because Audio.load is often called to
     # load only segments of a file. So the cache avoid to reload again
@@ -279,47 +281,54 @@ class Audio:
     # ordered.
     @classmethod
     @functools.lru_cache(maxsize=2)
-    def load(cls, wav_file):
+    def load(cls, filename):
         """Creates an `Audio` instance from a WAV file
 
         Parameters
         ----------
-        wav_file : str
-            Filename of the WAV to load, must be an existing file
+        filename : str
+            Path to the audio file to load, must be an existing file
 
         Returns
         -------
         audio : Audio
-            The Audio instance initialized from the `wav_file`
+            The Audio instance initialized from the `filename`
 
         Raises
         ------
         ValueError
-            If the `wav_file` is not a valid WAV file.
+            If the `filename` is not a valid WAV file.
 
         """
-        if not os.path.isfile(wav_file):
-            raise ValueError('{}: file not found'.format(wav_file))
+        filename = str(filename)
+        if not os.path.isfile(filename):
+            raise ValueError('{}: file not found'.format(filename))
 
         try:
             # load the audio signal
-            cls._log.debug('loading %s', wav_file)
-            sample_rate, data = scipy.io.wavfile.read(wav_file)
+            cls._log.debug('loading %s', filename)
+            sample_rate = sox.file_info.sample_rate(filename)
+            precision = sox.file_info.bitdepth(filename)
+
+            tfm = sox.Transformer()
+            tfm.set_output_format(bits=precision)
+
+            data = tfm.build_array(input_filepath=filename)
 
             # build and return the Audio instance, we assume the
             # underlying audio samples are valid
             return Audio(data, sample_rate, validate=False)
-        except ValueError:
+        except (sox.core.SoxiError, sox.core.SoxError):
             raise ValueError(
-                '{}: cannot read file, is it a wav?'.format(wav_file))
+                '{}: cannot read file, is it an audio file?'.format(filename))
 
-    def save(self, wav_file):
-        """Saves the audio data to a `wav_file`
+    def save(self, filename):
+        """Saves the audio data to a `filename`
 
         Parameters
         ----------
-        wav_file : str
-            The WAV file to create
+        filename : str
+            The audio file to create, format is guessed from extension
 
         Raises
         ------
@@ -327,11 +336,21 @@ class Audio:
             If the file already exists or is unreachable
 
         """
-        if os.path.isfile(wav_file):
+        filename = str(filename)
+        if os.path.isfile(filename):
             raise ValueError(
-                '{}: file already exists'.format(wav_file))
+                '{}: file already exists'.format(filename))
 
-        scipy.io.wavfile.write(wav_file, self.sample_rate, self.data)
+        try:
+            tfm = sox.Transformer()
+            tfm.set_output_format(bits=self.precision)
+
+            tfm.build_file(
+                input_array=self.data, sample_rate_in=self.sample_rate,
+                output_filepath=filename)
+        except sox.core.SoxError:
+            raise ValueError(
+                f'failed to write {filename}')
 
     def channel(self, index):
         """Builds a mono signal from a multi-channel one
@@ -399,30 +418,21 @@ class Audio:
             raise ValueError(
                 'backend must be sox or scipy, it is {}'.format(backend))
 
-        if backend == 'sox' and self._sox_binary:
+        if backend == 'sox':
             return self._resample_sox(sample_rate)
         return self._resample_scipy(sample_rate)
 
     def _resample_sox(self, sample_rate):
         """Resample the audio signal to the given `sample_rate` using sox"""
-        # sox works directly with audio files so we need to write it
-        # to disk and load it back after resampling
-        with tempfile.TemporaryDirectory() as tmp:
-            orig = os.path.join(tmp, 'orig.wav')
-            dest = os.path.join(tmp, 'dest.wav')
-            self.save(orig)
+        try:
+            tfm = sox.Transformer()
+            tfm.set_output_format(rate=sample_rate)
+            data = tfm.build_array(
+                input_array=self.data, sample_rate_in=self.sample_rate)
 
-            command = shlex.split(
-                f'{self._sox_binary} -D -V2 {orig} {dest} '
-                f'rate -h {sample_rate}')
-
-            try:
-                subprocess.run(command, check=True)
-            except subprocess.CalledProcessError:  # pragma: nocover
-                raise ValueError(
-                    f'sox failed to resample audio') from None
-
-            return Audio.load(dest)
+            return Audio(data, sample_rate, validate=False)
+        except (sox.core.SoxError, ValueError):
+            raise ValueError(f'resampling at {sample_rate} failed!')
 
     def _resample_scipy(self, sample_rate):
         """Resample the audio signal to the given `sample_rate` using scipy"""

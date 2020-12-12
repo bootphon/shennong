@@ -19,7 +19,7 @@ def test_scan(wav_file, audio):
 def test_scan_bad():
     with pytest.raises(ValueError) as err:
         Audio.scan(__file__)
-    assert 'is it a wav?' in str(err.value)
+    assert 'is it an audio file?' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         Audio.scan('/path/to/some/lost/place')
@@ -38,7 +38,7 @@ def test_load(audio):
 def test_load_notwav():
     with pytest.raises(ValueError) as err:
         Audio.load(__file__)
-    assert 'is it a wav?' in str(err.value)
+    assert 'is it an audio file?' in str(err.value)
 
 
 def test_load_badfile():
@@ -67,13 +67,22 @@ def test_save(tmpdir, audio):
     audio = Audio(signal, 1000)
     audio.save(p)
     meta = Audio.scan(p)
-    assert meta.nsamples == 1000
     assert meta.nchannels == 1
+    assert meta.nsamples == 1000
 
     audio2 = Audio.load(p)
+    assert audio2.nchannels == 1
+    assert audio2.nsamples == 1000
     assert audio2 == audio
     assert audio2.data.min() == -1.0
     assert audio2.data.max() == 1.0
+
+
+def test_save_bad(tmpdir, audio):
+    p = str(tmpdir.join('test.notavalidextension'))
+    with pytest.raises(ValueError) as err:
+        audio.save(p)
+    assert 'failed to write' in str(err.value)
 
 
 def test_equal(audio):
@@ -236,6 +245,10 @@ def test_resample_bad(audio):
     with pytest.raises(ValueError) as err:
         audio.resample(5, backend='a_bad_one')
     assert 'backend must be sox or scipy, it is' in str(err.value)
+
+    with pytest.raises(ValueError) as err:
+        audio.resample(0)
+    assert 'resampling at 0 failed' in str(err.value)
 
 
 def test_compare_kaldi(wav_file):

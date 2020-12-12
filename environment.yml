@@ -1,5 +1,6 @@
 name: shennong
 channels:
+  - conda-forge
   - coml
 dependencies:
   - python>=3.6
@@ -20,9 +21,10 @@ dependencies:
   - pytest-runner
   - pyyaml
   - scipy
-  - sox
+  - sox  # sox binary
   - sphinx
   - sphinx_rtd_theme
   - pip:
       - json-tricks==3.15.*
       - ninja
+      - sox  # pysox
