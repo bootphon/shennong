@@ -79,12 +79,9 @@ True
 """
 
 import collections
-import distutils.spawn
 import functools
 import logging
 import os
-import re
-import subprocess
 import warnings
 import wave
 
@@ -119,9 +116,6 @@ class Audio:
     _metawav = collections.namedtuple(
         '_metawav', 'nchannels sample_rate nsamples duration')
     """A structure to store wavs metadata, see :meth:`Audio.scan`"""
-
-    # find the sox and soxi executables (None if not found)
-    _soxi_binary = distutils.spawn.find_executable('soxi')
 
     def __init__(self, data, sample_rate, validate=True):
         self._sample_rate = float(sample_rate)
@@ -234,27 +228,15 @@ class Audio:
 
         """
         try:
-            soxi = subprocess.run(
-                [cls._soxi_binary, filename], check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                universal_newlines=True).stdout.split('\n')
-
-            nchannels = int(
-                re.search(r'Channels\s+:\s([0-9]+)', soxi[2]).group(1))
-            sample_rate = float(
-                re.search(r'Rate\s+:\s([0-9]+)', soxi[3]).group(1))
-            nsamples = int(
-                re.search(r'Duration.*?=\s([0-9]+)', soxi[5]).group(1))
-            duration = nsamples / sample_rate
+            nchannels = sox.file_info.channels(filename)
+            sample_rate = sox.file_info.sample_rate(filename)
+            nsamples = sox.file_info.num_samples(filename)
+            duration = nsamples / sample_rate if nsamples else None
 
             return cls._metawav(nchannels, sample_rate, nsamples, duration)
-        except subprocess.CalledProcessError:
+        except sox.core.SoxiError as err:
             raise ValueError(
-                f'cannot read file {filename}: is it an audio file?') from None
-        except TypeError:  # pragma: nocover
-            raise ValueError(
-                f'cannot read file {filename}: failed to parse data') from None
+                f'cannot read file {filename}: {err}') from None
 
     @classmethod
     def _scan_wave(cls, filename):
@@ -272,7 +254,7 @@ class Audio:
                     fwav.getnframes() / fwav.getframerate())
         except wave.Error:
             raise ValueError(
-                '{}: cannot read file, is it a wav?'.format(filename))
+                f'{filename}: cannot read file, is it a wav?')
 
     # we use a memoize cache because Audio.load is often called to
     # load only segments of a file. So the cache avoid to reload again
@@ -318,9 +300,8 @@ class Audio:
             # build and return the Audio instance, we assume the
             # underlying audio samples are valid
             return Audio(data, sample_rate, validate=False)
-        except (sox.core.SoxiError, sox.core.SoxError):
-            raise ValueError(
-                '{}: cannot read file, is it an audio file?'.format(filename))
+        except (sox.core.SoxiError, sox.core.SoxError) as err:
+            raise ValueError(f'{filename}: cannot read file, {err}') from None
 
     def save(self, filename):
         """Saves the audio data to a `filename`

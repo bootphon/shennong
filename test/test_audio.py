@@ -19,7 +19,7 @@ def test_scan(wav_file, audio):
 def test_scan_bad():
     with pytest.raises(ValueError) as err:
         Audio.scan(__file__)
-    assert 'is it an audio file?' in str(err.value)
+    assert 'SoXI failed' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         Audio.scan('/path/to/some/lost/place')
@@ -38,7 +38,7 @@ def test_load(audio):
 def test_load_notwav():
     with pytest.raises(ValueError) as err:
         Audio.load(__file__)
-    assert 'is it an audio file?' in str(err.value)
+    assert 'SoXI failed' in str(err.value)
 
 
 def test_load_badfile():
