@@ -17,7 +17,7 @@ __version__ = '0.1.1'
 
 def url():
     """Return the URL to the shennong website"""
-    return 'https://coml.lscp.ens.fr/docs/shennong'
+    return 'https://docs.cognitive-ml.fr/shennong'
 
 
 def version(type=str, full=False):
@@ -50,7 +50,7 @@ def version_long():
     """Returns a long description with version, copyrigth and licence info"""
     return textwrap.dedent('''\
     shennong-{}
-    copyright 2018-{} INRIA
+    copyright 2018-{} Inria
     see documentation at {}
     licence GPL3: this is free software, see the source for copying conditions
     '''.format(version(), datetime.date.today().year, url()))
