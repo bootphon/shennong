@@ -86,6 +86,7 @@ import warnings
 import wave
 
 import numpy as np
+import scipy.io.wavfile
 import scipy.signal
 import sox
 
@@ -118,15 +119,14 @@ class Audio:
     """A structure to store wavs metadata, see :meth:`Audio.scan`"""
 
     def __init__(self, data, sample_rate, validate=True):
-        self._sample_rate = float(sample_rate)
+        self._sample_rate = int(sample_rate)
 
         # force shape (n, 1) to be (n,)
         self._data = (
             data[:, 0] if data.ndim > 1 and data.shape[1] == 1 else data)
 
         if validate and not self.is_valid():
-            raise ValueError(
-                'invalid audio data for type {}'.format(self.dtype))
+            raise ValueError(f'invalid audio data for type {self.dtype}')
 
     def __eq__(self, other):
         if self.sample_rate != other.sample_rate:
@@ -210,7 +210,7 @@ class Audio:
         """
         filename = str(filename)
         if not os.path.isfile(filename):
-            raise ValueError('{}: file not found'.format(filename))
+            raise ValueError('{filename}: file not found')
 
         cls._log.debug('scanning %s', filename)
 
@@ -235,8 +235,7 @@ class Audio:
 
             return cls._metawav(nchannels, sample_rate, nsamples, duration)
         except sox.core.SoxiError as err:
-            raise ValueError(
-                f'cannot read file {filename}: {err}') from None
+            raise ValueError(f'cannot read file {filename}: {err}') from None
 
     @classmethod
     def _scan_wave(cls, filename):
@@ -253,8 +252,7 @@ class Audio:
                     fwav.getnframes(),
                     fwav.getnframes() / fwav.getframerate())
         except wave.Error:
-            raise ValueError(
-                f'{filename}: cannot read file, is it a wav?')
+            raise ValueError(f'{filename}: cannot read file, is it a wav?')
 
     # we use a memoize cache because Audio.load is often called to
     # load only segments of a file. So the cache avoid to reload again
@@ -284,23 +282,14 @@ class Audio:
         """
         filename = str(filename)
         if not os.path.isfile(filename):
-            raise ValueError('{}: file not found'.format(filename))
+            raise ValueError(f'{filename}: file not found')
 
         try:
             # load the audio signal
             cls._log.debug('loading %s', filename)
-            sample_rate = sox.file_info.sample_rate(filename)
-            precision = sox.file_info.bitdepth(filename)
-
-            tfm = sox.Transformer()
-            tfm.set_output_format(bits=precision)
-
-            data = tfm.build_array(input_filepath=filename)
-
-            # build and return the Audio instance, we assume the
-            # underlying audio samples are valid
-            return Audio(data, sample_rate, validate=False)
-        except (sox.core.SoxiError, sox.core.SoxError) as err:
+            rate, data = scipy.io.wavfile.read(filename)
+            return Audio(data, rate, validate=False)
+        except ValueError as err:
             raise ValueError(f'{filename}: cannot read file, {err}') from None
 
     def save(self, filename):
@@ -313,25 +302,18 @@ class Audio:
 
         Raises
         ------
-        ValueError, FileNotFoundError, PermissionError
+        ValueError
             If the file already exists or is unreachable
 
         """
         filename = str(filename)
         if os.path.isfile(filename):
-            raise ValueError(
-                '{}: file already exists'.format(filename))
+            raise ValueError(f'{filename}: file already exists')
 
         try:
-            tfm = sox.Transformer()
-            tfm.set_output_format(bits=self.precision)
-
-            tfm.build_file(
-                input_array=self.data, sample_rate_in=self.sample_rate,
-                output_filepath=filename)
-        except sox.core.SoxError:
-            raise ValueError(
-                f'failed to write {filename}')
+            scipy.io.wavfile.write(filename, self.sample_rate, self.data)
+        except ValueError as err:  # pragma: nocover
+            raise ValueError(f'{filename}: cannot write file, {err}') from None
 
     def channel(self, index):
         """Builds a mono signal from a multi-channel one
@@ -357,9 +339,8 @@ class Audio:
 
         if index >= self.nchannels:
             raise ValueError(
-                'not enough channels ({}) to extract the index {} '
-                '(indices count starts at 0)'.format(
-                    self.nchannels, index))
+                f'not enough channels ({self.nchannels}) to extract '
+                f'the index {index} (indices count starts at 0)')
 
         return Audio(self.data[:, index], self.sample_rate)
 
@@ -396,8 +377,7 @@ class Audio:
 
         """
         if backend not in ('sox', 'scipy'):
-            raise ValueError(
-                'backend must be sox or scipy, it is {}'.format(backend))
+            raise ValueError(f'backend must be sox or scipy, it is {backend}')
 
         if backend == 'sox':
             return self._resample_sox(sample_rate)
@@ -499,7 +479,7 @@ class Audio:
 
         # make sure we support the requested dtype
         if not self._is_valid_dtype(dtype):
-            raise ValueError('unsupported audio data type: {}'.format(dtype))
+            raise ValueError(f'unsupported audio data type: {dtype}')
 
         # starting from int16
         if self.dtype is np.dtype(np.int16):
