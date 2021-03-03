@@ -5,7 +5,7 @@ import os
 import pytest
 import yaml
 
-import shennong.features.pipeline as pipeline
+import shennong.pipeline as pipeline
 import shennong.utils as utils
 from shennong.audio import Audio
 from shennong.features import FeaturesCollection

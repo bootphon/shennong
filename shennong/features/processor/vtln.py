@@ -28,7 +28,7 @@ Those warps can be passed individually in the `process` method of
 
 The features can also be warped directly via the pipeline.
 
->>> from shennong.features.pipeline import get_default_config, extract_features
+>>> from shennong.pipeline import get_default_config, extract_features
 >>> config = get_default_config('mfcc', with_vtln=True)
 >>> config['vtln']['ubm']['num_gauss'] = 4
 >>> warped_features = extract_features(config, utterances)
@@ -50,7 +50,7 @@ import kaldi.matrix.functions
 import kaldi.util.io
 import kaldi.transform
 
-import shennong.features.pipeline as pipeline
+import shennong.pipeline as pipeline
 from shennong.base import BaseProcessor
 from shennong.utils import get_logger
 from shennong.features.features import FeaturesCollection, Features
@@ -576,14 +576,18 @@ class VtlnProcessor(BaseProcessor):
             dim, num_classes, default_class)
 
         cmvn_config = self.features.pop('sliding_window_cmvn', None)
-        get_logger(level='error')  # disable logger for features extraction
+        # TODO here this is done on all the warp but not parametrized !
+        # get_logger(level='error')  # disable logger for features extraction
         raw_mfcc = pipeline.extract_features(self.features, utterances)
+
         # Compute VAD decision
+        self._log.debug('... computing VAD decision')
         vad = {}
         for utt, mfcc in raw_mfcc.items():
             this_vad = VadPostProcessor(**ubm.vad).process(mfcc)
             vad[utt] = this_vad.data.reshape(
                 (this_vad.shape[0],)).astype(bool)
+
         # Apply cmvn sliding
         orig_features = FeaturesCollection()
         if cmvn_config is not None:
@@ -606,6 +610,7 @@ class VtlnProcessor(BaseProcessor):
             {utt: feats.copy(subsample=self.subsample)
              for utt, feats in featsub_unwarped.items()})
         for c in range(num_classes):
+            self._log.debug('... base transform %s/%s', c+1, num_classes)
             this_warp = self.min_warp + c*self.warp_step
             featsub_warped = pipeline.extract_features_warp(
                 self.features, utterances, this_warp,
@@ -629,6 +634,7 @@ class VtlnProcessor(BaseProcessor):
             ubm, orig_features, posteriors, utt2speak)
 
         for i in range(self.num_iters):
+            self._log.debug('... iteration %s/%s', i+1, self.num_iters)
             # Transform the features
             features = FeaturesCollection()
             for utt, feats in orig_features.items():

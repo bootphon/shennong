@@ -2,6 +2,12 @@
 
 Version numbers follow [semantic versioning](https://semver.org).
 
+## not yet released
+
+### improvements
+
+* renamed `shennong.features.pipeline` to `shennong.pipeline`.
+
 ## shennong-0.1.1
 
 ### bugfixes

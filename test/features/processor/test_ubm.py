@@ -4,7 +4,7 @@ import pytest
 import os
 import numpy as np
 
-import shennong.features.pipeline as pipeline
+import shennong.pipeline as pipeline
 from shennong.features.postprocessor.vad import VadPostProcessor
 from shennong.features.processor.ubm import DiagUbmProcessor
 from shennong.features.features import Features, FeaturesCollection

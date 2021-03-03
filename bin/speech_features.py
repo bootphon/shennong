@@ -116,7 +116,7 @@ import argparse
 import os
 import sys
 
-import shennong.features.pipeline as pipeline
+import shennong.pipeline as pipeline
 import shennong.utils as utils
 from shennong import url, version_long
 from shennong.features.serializers import supported_extensions

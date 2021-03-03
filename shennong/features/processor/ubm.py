@@ -48,7 +48,7 @@ from kaldi.gmm import GmmUpdateFlags
 
 from shennong.base import BaseProcessor
 from shennong.utils import get_logger
-from shennong.features.pipeline import get_default_config, extract_features
+from shennong.pipeline import get_default_config, extract_features
 from shennong.features.postprocessor.vad import VadPostProcessor
 from shennong.features.postprocessor.cmvn import SlidingWindowCmvnPostProcessor
 from shennong.features.features import FeaturesCollection

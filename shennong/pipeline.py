@@ -11,7 +11,7 @@ returns the extracted features as an instance of
 Examples
 --------
 
->>> from shennong.features.pipeline import get_default_config, extract_features
+>>> from shennong.pipeline import get_default_config, extract_features
 
 Generates a configuration for MFCC extraction (including CMVN
 normalization by speaker, delta / delta-delta and pitch). The
@@ -94,10 +94,15 @@ def valid_features():
     return _Manager._valid_features
 
 
-def get_default_config(features, to_yaml=False, yaml_commented=True,
-                       with_pitch=True, with_cmvn=True,
-                       with_sliding_window_cmvn=False, with_delta=True,
-                       with_vtln=False):
+def get_default_config(
+        features,
+        to_yaml=False,
+        yaml_commented=True,
+        with_pitch=True,
+        with_cmvn=True,
+        with_sliding_window_cmvn=False,
+        with_delta=True,
+        with_vtln=False):
     """Returns the default configuration for the specified pipeline
 
     The pipeline is specified with the main `features` it computes and
