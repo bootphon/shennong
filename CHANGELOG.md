@@ -6,6 +6,7 @@ Version numbers follow [semantic versioning](https://semver.org).
 
 ### improvements
 
+* simplified config for VTLN, with default features parameters
 * renamed `shennong.features.pipeline` to `shennong.pipeline`.
 
 ## shennong-0.1.1

@@ -29,7 +29,7 @@ Those warps can be passed individually in the `process` method of
 The features can also be warped directly via the pipeline.
 
 >>> from shennong.pipeline import get_default_config, extract_features
->>> config = get_default_config('mfcc', with_vtln=True)
+>>> config = get_default_config('mfcc', with_vtln='simple')
 >>> config['vtln']['ubm']['num_gauss'] = 4
 >>> warped_features = extract_features(config, utterances)
 
@@ -77,7 +77,7 @@ class VtlnProcessor(BaseProcessor):
         self.njobs = njobs
         self.by_speaker = by_speaker
 
-        if features is None:
+        if features in (None, 'default'):
             config = pipeline.get_default_config(
                 'mfcc', with_pitch=False, with_cmvn=False,
                 with_sliding_window_cmvn=True, with_delta=True)
@@ -286,10 +286,9 @@ class VtlnProcessor(BaseProcessor):
 
         return None
 
-    def compute_mapping_transform(self, feats_untransformed,
-                                  feats_transformed,
-                                  class_idx, warp,
-                                  weights=None):
+    def compute_mapping_transform(
+            self, feats_untransformed, feats_transformed,
+            class_idx, warp, weights=None):
         """"Set one of the transforms in lvtln to the minimum-squared-error solution
         to mapping feats_untransformed to feats_transformed; posteriors may
         optionally be used to downweight/remove silence.
@@ -509,11 +508,13 @@ class VtlnProcessor(BaseProcessor):
                 # Compute the transform
                 transform = kaldi.matrix.Matrix(
                     self.lvtln.dim(), self.lvtln.dim()+1)
-                class_idx, logdet_out, objf_impr, count = \
-                    self.lvtln.compute_transform(spk_stats,
-                                                 self.norm_type,
-                                                 self.logdet_scale,
-                                                 transform)
+                class_idx, _, objf_impr, count = \
+                    self.lvtln.compute_transform(
+                        spk_stats,
+                        self.norm_type,
+                        self.logdet_scale,
+                        transform)
+
                 class_counts[class_idx] += 1
                 transforms[utt] = transform
                 warps[utt] = self.lvtln.get_warp(class_idx)
@@ -646,12 +647,12 @@ class VtlnProcessor(BaseProcessor):
                 features[utt] = Features(data, feats.times, feats.properties)
 
             # Update the model
-            self._log.info(f'Updating model on pass {i+1}')
+            self._log.info('Updating model on pass %s', i+1)
             gmm_accs = ubm.accumulate(features)
             ubm.estimate(gmm_accs)
 
             # Now update the LVTLN transforms (and warps)
-            self._log.info(f'Re-estimating LVTLN transforms on pass {i+1}')
+            self._log.info('Re-estimating LVTLN transforms on pass %s', i+1)
             posteriors = ubm.gaussian_selection_to_post(features)
             self.transforms, self.warps = self.estimate(
                 ubm, orig_features, posteriors, utt2speak)

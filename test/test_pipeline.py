@@ -95,6 +95,10 @@ def test_config_bad(utterances_index):
         pipeline.extract_features(config, utterances_index)
     assert 'invalid keys in configuration' in str(err.value)
 
+    with pytest.raises(ValueError) as err:
+        pipeline.get_default_config('mfcc', with_vtln=True)
+    assert 'must be "simple" or "full" but is "True"' in str(err.value)
+
     config = pipeline.get_default_config('mfcc')
     del config['cmvn']['with_vad']
     parsed = pipeline._init_config(config)
@@ -264,9 +268,10 @@ def test_sliding_window_cmvn(utterances_index):
     assert feat2.shape[1] == 13
 
 
-def test_extract_features_with_vtln(utterances_index):
+@pytest.mark.parametrize('with_vtln', ['simple', 'full'])
+def test_extract_features_with_vtln(utterances_index, with_vtln):
     config = pipeline.get_default_config(
-        'mfcc', with_pitch=False, with_vtln=True, with_delta=False)
+        'mfcc', with_pitch=False, with_vtln=with_vtln, with_delta=False)
     config['vtln']['ubm']['num_gauss'] = 4
     config['vtln']['ubm']['num_iters'] = 1
     config['vtln']['ubm']['num_iters_init'] = 1

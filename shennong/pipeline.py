@@ -134,8 +134,11 @@ def get_default_config(
     with_delta : bool, optional
         Configure the pipeline for features's delta extraction,
         default to True.
-    with_vtln : bool, optional
-        Configure the pipeline for VTLN normalization, default to False.
+    with_vtln : bool or str, optional
+        Configure the pipeline for VTLN normalization, default to False. Must
+        be False, 'simple' or 'full'. When 'simple' the features default to
+        MFCC with default values. When 'full' all features parameters are
+        exposed.
     with_vad_trimming: bool, optional
         Configure the pipeline for removing silent frames, default to False.
 
@@ -187,7 +190,16 @@ def get_default_config(
         config['delta'] = _Manager.get_processor_params('delta')
 
     if with_vtln:
+        if with_vtln not in ('simple', 'full'):
+            raise ValueError(
+                f'invalid value for "with_vtln", must be "simple" '
+                f'or "full" but is "{with_vtln}"')
+
         config['vtln'] = _Manager.get_processor_params('vtln')
+
+        if with_vtln == 'simple':
+            config['vtln']['features'] = 'default'
+            config['vtln']['ubm']['features'] = 'default'
 
     if to_yaml:
         return _get_config_to_yaml(config, comments=yaml_commented)
@@ -315,8 +327,7 @@ def _get_config_to_yaml(config, comments=True):
     # inform yaml to not sort keys by alphabetical order
     yaml.add_representer(
         dict, lambda self, data:
-        yaml.representer.SafeRepresenter.represent_dict(
-            self, data.items()))
+        yaml.representer.SafeRepresenter.represent_dict(self, data.items()))
 
     # inform yaml to represent numpy floats as standard floats
     yaml.add_representer(
@@ -342,9 +353,13 @@ def _get_config_to_yaml(config, comments=True):
             if processor == 'postprocessing':
                 processor = 'pitch_post'
             processors.append(processor)
-            if processor == 'vad':
+
+            # special case here when '   vad:' we are in the ubm section of
+            # vtln: no need to append this comment
+            if processor == 'vad' and offset != 4:
                 config_commented.append(
                     "  # The vad options are not used if 'with_vad' is false")
+
             config_commented.append(line)
         else:
             param = line.split(': ')[0].strip()

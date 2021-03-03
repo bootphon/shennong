@@ -85,7 +85,7 @@ class DiagUbmProcessor(BaseProcessor):
         else:
             self.vad = vad
 
-        if features is None:
+        if features in (None, 'default'):
             config = get_default_config(
                 'mfcc', with_pitch=False, with_cmvn=False,
                 with_sliding_window_cmvn=True)
@@ -284,9 +284,9 @@ class DiagUbmProcessor(BaseProcessor):
         """
         num_gauss_init = int(self.initial_gauss_proportion*self.num_gauss)
         self._log.info(
-            f'Initializing model from E-M in memory. Starting from'
-            f' {num_gauss_init} gaussians, reaching {self.num_gauss} in'
-            f' {self.num_iters_init} iterations')
+            'Initializing model from E-M in memory. Starting from '
+            '%s gaussians, reaching %s in %s iterations',
+            num_gauss_init, self.num_gauss, self.num_iters_init)
 
         self._log.debug('Reading features')
         num_read, dim = 0, 0
@@ -299,9 +299,10 @@ class DiagUbmProcessor(BaseProcessor):
                     dim = this_feats.num_cols
                     feats.resize_(self.num_frames, dim)
                 elif this_feats.num_cols != dim:
-                    raise ValueError('Features have unconsistent dims '
-                                     f'{this_feats.num_cols} vs {dim}'
-                                     f'(current utt is {utt})')
+                    raise ValueError(
+                        'Features have unconsistent dims '
+                        f'{this_feats.num_cols} vs {dim}'
+                        f'(current utt is {utt})')
                 if num_read <= self.num_frames:
                     feats.row(num_read-1).copy_row_from_mat_(this_feats, t)
                 else:
@@ -310,15 +311,16 @@ class DiagUbmProcessor(BaseProcessor):
                         feats.row(self._rng.randint(0, self.num_frames + 1)
                                   ).copy_row_from_mat_(this_feats, t)
         if num_read < self.num_frames:
-            self._log.debug(f'Number of frames read {num_read} was less than'
-                            f' target number {self.num_frames}, using all we'
-                            f' read.')
+            self._log.debug(
+                'Number of frames read %s was less than'
+                ' target number %s, using all we read',
+                num_read, self.num_frames)
             feats.resize_(
                 num_read, dim, kaldi.matrix.common.MatrixResizeType.COPY_DATA)
         else:
-            percent = self.num_frames*100/num_read
-            self._log.debug(f'Kept {self.num_frames} out of {num_read} input'
-                            f' frames = {percent} %')
+            self._log.debug(
+                'Kept %s out of %s input frames = %s %%',
+                self.num_frames, num_read, 100 * self.num_frames / num_read)
 
         num_gauss_init = int(self.initial_gauss_proportion*self.num_gauss)
         self.gmm = kaldi.gmm.DiagGmm(num_gauss_init, dim)
@@ -329,12 +331,12 @@ class DiagUbmProcessor(BaseProcessor):
                         (self.num_iters_init / 2))
         if gauss_inc == 0:
             self._log.warning(
-                f'Number of gaussians {self.num_gauss} is too low')
+                'Number of gaussians %s is too low', self.num_gauss)
             gauss_inc = 1
 
         # Initial training
         for i in range(self.num_iters_init):
-            self._log.debug(f'Iteration {i}')
+            self._log.debug('Iteration %s', i)
             frame_weights = kaldi.matrix.Vector(feats.num_rows)
             frame_weights.set_(1.0)
             gmm_accs = kaldi.gmm.AccumDiagGmm.new(self.gmm, GmmUpdateFlags.ALL)

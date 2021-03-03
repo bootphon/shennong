@@ -166,15 +166,23 @@ def parser_config(subparsers, epilog):
         '--no-vtln', action='store_true',
         help='Configure without VTLN normalization')
 
+    group.add_argument(
+        '--vtln-full', action='store_true',
+        help='Expose all the VTLN parameters')
+
 
 def command_config(args):
+    with_vtln = not args.no_vtln
+    if with_vtln:
+        with_vtln = 'full' if args.vtln_full else 'simple'
+
     config = pipeline.get_default_config(
         args.features,
         to_yaml=True, yaml_commented=not args.no_comments,
         with_pitch=not args.no_pitch,
         with_cmvn=not args.no_cmvn,
         with_delta=not args.no_delta,
-        with_vtln=not args.no_vtln)
+        with_vtln=with_vtln)
 
     output = sys.stdout if not args.output else open(args.output, 'w')
     output.write(config)
