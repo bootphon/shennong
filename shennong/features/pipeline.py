@@ -129,7 +129,8 @@ def get_default_config(features, to_yaml=False, yaml_commented=True,
     with_delta : bool, optional
         Configure the pipeline for features's delta extraction,
         default to True.
-    with_vtln:
+    with_vtln : bool, optional
+        Configure the pipeline for VTLN normalization, default to False.
     with_vad_trimming: bool, optional
         Configure the pipeline for removing silent frames, default to False.
 
