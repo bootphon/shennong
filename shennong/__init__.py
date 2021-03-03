@@ -4,7 +4,7 @@
 shennong is a Python module integrating unsupervised learning
 algorithms applied to speech processing and recognition.
 
-See https://coml.lscp.ens.fr/docs/shennong for a complete documentation.
+See https://docs.cognitive-ml.fr/shennong for a complete documentation.
 
 """
 
@@ -39,11 +39,11 @@ def version(type=str, full=False):
         raise ValueError(
             'version type must be str or tuple, it is {}'.format(type))
 
-    v = tuple(__version__.split('.'))
+    vers = tuple(__version__.split('.'))
     if not full:
-        v = v[:3]
+        vers = vers[:3]
 
-    return v if type in (tuple, 'tuple') else '.'.join(v)
+    return vers if type in (tuple, 'tuple') else '.'.join(vers)
 
 
 def version_long():

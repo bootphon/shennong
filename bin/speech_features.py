@@ -108,8 +108,7 @@ extension specified in command line:
   JSON         .json     Very slow, for manual introspection only
   ===========  ========= ========================================
 
-More info on file formats are available on the online documentation,
-at https://coml.lscp.ens.fr/shennong/python/features.html#save-load-features.
+More info on file formats are available on the online documentation.
 
 """
 
@@ -119,7 +118,7 @@ import sys
 
 import shennong.features.pipeline as pipeline
 import shennong.utils as utils
-from shennong import version_long
+from shennong import url, version_long
 from shennong.features.serializers import supported_extensions
 
 
@@ -279,8 +278,8 @@ def command_extract(args):
 def main():
     # a footer for help messages
     epilog = (
-        'speech-features is part of the shennong library\n'
-        'see full documentation at https://coml.lscp.ens.fr/shennong')
+        f'speech-features is part of the shennong library\n'
+        f'see full documentation at {url()}')
 
     description = (
         __doc__.replace('::', ':').replace('``', '\'') +
@@ -292,7 +291,7 @@ def main():
         epilog=epilog,
         formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
-        '--version', action='version', version=version_long(),
+        '-V', '--version', action='version', version=version_long(),
         help='display version and copyright information and exit')
 
     # use a disctinct subcommand for each features processor
