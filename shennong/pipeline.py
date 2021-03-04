@@ -365,16 +365,23 @@ def _get_config_to_yaml(config, comments=True):
             param = line.split(': ')[0].strip()
             default = line.split(': ')[1].strip()
             processor = processors[-1]
-            # print(processor, param, default, offset, prev_offset)
+
             if processor == 'cmvn' and param == 'by_speaker':
                 docstring = (
                     'If false, do normalization by utterance, '
-                    'if true do normalization by speaker')
+                    'if true do normalization by speaker.')
             elif processor == 'cmvn' and param == 'with_vad':
                 docstring = (
                     'If true do normalization only on frames where '
                     'voice activity has been detected, if false do not '
-                    'consider voice activity for normalization')
+                    'consider voice activity for normalization.')
+            elif param == 'features' and default == 'default':
+                # custom docstring when using VTLN with default features
+                docstring = (
+                    'Features extraction configuration. Default is to use '
+                    'MFCCs with default parameters. Regenerate this '
+                    'configuration file with "speech-features config" using '
+                    'the "--vtln-full" option to expose all the parameters.')
             else:
                 docstring = _Manager.get_docstring(
                     processor, param, default)
