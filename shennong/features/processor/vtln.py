@@ -64,7 +64,7 @@ class VtlnProcessor(BaseProcessor):
     """
     def __init__(self, num_iters=15, min_warp=0.85,
                  max_warp=1.25, warp_step=0.01,
-                 logdet_scale=0.0, norm_type='offset', njobs=1,
+                 logdet_scale=0.0, norm_type='offset',
                  subsample=5, features=None,
                  ubm=None, by_speaker=True):
         self.num_iters = num_iters
@@ -74,7 +74,6 @@ class VtlnProcessor(BaseProcessor):
         self.logdet_scale = logdet_scale
         self.norm_type = norm_type
         self.subsample = subsample
-        self.njobs = njobs
         self.by_speaker = by_speaker
 
         if features in (None, 'default'):
@@ -166,15 +165,6 @@ class VtlnProcessor(BaseProcessor):
     @subsample.setter
     def subsample(self, value):
         self._subsample = int(value)
-
-    @property
-    def njobs(self):
-        """Number of threads to use while extracting features."""
-        return self._njobs
-
-    @njobs.setter
-    def njobs(self, value):
-        self._njobs = int(value)
 
     @property
     def by_speaker(self):
@@ -531,7 +521,7 @@ class VtlnProcessor(BaseProcessor):
         self._log.debug(message)
         return transforms, warps
 
-    def process(self, utterances, ubm=None):
+    def process(self, utterances, ubm=None, njobs=1):
         """Compute the VTLN warp factors for the given utterances.
 
         Parameters
@@ -543,14 +533,17 @@ class VtlnProcessor(BaseProcessor):
             * 3-uple: ``<utterance-id> <wav-file> <spk-id>``
             * 4-uple: ``<utterance-id> <wav-file> <tstart> <tstop>``
             * 5-uple: ``<utterance-id> <wav-file> <spk-id> <tstart> <tstop>``
-        ubm : DiagUbmProcessor
+        ubm : DiagUbmProcessor, optional
             If provided, uses this UBM instead of computing a new one.
+        njobs : int, optional
+            Number of threads to use for computation, default to 1.
 
         Returns
         -------
         warps : dict[str, float]
             Warps computed for each speaker or each utterance.
             If by speaker: same warp for all utterances of this speaker.
+
         """
         # Utterances
         utt2speak = self._check_utterances(utterances)
@@ -563,7 +556,7 @@ class VtlnProcessor(BaseProcessor):
         # UBM-GMM
         if ubm is None:
             ubm = DiagUbmProcessor(**self.ubm)
-            ubm.process(utterances)
+            ubm.process(utterances, njobs=njobs)
         else:
             if ubm.gmm is None:
                 raise ValueError('Given UBM-GMM has not been trained')
@@ -571,7 +564,7 @@ class VtlnProcessor(BaseProcessor):
 
         self._log.info('Initializing base LVTLN transforms')
         dim = ubm.gmm.dim()
-        num_classes = int(1.5 + (self.max_warp-self.min_warp)/self.warp_step)
+        num_classes = int(1.5 + (self.max_warp-self.min_warp) / self.warp_step)
         default_class = int(0.5 + (1-self.min_warp)/self.warp_step)
         self.lvtln = kaldi.transform.lvtln.LinearVtln.new(
             dim, num_classes, default_class)
@@ -579,7 +572,8 @@ class VtlnProcessor(BaseProcessor):
         cmvn_config = self.features.pop('sliding_window_cmvn', None)
         # TODO here this is done on all the warp but not parametrized !
         # get_logger(level='error')  # disable logger for features extraction
-        raw_mfcc = pipeline.extract_features(self.features, utterances)
+        raw_mfcc = pipeline.extract_features(
+            self.features, utterances, njobs=njobs)
 
         # Compute VAD decision
         self._log.debug('... computing VAD decision')
@@ -606,7 +600,7 @@ class VtlnProcessor(BaseProcessor):
 
         # Computing base transforms
         featsub_unwarped = pipeline.extract_features(
-            self.features, utterances, njobs=self.njobs).trim(vad)
+            self.features, utterances, njobs=njobs).trim(vad)
         featsub_unwarped = FeaturesCollection(
             {utt: feats.copy(subsample=self.subsample)
              for utt, feats in featsub_unwarped.items()})
@@ -614,14 +608,15 @@ class VtlnProcessor(BaseProcessor):
             self._log.debug('... base transform %s/%s', c+1, num_classes)
             this_warp = self.min_warp + c*self.warp_step
             featsub_warped = pipeline.extract_features_warp(
-                self.features, utterances, this_warp,
-                njobs=self.njobs).trim(vad)
+                self.features, utterances, this_warp, njobs=njobs).trim(vad)
             featsub_warped = FeaturesCollection(
                 {utt: feats.copy(subsample=self.subsample)
                  for utt, feats in featsub_warped.items()})
             self.compute_mapping_transform(
                 featsub_unwarped, featsub_warped, c, this_warp)
+
         del featsub_warped, featsub_unwarped, vad
+
         if cmvn_config is not None:
             self.features['sliding_window_cmvn'] = cmvn_config
         get_logger()

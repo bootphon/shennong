@@ -519,9 +519,9 @@ def _init_utterances(utts_index, log=get_logger()):
     # build the utterances collection as a dict
     # {utt_id: (wav_file, speaker_id, tstart, tstop)}
     utterances = {}
-    for n, utt in enumerate(utts, start=1):
+    for num, utt in enumerate(utts, start=1):
         if index_format == 1:
-            utt_id = 'utt_{}'.format(str(n))
+            utt_id = f'utt_{num}'
             wav_file = utt[0]
         else:
             utt_id = utt[0]
@@ -566,7 +566,8 @@ def _extract_features(config, utterances, njobs=1, log=get_logger()):
     # vtln : compute vtln warps or load pre-computed warps
     if 'vtln' in config:
         manager.warps = manager.get_vtln_processor(
-            'vtln').process(_undo_init_utterances(utterances))
+            'vtln').process(
+                _undo_init_utterances(utterances), njobs=njobs)
 
     # cmvn : two passes. 1st with features pitch and cmvn
     # accumulation, 2nd with cmvn application and delta

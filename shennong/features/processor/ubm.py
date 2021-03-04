@@ -1,7 +1,7 @@
 """Provides the DiagUbmProcessor class to train a Universal Background Model
-- Gaussian Mixture Model (UBM-GMM) with diagonal covariances
 
-Uses the kaldi implementation of GMM (see [kaldi_gmm]_).
+- Gaussian Mixture Model (UBM-GMM) with diagonal covariances.
+- Uses the kaldi implementation of GMM (see [kaldi_gmm]_).
 
 Examples
 --------
@@ -57,10 +57,9 @@ from shennong.features.features import FeaturesCollection
 class DiagUbmProcessor(BaseProcessor):
     """Universal Background Model with Diagonal GMM
     """
-
     def __init__(self, num_gauss,
                  num_iters=4, num_gselect=15, initial_gauss_proportion=0.5,
-                 num_iters_init=20, njobs=1, num_frames=500000,
+                 num_iters_init=20, num_frames=500000,
                  subsample=5, min_gaussian_weight=1e-4,
                  remove_low_count_gaussians=False, seed=0,
                  features=None, vad=None):
@@ -73,7 +72,6 @@ class DiagUbmProcessor(BaseProcessor):
         self.num_iters_init = num_iters_init
         self.num_gselect = num_gselect
         self.initial_gauss_proportion = initial_gauss_proportion
-        self.njobs = njobs
         self.num_frames = num_frames
         self.subsample = subsample
         self.seed = seed
@@ -100,6 +98,7 @@ class DiagUbmProcessor(BaseProcessor):
 
     @property
     def name(self):  # pragma: nocover
+        """Processor name"""
         return 'diag-ubm'
 
     @property
@@ -150,15 +149,6 @@ class DiagUbmProcessor(BaseProcessor):
     @initial_gauss_proportion.setter
     def initial_gauss_proportion(self, value):
         self._initial_gauss_proportion = float(value)
-
-    @property
-    def njobs(self):
-        """Number of threads to use in initialization phase."""
-        return self._njobs
-
-    @njobs.setter
-    def njobs(self, value):
-        self._njobs = int(value)
 
     @property
     def num_frames(self):
@@ -240,8 +230,8 @@ class DiagUbmProcessor(BaseProcessor):
             raise OSError('{}: file not found'.format(path))
 
         gmm = kaldi.gmm.DiagGmm()
-        ki = kaldi.util.io.xopen(path, mode='rb')
-        gmm.read(ki.stream(), binary=True)
+        kstream = kaldi.util.io.xopen(path, mode='rb')
+        gmm.read(kstream.stream(), binary=True)
         ubm = DiagUbmProcessor(gmm.get_means().num_rows)
         ubm.gmm = gmm
         return ubm
@@ -258,19 +248,21 @@ class DiagUbmProcessor(BaseProcessor):
             self._log.debug('Computing gconsts before saving GMM')
             self.gmm.compute_gconsts()
 
-        ki = kaldi.util.io.xopen(path, mode='wb')
-        self.gmm.write(ki.stream(), binary=True)
+        kstream = kaldi.util.io.xopen(path, mode='wb')
+        self.gmm.write(kstream.stream(), binary=True)
 
-    def initialize_gmm(self, feats_collection):
-        """Initializes a single diagonal GMM and does multiple iterations of
-        training.
+    def initialize_gmm(self, feats_collection, njobs=1):
+        """Initializes a single diagonal GMM
 
-        Adapted from [kaldi_init]_
+        Also does multiple iterations of initial training. Adapted from
+        [kaldi_init]_.
 
         Parameters
         ----------
         feats_collection : FeaturesCollection
             The collection of features to initialize the GMM with.
+        njobs : int, optional
+            Number of threads to use for computation, default to 1.
 
         Raises
         ------
@@ -281,8 +273,9 @@ class DiagUbmProcessor(BaseProcessor):
         ----------
         .. [kaldi_init]
             https://kaldi-asr.org/doc/gmm-global-init-from-feats_8cc.html
+
         """
-        num_gauss_init = int(self.initial_gauss_proportion*self.num_gauss)
+        num_gauss_init = int(self.initial_gauss_proportion * self.num_gauss)
         self._log.info(
             'Initializing model from E-M in memory. Starting from '
             '%s gaussians, reaching %s in %s iterations',
@@ -293,7 +286,7 @@ class DiagUbmProcessor(BaseProcessor):
         feats = kaldi.matrix.Matrix()
         for utt in feats_collection.keys():
             this_feats = kaldi.matrix.SubMatrix(feats_collection[utt].data)
-            for t in range(this_feats.num_rows):
+            for row in range(this_feats.num_rows):
                 num_read += 1
                 if dim == 0:
                     dim = this_feats.num_cols
@@ -303,13 +296,15 @@ class DiagUbmProcessor(BaseProcessor):
                         'Features have unconsistent dims '
                         f'{this_feats.num_cols} vs {dim}'
                         f'(current utt is {utt})')
+
                 if num_read <= self.num_frames:
-                    feats.row(num_read-1).copy_row_from_mat_(this_feats, t)
+                    feats.row(num_read-1).copy_row_from_mat_(this_feats, row)
                 else:
-                    keep_prob = self.num_frames / num_read
-                    if self._rng.random_sample() <= keep_prob:
-                        feats.row(self._rng.randint(0, self.num_frames + 1)
-                                  ).copy_row_from_mat_(this_feats, t)
+                    if self._rng.random_sample() <= self.num_frames / num_read:
+                        feats.row(
+                            self._rng.randint(0, self.num_frames + 1)
+                        ).copy_row_from_mat_(this_feats, row)
+
         if num_read < self.num_frames:
             self._log.debug(
                 'Number of frames read %s was less than'
@@ -322,7 +317,7 @@ class DiagUbmProcessor(BaseProcessor):
                 'Kept %s out of %s input frames = %s %%',
                 self.num_frames, num_read, 100 * self.num_frames / num_read)
 
-        num_gauss_init = int(self.initial_gauss_proportion*self.num_gauss)
+        num_gauss_init = int(self.initial_gauss_proportion * self.num_gauss)
         self.gmm = kaldi.gmm.DiagGmm(num_gauss_init, dim)
         self._init_from_random_frames(feats)
 
@@ -341,19 +336,23 @@ class DiagUbmProcessor(BaseProcessor):
             frame_weights.set_(1.0)
             gmm_accs = kaldi.gmm.AccumDiagGmm.new(self.gmm, GmmUpdateFlags.ALL)
             tot_like = gmm_accs.accumulate_from_diag_multi_threaded(
-                self.gmm, feats, frame_weights, self.njobs)
-            self._log.debug(f'Likelihood per frame: {tot_like/feats.num_rows}'
-                            f' over {feats.num_rows} frames')
+                self.gmm, feats, frame_weights, njobs)
+
+            self._log.debug(
+                'Likelihood per frame: %s over %s frames',
+                tot_like / feats.num_rows, feats.num_rows)
+
             obj_change, count, _, _, _ = kaldi.gmm.mle_diag_gmm_update(
                 self._options, gmm_accs, GmmUpdateFlags.ALL, self.gmm)
+
             self._log.debug(
-                f'Objective-function change: {obj_change/count} over {count}'
-                f'frames')
+                'Objective-function change: %s over %s frames',
+                obj_change / count, count)
 
             next_num_gauss = min(
                 self.num_gauss, cur_num_gauss + gauss_inc)
             if next_num_gauss > self.gmm.num_gauss():
-                self._log.debug(f'Splitting to {next_num_gauss} Gaussians')
+                self._log.debug('Splitting to %s Gaussians', next_num_gauss)
                 self.gmm.split(next_num_gauss, 0.1)
                 cur_num_gauss = next_num_gauss
 
@@ -379,23 +378,27 @@ class DiagUbmProcessor(BaseProcessor):
         num_gauss = self.gmm.num_gauss()
         num_frames = feats.num_rows
         dim = feats.num_cols
-        if num_frames < 10*num_gauss:
+
+        if num_frames < 10 * num_gauss:
             raise ValueError(
                 f'Too few frames to train on ({num_frames} frames)')
+
         mean, var = kaldi.matrix.Vector(dim), kaldi.matrix.Vector(dim)
         for i in range(num_frames):
             mean.add_vec_(1.0/num_frames, feats.row(i))
             var.add_vec2_(1.0/num_frames, feats.row(i))
         var.add_vec2_(-1.0, mean)
+
         if var.max() <= 0:
             raise ValueError(
                 f'Features do not have positive variance {var}')
+
         var.invert_elements_()  # Now inverse of variance
         random_frames = self._rng.choice(num_frames, num_gauss, replace=False)
-        for g in range(num_gauss):
-            self.gmm.set_component_weight(g, 1.0/num_gauss)
-            self.gmm.set_component_inv_var(g, var)
-            self.gmm.set_component_mean(g, feats.row(random_frames[g]))
+        for gauss in range(num_gauss):
+            self.gmm.set_component_weight(gauss, 1.0 / num_gauss)
+            self.gmm.set_component_inv_var(gauss, var)
+            self.gmm.set_component_mean(gauss, feats.row(random_frames[gauss]))
         self.gmm.compute_gconsts()
 
     def gaussian_selection(self, feats_collection):
@@ -416,14 +419,17 @@ class DiagUbmProcessor(BaseProcessor):
         """
         if not isinstance(self.gmm, kaldi.gmm.DiagGmm):
             raise TypeError('GMM not initialized')
+
         already_selection = self.selection is not None
         if not already_selection:
             self.selection = {}
+
         if self.num_gselect > self.gmm.num_gauss():
-            self._log.warning(f'You asked for {self.num_gselect} Gaussians'
-                              f' but GMM only has {self.gmm.num_gauss()},'
-                              f' returning this many. Note: this means the'
-                              f' Gaussian selection is pointless')
+            self._log.warning(
+                'You asked for %s Gaussians but GMM only has %s,'
+                ' returning this many. Note: this means the'
+                ' Gaussian selection is pointless',
+                self.num_gselect, self.gmm.num_gauss())
             self.num_gselect = self.gmm.num_gauss()
 
         tot_like, tot_t = 0., 0
@@ -436,10 +442,12 @@ class DiagUbmProcessor(BaseProcessor):
                 if utt not in self.selection:
                     raise ValueError(
                         f'No gselect information for utterance {utt}')
+
                 preselect = self.selection[utt]
                 if len(preselect) != mat.num_rows:
                     raise ValueError(
                         f'Input gselect utterance {utt} has wrong size')
+
                 for i in range(mat.num_rows):
                     tot_like_this_file_i, \
                         gselect_out = self.gmm.gaussian_selection_preselect(
@@ -454,17 +462,23 @@ class DiagUbmProcessor(BaseProcessor):
             tot_t += tot_t_this_file
             tot_like += tot_like_this_file
             if num_done % 10 == 0:
-                self._log.debug(f'For {num_done}th utterance, average UBM'
-                                f'likelihood over {tot_t_this_file} frame is'
-                                f' {tot_like_this_file/tot_t_this_file}')
-            num_done += 1
-        self._log.debug(f'Done {num_done} utterances, average UBM log-'
-                        f'likelihood is {tot_like/tot_t} over {tot_t} frames')
+                self._log.debug(
+                    'For %sth utterance, average UBM'
+                    'likelihood over %s frame is %s',
+                    num_done, tot_t_this_file,
+                    tot_like_this_file / tot_t_this_file)
 
-    def gaussian_selection_to_post(self,
-                                   feats_collection,
-                                   min_post=None):
-        """Given features and Gaussian-selection (gselect) information for
+            num_done += 1
+
+        self._log.debug(
+            'Done %s utterances, mean UBM log-likelihood is %s over %s frames',
+            num_done, tot_like / tot_t, tot_t)
+
+    def gaussian_selection_to_post(
+            self, feats_collection, min_post=None):
+        """Get per-frames posteriors
+
+        Given features and Gaussian-selection (gselect) information for
         a diagonal-covariance GMM, output per-frame posteriors for the selected
         indices.  Also supports pruning the posteriors if they are below
         a stated threshold (and renormalizing the rest to sum to one).
@@ -492,9 +506,11 @@ class DiagUbmProcessor(BaseProcessor):
         ----------
         .. [kaldi_gselect_to_post]
             https://kaldi-asr.org/doc/gmm-global-gselect-to-post_8cc.html
+
         """
         if not isinstance(self.selection, dict):
             raise ValueError('Gaussian selection has not been done')
+
         posteriors = {}
         tot_posts, tot_loglike, tot_frames = 0, 0, 0
         for utt in feats_collection.keys():
@@ -508,6 +524,7 @@ class DiagUbmProcessor(BaseProcessor):
                 raise ValueError(
                     f'Input gselect utterance {utt} has wrong size '
                     f'{len(self.selection[utt])} vs {num_frames}')
+
             this_tot_loglike = 0.0
             for i in range(num_frames):
                 frame = kaldi.matrix.SubVector(mat.row(i))
@@ -516,6 +533,7 @@ class DiagUbmProcessor(BaseProcessor):
                     frame, this_gselect)
                 this_tot_loglike += loglikes.apply_softmax_()
                 post.append([])
+
                 # now loglikes contains posteriors
                 if min_post is not None:
                     _, max_index = loglikes.max_index()
@@ -532,19 +550,24 @@ class DiagUbmProcessor(BaseProcessor):
                         post[i].append((this_gselect[j], loglikes[j]))
                         tot_posts += 1
                 assert len(post[i]) != 0
+
+            self._log.debug(
+                'Likelihood per frame for utt %s was'
+                ' %s per frame over %s frames',
+                utt, this_tot_loglike / num_frames, num_frames)
+
             posteriors[utt] = post
-            self._log.debug(f'Likelihood per frame for utt {utt} was'
-                            f' {this_tot_loglike/num_frames} per frame'
-                            f' over {num_frames} frames')
             tot_loglike += this_tot_loglike
             tot_frames += num_frames
-        self._log.debug(f' Overall likelihood per frame is'
-                        f' {tot_loglike/tot_frames} with'
-                        f' {tot_posts/tot_frames}'
-                        f' entries per frame over {tot_frames} frames')
+
+        self._log.debug(
+            'Overall likelihood per frame is %s with %s '
+            'entries per frame over %s frames',
+            tot_loglike / tot_frames, tot_posts / tot_frames, tot_frames)
+
         return posteriors
 
-    def accumulate(self, feats_collection, weights_collection=None):
+    def accumulate(self, feats_collection, weights_collection=None, njobs=1):
         """Accumulate stats for training a diagonal-covariance GMM.
 
         Adapted from [kaldi_acc]_
@@ -558,6 +581,9 @@ class DiagUbmProcessor(BaseProcessor):
             apply on the features frames, if specified we must have
             ``weights.keys() == feats_collections.keys()``.
             Unweighted by default.
+        njobs : int, optional
+            Number of threads to use for computation, default to 1.
+
 
         Returns
         -------
@@ -567,15 +593,19 @@ class DiagUbmProcessor(BaseProcessor):
         References
         ----------
         .. [kaldi_acc] https://kaldi-asr.org/doc/gmm-global-acc-stats_8cc.html
+
         """
         if not isinstance(self.gmm, kaldi.gmm.DiagGmm):
             raise TypeError('GMM not initialized')
+
         # check features
         dim = self.gmm.get_means().num_cols
         for utt, feats in feats_collection.items():
             if feats.ndims != dim:
-                raise ValueError(f'Features from utterance {utt} have wrong'
-                                 f' dims {feats.ndims}, instead of {dim}')
+                raise ValueError(
+                    f'Features from utterance {utt} have wrong'
+                    f' dims {feats.ndims}, instead of {dim}')
+
         # check weights
         if weights_collection is not None:
             if weights_collection.keys() != feats_collection.keys():
@@ -601,15 +631,18 @@ class DiagUbmProcessor(BaseProcessor):
                 weights = kaldi.matrix.SubVector(weights_collection[utt])
                 file_weight = sum(weights_collection[utt])
             file_like = gmm_accs.accumulate_from_diag_multi_threaded(
-                self.gmm, mat, weights, self.njobs)
+                self.gmm, mat, weights, njobs)
+
             self._log.debug(
-                f'Utterance {utt}: average likelihood ='
-                f'{file_like/file_weight} over {file_weight} frames')
+                'Utterance %s: average likelihood = %s over %s frames',
+                utt, file_like / file_weight, file_weight)
+
             tot_like += file_like
             tot_weight += file_weight
+
         self._log.debug(
-            f'Overall likelihood per frame = {tot_like/tot_weight} over'
-            f' {tot_weight} weighted frames')
+            'Overall likelihood per frame = %s over %s weighted frames',
+            tot_like / tot_weight, tot_weight)
         return gmm_accs
 
     def estimate(self, gmm_accs, mixup=None, perturb_factor=0.01):
@@ -633,21 +666,27 @@ class DiagUbmProcessor(BaseProcessor):
         """
         if not isinstance(self.gmm, kaldi.gmm.DiagGmm):
             raise TypeError('GMM not initialized')
+
         if mixup is not None and mixup <= self.num_gauss:
             raise ValueError(
                 'Mixup parameter must be greater than the number of gaussians')
-        update_flags = GmmUpdateFlags.MEANS + \
-            GmmUpdateFlags.VARIANCES + \
-            GmmUpdateFlags.WEIGHTS
+
+        update_flags = (
+            GmmUpdateFlags.MEANS +
+            GmmUpdateFlags.VARIANCES +
+            GmmUpdateFlags.WEIGHTS)
 
         objf_impr, count, _, _, _ = kaldi.gmm.mle_diag_gmm_update(
             self._options, gmm_accs, update_flags, self.gmm)
-        self._log.debug(f'Overall objective function improvement is'
-                        f' {objf_impr/count} per frame over {count} frames')
+
+        self._log.debug(
+            'Overall objective function improvement is '
+            '%s per frame over %s frames', objf_impr / count, count)
+
         if mixup is not None:
             self.gmm.split(int(mixup), perturb_factor)
 
-    def process(self, utterances):
+    def process(self, utterances, njobs=1):
         """Initialize the GMM, which sets the means to random data points and
         then does some iterations of EM. Train for a few iterations in parallel
 
@@ -660,6 +699,14 @@ class DiagUbmProcessor(BaseProcessor):
             * 3-uple: `<utterance-id> <wav-file> <speaker-id>`
             * 4-uple: `<utterance-id> <wav-file> <tstart> <tstop>`
             * 5-uple: `<utterance-id> <wav-file> <speaker-id> <tstart> <tstop>`
+        njobs : int, optional
+            Number of threads to use for computation, default to 1.
+
+        Raises
+        ------
+        ValueError
+            On errors
+
         """
         cmvn = self.features.pop('sliding_window_cmvn', None)
         self._log.info('Extracting features')
@@ -688,8 +735,8 @@ class DiagUbmProcessor(BaseProcessor):
         features = features.trim(vad)
         get_logger()
 
-        self.initialize_gmm(features)
-        self._log.info(f'Will train for {self.num_iters} iterations')
+        self.initialize_gmm(features, njobs=njobs)
+        self._log.info('Will train for %s iterations', self.num_iters)
         features = FeaturesCollection(  # Subsample features collection
             {utt: feats.copy(subsample=self.subsample)
              for utt, feats in features.items()})
@@ -698,8 +745,8 @@ class DiagUbmProcessor(BaseProcessor):
         self.remove_low_count_gaussians = False
 
         for i in range(self.num_iters):
-            self._log.info(f'Training pass {i+1}')
-            gmm_accs = self.accumulate(features)
+            self._log.info('Training pass %s', i+1)
+            gmm_accs = self.accumulate(features, njobs=njobs)
             if i == self.num_iters-1:
                 self.remove_low_count_gaussians = remove_low_count_gaussians
             self.estimate(gmm_accs)

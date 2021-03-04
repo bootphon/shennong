@@ -13,21 +13,21 @@ import kaldi.matrix
 
 
 def test_params():
-    assert len(DiagUbmProcessor(2).get_params()) == 13
+    assert len(DiagUbmProcessor(2).get_params()) == 12
 
     params = {'num_gauss': 16, 'num_iters': 3, 'initial_gauss_proportion': 0.7}
     p = DiagUbmProcessor(**params)
 
     params_out = p.get_params()
-    assert len(params_out) == 13
+    assert len(params_out) == 12
     for k, v in params.items():
         assert params_out[k] == v
     assert p.get_params() == params_out
 
     p = DiagUbmProcessor(2)
     p.set_params(**params_out)
-    params_out == p.get_params()
-    assert len(params_out) == 13
+    assert params_out == p.get_params()
+    assert len(params_out) == 12
     for k, v in params.items():
         assert params_out[k] == v
     assert p.get_params() == params_out

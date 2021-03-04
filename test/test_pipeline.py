@@ -36,13 +36,16 @@ def equal_dict(d1, d2):
 
 
 @pytest.mark.parametrize(
-    'features', pipeline.valid_features())
-def test_config_good(features):
-    c1 = pipeline.get_default_config(features, to_yaml=False)
+    'features, with_vtln',
+    [(f, v) for f in pipeline.valid_features()
+     for v in (False, 'simple', 'full')])
+def test_config_good(features, with_vtln):
+    c1 = pipeline.get_default_config(
+        features, to_yaml=False, with_vtln=with_vtln)
     c2 = pipeline.get_default_config(
-        features, to_yaml=True, yaml_commented=False)
+        features, to_yaml=True, yaml_commented=False, with_vtln=with_vtln)
     c3 = pipeline.get_default_config(
-        features, to_yaml=True, yaml_commented=True)
+        features, to_yaml=True, yaml_commented=True, with_vtln=with_vtln)
     assert features in c1.keys()
     assert '#' not in c2
     assert '#' in c3

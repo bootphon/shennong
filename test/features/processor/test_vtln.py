@@ -10,21 +10,21 @@ from shennong.features.features import Features, FeaturesCollection
 
 
 def test_params():
-    assert len(VtlnProcessor().get_params()) == 11
+    assert len(VtlnProcessor().get_params()) == 10
 
     params = {'by_speaker': False, 'num_iters': 3, 'warp_step': 0.5}
     p = VtlnProcessor(**params)
 
     params_out = p.get_params()
-    assert len(params_out) == 11
+    assert len(params_out) == 10
     for k, v in params.items():
         assert params_out[k] == v
     assert p.get_params() == params_out
 
     p = VtlnProcessor()
     p.set_params(**params_out)
-    params_out == p.get_params()
-    assert len(params_out) == 11
+    assert params_out == p.get_params()
+    assert len(params_out) == 10
     for k, v in params.items():
         assert params_out[k] == v
     assert p.get_params() == params_out
