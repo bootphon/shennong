@@ -46,7 +46,7 @@ import kaldi.matrix.common
 import kaldi.util.io
 
 from shennong.base import BaseProcessor
-from shennong.utils import null_logger
+from shennong.logger import null_logger
 from shennong.pipeline import get_default_config, extract_features
 from shennong.features.postprocessor.vad import VadPostProcessor
 from shennong.features.postprocessor.cmvn import SlidingWindowCmvnPostProcessor

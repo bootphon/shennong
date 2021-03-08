@@ -31,7 +31,8 @@ import kaldi.util.table
 import numpy as np
 import scipy
 
-from shennong.utils import get_logger, array2list
+from shennong.logger import get_logger
+from shennong.utils import array2list
 
 
 def supported_extensions():
@@ -70,7 +71,7 @@ def supported_serializers():
         'kaldi': KaldiSerializer}
 
 
-def get_serializer(cls, filename, serializer=None):
+def get_serializer(cls, filename, log_level, serializer=None):
     """Returns the file serializer from filename extension or serializer name
 
     Parameters
@@ -80,6 +81,8 @@ def get_serializer(cls, filename, serializer=None):
         a tweak to avoid circular imports
     filename : str
         The file to be handled (load or save)
+    log_level : str
+        The log level must be 'debug', 'info', 'warning' or 'error'
     serializer : str, optional
         If not None must be one of the :func:`supported_serializers`, if
         not specified, guess the serializer from the `filename`
@@ -122,7 +125,7 @@ def get_serializer(cls, filename, serializer=None):
                 'invalid serializer {}, must be in {}'.format(
                     serializer, list(supported_serializers().keys())))
 
-    return serializer(cls, filename)
+    return serializer(cls, filename, log=get_logger('serializer', log_level))
 
 
 class FeaturesSerializer(metaclass=abc.ABCMeta):
@@ -139,15 +142,15 @@ class FeaturesSerializer(metaclass=abc.ABCMeta):
         The file to save/load features to/from
 
     """
-    _log = get_logger(__name__)
-
-    def __init__(self, cls, filename):
+    def __init__(self, cls, filename, log=get_logger('serializer', 'warning')):
         self._features_collection = cls
         self._features = self._features_collection._value_type
         self._filename = filename
+        self._log = log
 
     @property
     def filename(self):
+        """Name of the file to read or write"""
         return self._filename
 
     @abc.abstractmethod
@@ -333,8 +336,8 @@ class MatlabSerializer(FeaturesSerializer):
 
 class JsonSerializer(FeaturesSerializer):
     """Saves and loads features to/from the JSON format"""
-    def __init__(self, cls, filename):
-        super().__init__(cls, filename)
+    def __init__(self, cls, filename, log=get_logger('serializer', 'warning')):
+        super().__init__(cls, filename, log=log)
 
         # disable the warning 'numpy serialization is experimental'
         json_tricks.NumpyEncoder.SHOW_SCALAR_WARNING = False
@@ -396,8 +399,8 @@ class H5featuresSerializer(FeaturesSerializer):
 
 
 class KaldiSerializer(FeaturesSerializer):
-    def __init__(self, cls, filename):
-        super().__init__(cls, filename)
+    def __init__(self, cls, filename, log=get_logger('serializer', 'warning')):
+        super().__init__(cls, filename, log=log)
 
         # make sure the filename extension is '.ark'
         filename_split = os.path.splitext(self.filename)

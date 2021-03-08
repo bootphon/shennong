@@ -5,6 +5,7 @@ import os
 import pytest
 import yaml
 
+import shennong.logger as logger
 import shennong.pipeline as pipeline
 import shennong.utils as utils
 from shennong.audio import Audio
@@ -68,7 +69,7 @@ def test_config_format(utterances_index, capsys, tmpdir, kind):
             pipeline._init_config(config2)
         assert 'error in configuration' in str(err.value)
 
-    parsed = pipeline._init_config(config, log=utils.get_logger(
+    parsed = pipeline._init_config(config, log=logger.get_logger(
         'pipeline', level='info'))
     output = capsys.readouterr().err
     for word in ('mfcc', 'pitch', 'cmvn', 'delta'):
@@ -121,7 +122,7 @@ def test_config_bad(utterances_index):
 
 
 def test_check_speakers(utterances_index, capsys):
-    log = utils.get_logger('test', level='info')
+    log = logger.get_logger('test', 'info')
 
     config = pipeline.get_default_config('mfcc')
     with pytest.raises(ValueError) as err:
@@ -147,7 +148,7 @@ def test_check_speakers(utterances_index, capsys):
 def test_check_environment(capsys):
     if 'OMP_NUM_THREADS' in os.environ:
         del os.environ['OMP_NUM_THREADS']
-    pipeline._check_environment(2, log=utils.get_logger('test'))
+    pipeline._check_environment(2, log=logger.get_logger('test', 'info'))
     out = capsys.readouterr().err
     assert 'working on 2 threads but implicit parallelism is active' in out
 
@@ -177,8 +178,8 @@ def test_check_wavs_bad(wav_file, wav_file_8k, tmpdir, capsys):
     def fun(utts):
         c = pipeline._init_config(pipeline.get_default_config(
             'mfcc', with_cmvn=False))
-        u = pipeline._init_utterances(utts)
-        pipeline._Manager(c, u)
+        u = pipeline._init_utterances(utts, log=logger.get_logger('test', 'info'))
+        pipeline._Manager(c, u, log=logger.get_logger('test', 'info'))
         return u
 
     # build a stereo file and make sure it is not supported by the
@@ -303,7 +304,7 @@ def test_extract_features_full(ext, wav_file, wav_file_8k, wav_file_float32,
     config['cmvn']['with_vad'] = False
 
     feats = pipeline.extract_features(
-        config, index, njobs=2, log=utils.get_logger('test'))
+        config, index, njobs=2, log=logger.get_logger('test', 'info'))
 
     # ensure we have the expected log messages
     messages = capsys.readouterr().err

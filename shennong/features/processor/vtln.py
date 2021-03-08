@@ -52,7 +52,7 @@ import kaldi.util.io
 
 import shennong.pipeline as pipeline
 from shennong.base import BaseProcessor
-from shennong.utils import get_logger, null_logger
+from shennong.logger import get_logger, null_logger
 from shennong.features.features import FeaturesCollection, Features
 from shennong.features.processor.ubm import DiagUbmProcessor
 from shennong.features.postprocessor.vad import VadPostProcessor
@@ -566,6 +566,7 @@ class VtlnProcessor(BaseProcessor):
         # UBM-GMM
         if ubm is None:
             ubm = DiagUbmProcessor(**self.ubm)
+            ubm.log.setLevel(self.log.getEffectiveLevel())
             ubm.process(utterances, njobs=njobs)
         else:
             if ubm.gmm is None:

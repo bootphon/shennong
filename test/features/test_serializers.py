@@ -45,42 +45,50 @@ def test_get_serializer_byname(name):
     filename = 'foo.file'
     if name == 'kaldi':
         with pytest.raises(ValueError) as err:
-            serializers.get_serializer(FeaturesCollection, 'foo.file', name)
-        assert 'the file extension must be ".ark", it is ".file"' in str(err.value)
+            serializers.get_serializer(
+                FeaturesCollection, 'foo.file', 'info', name)
+        assert 'the file extension must be ".ark", it is ".file"' in str(
+            err.value)
         filename = 'foo.ark'
 
-    h = serializers.get_serializer(FeaturesCollection, filename, name)
+    h = serializers.get_serializer(FeaturesCollection, filename, 'info', name)
     assert not os.path.isfile(filename)
     assert isinstance(h, serializers.supported_serializers()[name])
 
 
 @pytest.mark.parametrize('ext', serializers.supported_extensions().keys())
 def test_get_serializer_byext(ext):
-    h = serializers.get_serializer(FeaturesCollection, 'foo' + ext, None)
+    h = serializers.get_serializer(
+        FeaturesCollection, 'foo' + ext, 'info', None)
     assert not os.path.isfile('foo' + ext)
     assert isinstance(h, serializers.supported_extensions()[ext])
 
 
 def test_get_serializer_bad():
     with pytest.raises(ValueError) as err:
-        serializers.get_serializer(int, 'foo', None)
+        serializers.get_serializer(
+            int, 'foo', 'info', None)
     assert 'must be shennong.features.FeaturesCollection' in str(err.value)
 
     with pytest.raises(ValueError) as err:
-        serializers.get_serializer(FeaturesCollection, 'foo.spam', None)
+        serializers.get_serializer(
+            FeaturesCollection, 'foo.spam', 'info', None)
     assert 'invalid extension .spam' in str(err.value)
 
     with pytest.raises(ValueError) as err:
-        serializers.get_serializer(FeaturesCollection, 'foo', None)
+        serializers.get_serializer(
+            FeaturesCollection, 'foo', 'info', None)
     assert 'no extension nor serializer name specified' in str(err.value)
 
     with pytest.raises(ValueError) as err:
-        serializers.get_serializer(FeaturesCollection, 'foo.spam', 'spam')
+        serializers.get_serializer(
+            FeaturesCollection, 'foo.spam', 'info', 'spam')
     assert 'invalid serializer spam' in str(err.value)
 
 
 def test_load_nofile():
-    h = serializers.get_serializer(FeaturesCollection, 'foo.json', None)
+    h = serializers.get_serializer(
+        FeaturesCollection, 'foo.json', 'info', None)
     with pytest.raises(IOError) as err:
         h.load()
     assert 'file not found' in str(err.value)
@@ -89,7 +97,7 @@ def test_load_nofile():
 @pytest.mark.skipif(getpass.getuser() == 'root', reason='executed as root')
 def test_load_noreadable(tmpdir):
     f = str(tmpdir.join('foo.json'))
-    h = serializers.get_serializer(FeaturesCollection, f, None)
+    h = serializers.get_serializer(FeaturesCollection, f, 'info', None)
     open(f, 'w').write('spam a lot')
     os.chmod(f, 0o222)  # write-only
     with pytest.raises(IOError) as err:
@@ -99,7 +107,7 @@ def test_load_noreadable(tmpdir):
 
 def test_load_invalid(tmpdir, mfcc_col):
     f = str(tmpdir.join('foo.json'))
-    h = serializers.get_serializer(FeaturesCollection, f, None)
+    h = serializers.get_serializer(FeaturesCollection, f, 'info', None)
     h.save(mfcc_col)
 
     # remove 2 lines in the times array to corrupt the file
@@ -120,7 +128,7 @@ def test_load_invalid(tmpdir, mfcc_col):
 def test_save_exists(tmpdir, mfcc_col):
     f = str(tmpdir.join('foo.json'))
     open(f, 'w').write('something')
-    h = serializers.get_serializer(FeaturesCollection, f, None)
+    h = serializers.get_serializer(FeaturesCollection, f, 'info', None)
     with pytest.raises(IOError) as err:
         h.save(mfcc_col)
     assert 'file already exists' in str(err.value)
@@ -128,15 +136,16 @@ def test_save_exists(tmpdir, mfcc_col):
 
 def test_save_not_collection(tmpdir, mfcc):
     f = str(tmpdir.join('foo.json'))
-    h = serializers.get_serializer(FeaturesCollection, f, None)
+    h = serializers.get_serializer(FeaturesCollection, f, 'info', None)
     with pytest.raises(ValueError) as err:
         h.save(mfcc)
-    assert 'features must be FeaturesCollection but are Features' in str(err.value)
+    assert 'features must be FeaturesCollection but are Features' in str(
+        err.value)
 
 
 def test_save_invalid(tmpdir, mfcc):
     f = str(tmpdir.join('foo.json'))
-    h = serializers.get_serializer(FeaturesCollection, f, None)
+    h = serializers.get_serializer(FeaturesCollection, f, 'info', None)
     feats = FeaturesCollection(mfcc=Features(
         data=mfcc.data, times=0, validate=False))
     with pytest.raises(ValueError) as err:

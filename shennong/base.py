@@ -4,7 +4,7 @@ import abc
 import collections
 import inspect
 
-from shennong.utils import get_logger
+from shennong.logger import get_logger
 
 
 class BaseProcessor:
@@ -74,12 +74,12 @@ class BaseProcessor:
         for param in parameters:
             if param.kind == param.VAR_POSITIONAL:
                 raise RuntimeError(
-                    'shennong processors should always '
-                    'specify their parameters in the signature '
-                    'of their __init__ (no varargs). '
-                    '%s with constructor %s does not '
-                    'follow this convention.'
-                    % (cls, init_signature))
+                    f'shennong processors should always '
+                    f'specify their parameters in the signature '
+                    f'of their __init__ (no varargs). '
+                    f'{cls} with constructor {init_signature} does not '
+                    f'follow this convention.')
+
         # Extract and sort argument names excluding 'self'
         return sorted([p.name for p in parameters])
 
@@ -131,10 +131,9 @@ class BaseProcessor:
             key, delim, sub_key = key.partition('__')
             if key not in valid_params:
                 raise ValueError(
-                    'invalid parameter %s for processor %s, '
-                    'check the list of available parameters '
-                    'with `processor.get_params().keys()`.' %
-                    (key, self))
+                    f'invalid parameter {key} for processor {self}, '
+                    f'check the list of available parameters '
+                    f'with `processor.get_params().keys()`.')
 
             if delim:
                 nested_params[key][sub_key] = value
@@ -142,9 +141,7 @@ class BaseProcessor:
                 try:
                     setattr(self, key, value)
                 except AttributeError:
-                    raise ValueError(
-                        'cannot set attribute %s for %s'
-                        % (key, self))
+                    raise ValueError(f'cannot set attribute {key} for {self}')
                 valid_params[key] = value
 
         for key, sub_params in nested_params.items():

@@ -6,7 +6,8 @@ import copy
 import numpy as np
 
 from shennong.features.serializers import get_serializer
-from shennong.utils import dict_equal, get_logger
+from shennong.logger import get_logger
+from shennong.utils import dict_equal
 
 
 class Features:
@@ -340,7 +341,7 @@ class Features:
                     'greater than tolerance: |{} - {}| > {}'.format(
                         self.nframes, other.nframes, tolerance))
 
-            get_logger('features').warning(
+            get_logger('features', 'warning').warning(
                 'features differs in number of frames, but '
                 'within tolerance (|%s - %s| <= %s), trim the longest one',
                 self.nframes, other.nframes, tolerance)
@@ -387,7 +388,7 @@ class FeaturesCollection(dict):
     _value_type = Features
 
     @classmethod
-    def load(cls, filename, serializer=None):
+    def load(cls, filename, serializer=None, log_level='warning'):
         """Loads a FeaturesCollection from a `filename`
 
         Parameters
@@ -397,6 +398,10 @@ class FeaturesCollection(dict):
         serializer : str, optional
             The file serializer to use for loading, if not specified
             guess the serializer from the `filename` extension
+        log_level : str, optional
+            The log level must be 'debug', 'info', 'warning' or 'error'.
+            Default to 'warning'.
+
 
         Returns
         -------
@@ -412,11 +417,12 @@ class FeaturesCollection(dict):
             if the features loading fails.
 
         """
-        return get_serializer(cls, filename, serializer).load()
+        return get_serializer(cls, filename, log_level, serializer).load()
 
-    def save(self, filename, serializer=None, **kwargs):
+    def save(self, filename, serializer=None, log_level='warning', **kwargs):
         get_serializer(
-            self.__class__, filename, serializer).save(self, **kwargs)
+            self.__class__, filename, log_level, serializer).save(
+                self, **kwargs)
 
     def is_valid(self):
         """Returns True if all the features in the collection are valid"""

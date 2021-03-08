@@ -5,7 +5,7 @@ import pytest
 
 from shennong.features import Features, FeaturesCollection
 from shennong.features.processor.mfcc import MfccProcessor
-from shennong.utils import get_logger
+from shennong.logger import get_logger
 
 
 def test_init_bad():

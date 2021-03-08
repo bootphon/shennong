@@ -109,7 +109,7 @@ import scipy.fftpack
 
 from shennong.features import Features
 from shennong.features.processor.base import FeaturesProcessor
-from shennong.utils import get_logger
+from shennong.logger import get_logger
 
 
 def _add_dither(signal, level):

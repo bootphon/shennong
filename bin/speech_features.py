@@ -116,6 +116,7 @@ import argparse
 import os
 import sys
 
+import shennong.logger as logger
 import shennong.pipeline as pipeline
 import shennong.utils as utils
 from shennong import url, version_long
@@ -172,6 +173,7 @@ def parser_config(subparsers, epilog):
 
 
 def command_config(args):
+    """Execute the 'speech-features config' command"""
     with_vtln = not args.no_vtln
     if with_vtln:
         with_vtln = 'full' if args.vtln_full else 'simple'
@@ -193,6 +195,7 @@ def command_config(args):
 #
 
 def parser_extract(subparsers, epilog):
+    """Initialize options for 'speech-features extract'"""
     parser = subparsers.add_parser(
         'extract',
         description='Extract features from wav files given a configuration, '
@@ -234,9 +237,11 @@ def parser_extract(subparsers, epilog):
 
 
 def command_extract(args):
+    """Execute the 'speech-features extract' command"""
     # setup the logger (level given by -q/-v arguments)
     if args.quiet:
         log = utils.null_logger()
+        level = 'error'
     else:
         if args.verbose == 0:
             level = 'warning'
@@ -244,9 +249,7 @@ def command_extract(args):
             level = 'info'
         else:  # verbose >= 2
             level = 'debug'
-        log = utils.get_logger(name='speech-features', level=level)
-    # forward the initialized log to shennong
-    utils._logger = log
+        log = logger.get_logger(name='speech-features', level=level)
 
     # make sure the output file is not already existing and have a
     # valid extension
@@ -279,11 +282,12 @@ def command_extract(args):
 
     # save the features
     log.info('saving the features to %s', output_file)
-    features.save(output_file)
+    features.save(output_file, log_level=level)
 
 
 @utils.CatchExceptions
 def main():
+    """Entry point of the 'speech-features' program"""
     # a footer for help messages
     epilog = (
         f'speech-features is part of the shennong library\n'

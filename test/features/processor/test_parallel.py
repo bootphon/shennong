@@ -3,7 +3,7 @@
 import multiprocessing
 import pytest
 
-from shennong.utils import get_logger
+from shennong.logger import get_logger
 from shennong.features.processor.mfcc import MfccProcessor
 from shennong.features.processor.bottleneck import BottleneckProcessor
 

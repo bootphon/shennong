@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from shennong.audio import Audio
-from shennong.utils import null_logger, get_logger
+from shennong.logger import null_logger, get_logger
 from shennong.features.processor.bottleneck import (
     BottleneckProcessor, _compute_vad)
 

@@ -81,7 +81,8 @@ import joblib
 
 from shennong.audio import Audio
 from shennong.features import FeaturesCollection
-from shennong.utils import get_logger, get_njobs
+from shennong.utils import get_njobs
+from shennong.logger import get_logger
 
 
 def valid_features():
@@ -207,7 +208,7 @@ def get_default_config(
 
 
 def extract_features(configuration, utterances_index,
-                     njobs=1, log=get_logger('pipeline')):
+                     njobs=1, log=get_logger('pipeline', 'warning')):
     """Speech features extraction pipeline
 
     Given a pipeline ``configuration`` and an ``utterances_index``
@@ -286,7 +287,7 @@ class _Parallel(joblib.Parallel):
         return self.name
 
 
-def _check_environment(njobs, log=get_logger('pipeline')):
+def _check_environment(njobs, log=get_logger('pipeline', 'warning')):
     if njobs == 1:
         return
 
@@ -395,7 +396,7 @@ def _get_config_to_yaml(config, comments=True):
     return '\n'.join(config_commented) + '\n'
 
 
-def _init_config(config, log=get_logger('pippeline')):
+def _init_config(config, log=get_logger('pipeline', 'warning')):
     try:
         if os.path.isfile(config):
             log.debug('loading configuration from %s', config)
@@ -473,7 +474,7 @@ _Utterance = collections.namedtuple(
     '_Utterance', ['file', 'speaker', 'tstart', 'tstop'])
 
 
-def _init_utterances(utts_index, log=get_logger('pipeline')):
+def _init_utterances(utts_index, log=get_logger('pipeline', 'warning')):
     """Returns a dict {utt_id: (wav_file, speaker_id, tstart, tstop)}
 
     Raises on any error, log a warning on strange but non-critical
@@ -555,7 +556,7 @@ def _undo_init_utterances(utterances):
             index, utt in utterances.items()]
 
 
-def _extract_features(config, utterances, njobs=1, log=get_logger('pipeline')):
+def _extract_features(config, utterances, log, njobs=1):
     # the manager will instanciate the pipeline components
     manager = _Manager(config, utterances, log=log)
 
@@ -770,7 +771,7 @@ class _Manager:
         'vad': ('postprocessor', 'VadPostProcessor')}
     """The features processors as a dict {name: (module, class)}"""
 
-    def __init__(self, config, utterances, log=get_logger('pipeline')):
+    def __init__(self, config, utterances, log=get_logger('manager', 'warning')):
         self._config = config
         self._utterances = utterances
         self._warps = {}
@@ -894,6 +895,10 @@ class _Manager:
                     'timestamps are not in increasing order for {}: '
                     '{} >= {}'.format(wfile, tstart, tstop))
 
+    def _set_logger(self, processor):
+        processor.log.setLevel(self.log.getEffectiveLevel())
+        return processor
+
     @classmethod
     def get_processor_class(cls, name):
         """Returns the (post)processor class given its `name`
@@ -985,13 +990,13 @@ class _Manager:
         wav = self.utterances[utterance].file
         proc = self.get_processor_class(self.features)(
             **self.config[self.features])
-        proc._log = self.log
+
         try:
             proc.sample_rate = self._wavs_metadata[wav].sample_rate
         except AttributeError:
             # bottleneck does not support changing sample rate
             pass
-        return proc
+        return self._set_logger(proc)
 
     def get_energy_processor(self, utterance):
         """Instanciates and returns an energy processor"""
@@ -1000,12 +1005,12 @@ class _Manager:
         proc.frame_length = self.frame_length
         proc.frame_shift = self.frame_shift
         proc.sample_rate = self._wavs_metadata[wav].sample_rate
-        return proc
+        return self._set_logger(proc)
 
     def get_vad_processor(self, utterance):
         """Instanciates and returns a VAD processor"""
-        return self.get_processor_class('vad')(
-            **self.config['cmvn']['vad'])
+        return self._set_logger(
+            self.get_processor_class('vad')(**self.config['cmvn']['vad']))
 
     def get_cmvn_processor(self, utterance):
         """Instanciates and returns a CMVN processor"""
@@ -1013,12 +1018,13 @@ class _Manager:
             speaker = self.utterances[utterance].speaker
             return self._cmvn_processors[speaker]
 
-        return self._cmvn_processors[utterance]
+        return self._set_logger(self._cmvn_processors[utterance])
 
     def get_sliding_window_cmvn_processor(self, utterrance):
         """Instanciates and returns a sliding-window CMVN processor"""
-        return self.get_processor_class('sliding_window_cmvn')(
-            **self.config['sliding_window_cmvn'])
+        return self._set_logger(
+            self.get_processor_class('sliding_window_cmvn')(
+                **self.config['sliding_window_cmvn']))
 
     def get_pitch_processor(self, utterance):
         """Instanciates and returns a pitch processor"""
@@ -1028,20 +1034,24 @@ class _Manager:
         params['sample_rate'] = self._wavs_metadata[wav].sample_rate
         params['frame_shift'] = self.frame_shift
         params['frame_length'] = self.frame_length
-        return self.get_processor_class('pitch')(**params)
+
+        return self._set_logger(self.get_processor_class('pitch')(**params))
 
     def get_pitch_post_processor(self, utterance):
         """Instanciates and returns a pitch post-processor"""
-        return self.get_processor_class('pitch_post')(
-            **self.config['pitch']['postprocessing'])
+        return self._set_logger(
+            self.get_processor_class('pitch_post')(
+                **self.config['pitch']['postprocessing']))
 
     def get_delta_processor(self, utterance):
         """Instanciates and returns a delta processor"""
-        return self.get_processor_class('delta')(**self.config['delta'])
+        return self._set_logger(
+            self.get_processor_class('delta')(**self.config['delta']))
 
     def get_vtln_processor(self, utterance):
         """Instanciates and returns a VTLN processor"""
-        return self.get_processor_class('vtln')(**self.config['vtln'])
+        return self._set_logger(self.get_processor_class('vtln')(
+            **self.config['vtln']))
 
     def get_warp(self, utterance):
         """Returns the VTLN warp associated to this utterance"""
