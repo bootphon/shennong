@@ -40,14 +40,13 @@ References
 import copy
 import os
 import numpy as np
-import kaldi.util.io
+import kaldi.gmm
 import kaldi.matrix
 import kaldi.matrix.common
-import kaldi.gmm
-from kaldi.gmm import GmmUpdateFlags
+import kaldi.util.io
 
 from shennong.base import BaseProcessor
-from shennong.utils import get_logger
+from shennong.utils import get_logger, null_logger
 from shennong.pipeline import get_default_config, extract_features
 from shennong.features.postprocessor.vad import VadPostProcessor
 from shennong.features.postprocessor.cmvn import SlidingWindowCmvnPostProcessor
@@ -55,8 +54,7 @@ from shennong.features.features import FeaturesCollection
 
 
 class DiagUbmProcessor(BaseProcessor):
-    """Universal Background Model with Diagonal GMM
-    """
+    """Universal Background Model with Diagonal GMM"""
     def __init__(self, num_gauss,
                  num_iters=4, num_gselect=15, initial_gauss_proportion=0.5,
                  num_iters_init=20, num_frames=500000,
@@ -97,7 +95,7 @@ class DiagUbmProcessor(BaseProcessor):
         self.selection = None
 
     @property
-    def name(self):  # pragma: nocover
+    def name(self):
         """Processor name"""
         return 'diag-ubm'
 
@@ -208,9 +206,11 @@ class DiagUbmProcessor(BaseProcessor):
     def vad(self, value):
         if not isinstance(value, dict):
             raise TypeError('VAD configuration must be a dict')
+
         vad_keys = VadPostProcessor().get_params().keys()
         if not value.keys() <= vad_keys:
             raise ValueError('Unknown parameters given for VAD config')
+
         self._vad = copy.deepcopy(value)
 
     @property
@@ -240,8 +240,10 @@ class DiagUbmProcessor(BaseProcessor):
         """Save the GMM to a binary file"""
         if os.path.isfile(path):
             raise OSError('{}: file already exists'.format(path))
+
         if not isinstance(self.gmm, kaldi.gmm.DiagGmm):
             raise TypeError('GMM not initialized')
+
         try:
             self.gmm.gconsts()
         except RuntimeError:
@@ -334,7 +336,8 @@ class DiagUbmProcessor(BaseProcessor):
             self._log.debug('Iteration %s', i)
             frame_weights = kaldi.matrix.Vector(feats.num_rows)
             frame_weights.set_(1.0)
-            gmm_accs = kaldi.gmm.AccumDiagGmm.new(self.gmm, GmmUpdateFlags.ALL)
+            gmm_accs = kaldi.gmm.AccumDiagGmm.new(
+                self.gmm, kaldi.gmm.GmmUpdateFlags.ALL)
             tot_like = gmm_accs.accumulate_from_diag_multi_threaded(
                 self.gmm, feats, frame_weights, njobs)
 
@@ -343,7 +346,10 @@ class DiagUbmProcessor(BaseProcessor):
                 tot_like / feats.num_rows, feats.num_rows)
 
             obj_change, count, _, _, _ = kaldi.gmm.mle_diag_gmm_update(
-                self._options, gmm_accs, GmmUpdateFlags.ALL, self.gmm)
+                self._options,
+                gmm_accs,
+                kaldi.gmm.GmmUpdateFlags.ALL,
+                self.gmm)
 
             self._log.debug(
                 'Objective-function change: %s over %s frames',
@@ -616,9 +622,10 @@ class DiagUbmProcessor(BaseProcessor):
                     raise ValueError(
                         f'Wrong size for weights on utterance {utt}')
 
-        update_flags = GmmUpdateFlags.MEANS + \
-            GmmUpdateFlags.VARIANCES + \
-            GmmUpdateFlags.WEIGHTS
+        update_flags = (
+            kaldi.gmm.GmmUpdateFlags.MEANS +
+            kaldi.gmm.GmmUpdateFlags.VARIANCES +
+            kaldi.gmm.GmmUpdateFlags.WEIGHTS)
         gmm_accs = kaldi.gmm.AccumDiagGmm.new(self.gmm, update_flags)
         tot_like, tot_weight = 0., 0.
         for utt in feats_collection.keys():
@@ -672,9 +679,9 @@ class DiagUbmProcessor(BaseProcessor):
                 'Mixup parameter must be greater than the number of gaussians')
 
         update_flags = (
-            GmmUpdateFlags.MEANS +
-            GmmUpdateFlags.VARIANCES +
-            GmmUpdateFlags.WEIGHTS)
+            kaldi.gmm.GmmUpdateFlags.MEANS +
+            kaldi.gmm.GmmUpdateFlags.VARIANCES +
+            kaldi.gmm.GmmUpdateFlags.WEIGHTS)
 
         objf_impr, count, _, _, _ = kaldi.gmm.mle_diag_gmm_update(
             self._options, gmm_accs, update_flags, self.gmm)
@@ -709,9 +716,9 @@ class DiagUbmProcessor(BaseProcessor):
 
         """
         cmvn = self.features.pop('sliding_window_cmvn', None)
-        self._log.info('Extracting features')
-        get_logger(level='error')  # disable logger for features extraction
-        raw_features = extract_features(self.features, utterances)
+        self._log.info('Training UBM using %s jobs', njobs)
+        raw_features = extract_features(
+            self.features, utterances, njobs=njobs, log=null_logger())
 
         # Compute VAD decision
         vad = {}
@@ -736,7 +743,7 @@ class DiagUbmProcessor(BaseProcessor):
         get_logger()
 
         self.initialize_gmm(features, njobs=njobs)
-        self._log.info('Will train for %s iterations', self.num_iters)
+        self._log.info('Training for %s iterations', self.num_iters)
         features = FeaturesCollection(  # Subsample features collection
             {utt: feats.copy(subsample=self.subsample)
              for utt, feats in features.items()})
@@ -745,7 +752,7 @@ class DiagUbmProcessor(BaseProcessor):
         self.remove_low_count_gaussians = False
 
         for i in range(self.num_iters):
-            self._log.info('Training pass %s', i+1)
+            self._log.debug('Training pass %s', i+1)
             gmm_accs = self.accumulate(features, njobs=njobs)
             if i == self.num_iters-1:
                 self.remove_low_count_gaussians = remove_low_count_gaussians

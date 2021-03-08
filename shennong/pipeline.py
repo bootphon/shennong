@@ -408,7 +408,7 @@ def _init_config(config, log=get_logger()):
         try:
             config = yaml.load(config, Loader=yaml.FullLoader)
         except yaml.YAMLError as err:
-            raise ValueError('error in configuration: {}', str(err))
+            raise ValueError(f'error in configuration: {err}')
 
     # ensure all the keys in config are known
     unknown_keys = [
@@ -455,12 +455,13 @@ def _init_config(config, log=get_logger()):
     if 'delta' in config:
         msg.append('delta')
     if 'cmvn' in config:
-        by = 'speaker' if config['cmvn']['by_speaker'] else 'utterance'
-        vad = ' with vad' if config['cmvn']['with_vad'] else ''
-        msg.append('cmvn by {}{}'.format(by, vad))
+        msg.append('cmvn by {}{}'.format(
+            'speaker' if config['cmvn']['by_speaker'] else 'utterance',
+            ' with vad' if config['cmvn']['with_vad'] else ''))
     if 'vtln' in config:
-        by = 'speaker' if config['vtln']['by_speaker'] else 'utterance'
-        msg.append('vtln by {}'.format(by))
+        msg.append('vtln by {}'.format(
+            'speaker' if config['vtln']['by_speaker'] else 'utterance'))
+
     log.info(
         'pipeline configured for %s features extraction%s',
         features[0], ' with {}'.format(', '.join(msg)) if msg else '')

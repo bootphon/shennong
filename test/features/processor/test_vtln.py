@@ -23,6 +23,7 @@ def test_params():
 
     p = VtlnProcessor()
     p.set_params(**params_out)
+    assert p.name == 'vtln'
     assert params_out == p.get_params()
     assert len(params_out) == 10
     for k, v in params.items():

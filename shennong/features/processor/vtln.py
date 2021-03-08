@@ -47,8 +47,8 @@ import numpy as np
 import kaldi.matrix
 import kaldi.matrix.common
 import kaldi.matrix.functions
-import kaldi.util.io
 import kaldi.transform
+import kaldi.util.io
 
 import shennong.pipeline as pipeline
 from shennong.base import BaseProcessor
@@ -60,8 +60,7 @@ from shennong.features.postprocessor.cmvn import SlidingWindowCmvnPostProcessor
 
 
 class VtlnProcessor(BaseProcessor):
-    """VTLN model
-    """
+    """VTLN model"""
     def __init__(self, num_iters=15, min_warp=0.85,
                  max_warp=1.25, warp_step=0.01,
                  logdet_scale=0.0, norm_type='offset',
@@ -97,7 +96,7 @@ class VtlnProcessor(BaseProcessor):
         self.warps = None
 
     @property
-    def name(self):  # pragma: nocover
+    def name(self):
         return 'vtln'
 
     @property
@@ -621,10 +620,11 @@ class VtlnProcessor(BaseProcessor):
             self.features['sliding_window_cmvn'] = cmvn_config
         get_logger()
 
-        self._log.info('Computing Gaussian selection info')
+        self._log.debug('Computing Gaussian selection info')
         ubm.gaussian_selection(orig_features)
 
-        self._log.info('Computing initial LVTLN transforms')
+        self._log.info(
+            'Computing LVTLN transforms (%s iterations)', self.num_iters)
         posteriors = ubm.gaussian_selection_to_post(orig_features)
         self.transforms, self.warps = self.estimate(
             ubm, orig_features, posteriors, utt2speak)
@@ -642,12 +642,12 @@ class VtlnProcessor(BaseProcessor):
                 features[utt] = Features(data, feats.times, feats.properties)
 
             # Update the model
-            self._log.info('Updating model on pass %s', i+1)
-            gmm_accs = ubm.accumulate(features)
+            self._log.debug('Updating model on pass %s', i+1)
+            gmm_accs = ubm.accumulate(features, njobs=njobs)
             ubm.estimate(gmm_accs)
 
             # Now update the LVTLN transforms (and warps)
-            self._log.info('Re-estimating LVTLN transforms on pass %s', i+1)
+            self._log.debug('Re-estimating LVTLN transforms on pass %s', i+1)
             posteriors = ubm.gaussian_selection_to_post(features)
             self.transforms, self.warps = self.estimate(
                 ubm, orig_features, posteriors, utt2speak)
@@ -658,5 +658,5 @@ class VtlnProcessor(BaseProcessor):
             self.warps = {utt: self.warps[spk]
                           for utt, spk in utt2speak.items()}
 
-        self._log.info("Done training LVTLN model.")
+        self._log.info('Done training LVTLN model')
         return self.warps

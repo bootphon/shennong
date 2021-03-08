@@ -5,7 +5,7 @@ import inspect
 import logging
 
 
-class BaseProcessor(object):
+class BaseProcessor:
     """Base class for all processors in shennong
 
     Notes
@@ -39,8 +39,8 @@ class BaseProcessor(object):
         # Consider the constructor parameters excluding 'self'
         parameters = [p for p in init_signature.parameters.values()
                       if p.name != 'self' and p.kind != p.VAR_KEYWORD]
-        for p in parameters:
-            if p.kind == p.VAR_POSITIONAL:
+        for param in parameters:
+            if param.kind == param.VAR_POSITIONAL:
                 raise RuntimeError(
                     'shennong processors should always '
                     'specify their parameters in the signature '
