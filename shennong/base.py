@@ -1,8 +1,10 @@
 """Base classes for all shennong components"""
 
+import abc
 import collections
 import inspect
-import logging
+
+from shennong.utils import get_logger
 
 
 class BaseProcessor:
@@ -18,10 +20,40 @@ class BaseProcessor:
     from :class:`sklearn.base.BaseEstimator`
 
     """
-    _log = logging.getLogger()
+    def __init__(self):
+        self._logger = get_logger(self.name, level='info')
 
     def __repr__(self):
         return self.__class__.__name__
+
+    @abc.abstractproperty
+    def name(self):
+        """Processor name"""
+
+    @property
+    def log(self):
+        """Processor logger"""
+        return self._logger
+
+    def set_logger(self, level,
+                   formatter='%(levelname)s - %(name)s - %(message)s'):
+        """Change level and/or format of the processor's logger
+
+        Parameters
+        ----------
+        level : str
+            The minimum log level handled by the logger (any message above this
+            level will be ignored). Must be 'debug', 'info', 'warning' or
+            'error'.
+        formatter : str, optional
+            A string to format the log messages, see
+            https://docs.python.org/3/library/logging.html#formatter-objects.
+            By default display level and message. Use '%(asctime)s -
+            %(levelname)s - %(name)s - %(message)s' to display time, level,
+            name and message.
+
+        """
+        self._logger = get_logger(self.name, level=level, formatter=formatter)
 
     @classmethod
     def _get_param_names(cls):
@@ -29,7 +61,7 @@ class BaseProcessor:
         # fetch the constructor or the original constructor before
         # deprecation wrapping if any
         init = getattr(cls.__init__, 'deprecated_original', cls.__init__)
-        if init is object.__init__:
+        if init is object.__init__:  # pragma: nocover
             # No explicit constructor to introspect
             return []
 

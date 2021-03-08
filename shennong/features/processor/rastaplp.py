@@ -663,7 +663,7 @@ class RastaPlpProcessor(FramesProcessor):
             spectra = postspectrum
             cepstra, _ = _spec2cep(spectra)
 
-        cepstra = _lifter(cepstra, self._log, 0.6)
+        cepstra = _lifter(cepstra, self.log, 0.6)
         return cepstra
 
     def process(self, signal):

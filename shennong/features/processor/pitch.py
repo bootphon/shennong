@@ -89,6 +89,8 @@ class PitchProcessor(FeaturesProcessor):
                  lowpass_cutoff=1000, resample_freq=4000,
                  delta_pitch=0.005, nccf_ballast=7000,
                  lowpass_filter_width=1, upsample_filter_width=5):
+        super().__init__()
+
         self._options = kaldi.feat.pitch.PitchExtractionOptions()
         self.sample_rate = sample_rate
         self.frame_shift = frame_shift
@@ -324,6 +326,8 @@ class PitchPostProcessor(FeaturesPostProcessor):
                  delta_window=2, delay=0,
                  add_pov_feature=True, add_normalized_log_pitch=True,
                  add_delta_pitch=True, add_raw_log_pitch=False):
+        super().__init__()
+
         self._options = kaldi.feat.pitch.ProcessPitchOptions()
         self.pitch_scale = pitch_scale
         self.pov_scale = pov_scale

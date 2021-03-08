@@ -25,7 +25,7 @@ def test_params():
     assert p.get_params() == params_out
 
     p = DiagUbmProcessor(2)
-    assert p.name == 'diag-ubm'
+    assert p.name == 'ubm'
     p.set_params(**params_out)
     assert params_out == p.get_params()
     assert len(params_out) == 12

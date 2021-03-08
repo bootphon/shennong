@@ -23,12 +23,10 @@ class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
     @abc.abstractproperty
     def name(self):  # pragma: nocover
         """Name of the processor"""
-        pass
 
     @abc.abstractproperty
     def ndims(self):  # pragma: nocover
         """Dimension of the output features frames"""
-        pass
 
     def get_properties(self):
         """Return the processors properties as a dictionary"""
@@ -52,7 +50,6 @@ class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
             The computed features
 
         """
-        pass  # pragma: no cover
 
     def process_all(self, signals, njobs=None):
         """Returns features processed from several input `signals`
@@ -82,7 +79,7 @@ class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
 
         """
         # checks the number of background jobs
-        njobs = get_njobs(njobs, log=self._log)
+        njobs = get_njobs(njobs, log=self.log)
 
         def _process_one(name, signal):
             return name, self.process(signal)
@@ -110,6 +107,8 @@ class FramesProcessor(FeaturesProcessor, metaclass=abc.ABCMeta):
                  remove_dc_offset=True, window_type='povey',
                  round_to_power_of_two=True, blackman_coeff=0.42,
                  snip_edges=True):
+        super().__init__()
+
         # frame extraction options
         self._frame_options = kaldi.feat.window.FrameExtractionOptions()
         self.sample_rate = sample_rate

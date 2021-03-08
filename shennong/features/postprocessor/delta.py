@@ -53,6 +53,8 @@ from shennong.features.postprocessor.base import FeaturesPostProcessor
 
 class DeltaPostProcessor(FeaturesPostProcessor):
     def __init__(self, order=2, window=2):
+        super().__init__()
+
         self._options = kaldi.feat.functions.DeltaFeaturesOptions()
         self.order = order
         self.window = window

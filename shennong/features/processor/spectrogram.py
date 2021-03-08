@@ -30,8 +30,8 @@ References
 
 """
 
-import kaldi.feat.spectrogram
 import numpy as np
+import kaldi.feat.spectrogram
 
 from shennong.features import Features
 from shennong.features.processor.base import FramesProcessor

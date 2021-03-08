@@ -65,20 +65,20 @@ References
 
 """
 
+import numpy as np
 import kaldi.matrix
 import kaldi.ivector
-import numpy as np
 
 from shennong.features import Features
 from shennong.features.postprocessor.base import FeaturesPostProcessor
 
 
 class VadPostProcessor(FeaturesPostProcessor):
-    """Computes VAD on speech features
-
-    """
+    """Computes VAD on speech features"""
     def __init__(self, energy_threshold=5.0, energy_mean_scale=0.5,
                  frames_context=0, proportion_threshold=0.6):
+        super().__init__()
+
         self._options = kaldi.ivector.VadEnergyOptions()
         self.energy_threshold = energy_threshold
         self.energy_mean_scale = energy_mean_scale

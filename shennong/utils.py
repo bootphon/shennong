@@ -14,13 +14,16 @@ import numpy as np
 import pkg_resources
 
 
-_logger = logging.getLogger()
-
-
-def null_logger():
+def null_logger(name='null'):
     """Configures and returns a logger sending messages to nowhere
 
     This is used as default logger for some functions.
+
+    Parameters
+    ----------
+    name : str
+        Name of the created logger, to be displayed in the header of
+        log messages.
 
     Returns
     -------
@@ -28,13 +31,14 @@ def null_logger():
         Logging instance ignoring all the messages.
 
     """
-    _logger.handlers = []
-    _logger.addHandler(logging.NullHandler())
-    return _logger
+    logger = logging.getLogger(name)
+    logger.handlers = []
+    logger.addHandler(logging.NullHandler())
+    return logger
 
 
-def get_logger(name=None, level='info',
-               formatter='%(levelname)s - %(message)s'):
+def get_logger(name, level='info',
+               formatter='%(levelname)s - %(name)s - %(message)s'):
     """Configures and returns a logger sending messages to standard error
 
     Parameters
@@ -76,18 +80,19 @@ def get_logger(name=None, level='info',
     handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(formatter)
 
-    _logger.handlers = []
-    _logger.addHandler(handler)
+    logger = logging.getLogger(name)
+    logger.handlers = []
+    logger.addHandler(handler)
 
-    _logger.name = name
     try:
-        _logger.setLevel(levels[level])
+        logger.setLevel(levels[level])
+        logger.debug('set logging level to %s', level)
     except KeyError:
         raise ValueError(
             'invalid logging level "{}", must be in {}'.format(
                 level, ', '.join(levels.keys())))
 
-    return _logger
+    return logger
 
 
 def get_njobs(njobs, log=null_logger()):

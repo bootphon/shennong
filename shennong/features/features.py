@@ -3,16 +3,13 @@
 
 import collections
 import copy
-import logging
 import numpy as np
 
 from shennong.features.serializers import get_serializer
-from shennong.utils import dict_equal
+from shennong.utils import dict_equal, get_logger
 
 
 class Features:
-    _log = logging.getLogger()
-
     def __init__(self, data, times, properties={}, validate=True):
         self._data = data
         self._times = times
@@ -343,7 +340,7 @@ class Features:
                     'greater than tolerance: |{} - {}| > {}'.format(
                         self.nframes, other.nframes, tolerance))
 
-            self._log.warning(
+            get_logger('features').warning(
                 'features differs in number of frames, but '
                 'within tolerance (|%s - %s| <= %s), trim the longest one',
                 self.nframes, other.nframes, tolerance)

@@ -53,6 +53,7 @@ from shennong.features.processor.base import FeaturesProcessor
 
 class _OneHotBase(FeaturesProcessor):
     def __init__(self, tokens=None):
+        super().__init__()
         self.tokens = tokens
 
     @property

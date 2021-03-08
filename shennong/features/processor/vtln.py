@@ -52,7 +52,7 @@ import kaldi.util.io
 
 import shennong.pipeline as pipeline
 from shennong.base import BaseProcessor
-from shennong.utils import get_logger
+from shennong.utils import get_logger, null_logger
 from shennong.features.features import FeaturesCollection, Features
 from shennong.features.processor.ubm import DiagUbmProcessor
 from shennong.features.postprocessor.vad import VadPostProcessor
@@ -66,6 +66,8 @@ class VtlnProcessor(BaseProcessor):
                  logdet_scale=0.0, norm_type='offset',
                  subsample=5, features=None,
                  ubm=None, by_speaker=True):
+        super().__init__()
+
         self.num_iters = num_iters
         self.min_warp = min_warp
         self.max_warp = max_warp
@@ -256,9 +258,11 @@ class VtlnProcessor(BaseProcessor):
         """
         if not isinstance(utterances, list):
             raise TypeError('Invalid utterances format')
+
         utts = list((u,) if isinstance(u, str)
                     else u for u in utterances)
         index_format = set(len(u) for u in utts)
+
         if not len(index_format) == 1:
             raise ValueError(
                 'the wavs index is not homogeneous, entries'
@@ -271,7 +275,7 @@ class VtlnProcessor(BaseProcessor):
                 raise ValueError(
                     'Requested speaker-adapted VTLN, but speaker'
                     ' information is missing')
-            return {utt[0]: utt[2] for utt in utterances}
+            return {utt[0].strip(): utt[2].strip() for utt in utterances}
 
         return None
 
@@ -381,10 +385,11 @@ class VtlnProcessor(BaseProcessor):
                 - 2*kaldi.matrix.functions.vec_vec(w_i, l_i) + c[i])/beta
             sqdiff = sumsq_diff[i]/beta
             scatter = sumsq_x[i]/beta
-            self._log.debug(
-                f'For dimension {i} sum-squared error in linear'
-                f' approximation is {error}, versus feature-difference'
-                f' {sqdiff}, orig-sumsq is {scatter}')
+            self.log.debug(
+                'For dimension %s sum-squared error in linear approximation '
+                'is %s, versus feature-difference %s, orig-sumsq is %s',
+                i, error, sqdiff, scatter)
+
             # Normalize variance
             x_var = scatter - (sum_xplus[i]/beta)**2
             y_var = kaldi.matrix.functions.vec_vec(
@@ -469,8 +474,11 @@ class VtlnProcessor(BaseProcessor):
                 class_counts[class_idx] += 1
                 transforms[spk] = transform
                 warps[spk] = self.lvtln.get_warp(class_idx)
-                self._log.debug(f'For speaker {spk}, auxf-impr from LVTLN is'
-                                f' {objf_impr/count}, over {count} frames')
+
+                self.log.debug(
+                    'speaker %s: auxf-impr from LVTLN is %s, over %s frames',
+                    spk, objf_impr / count, count)
+
                 tot_lvtln_impr += objf_impr
                 tot_t += count
 
@@ -485,6 +493,7 @@ class VtlnProcessor(BaseProcessor):
                                      f' vs {feats.num_rows}')
                 spk_stats = kaldi.transform.mllr.FmllrDiagGmmAccs.from_dim(
                     self.lvtln.dim())
+
                 # Accumulate for utterance
                 for i in range(len(post)):
                     gselect = []
@@ -494,6 +503,7 @@ class VtlnProcessor(BaseProcessor):
                         this_post[j] = post[i][j][1]
                     spk_stats.accumulate_from_posteriors_preselect(
                         ubm.gmm, gselect, feats.row(i), this_post)
+
                 # Compute the transform
                 transform = kaldi.matrix.Matrix(
                     self.lvtln.dim(), self.lvtln.dim()+1)
@@ -507,17 +517,18 @@ class VtlnProcessor(BaseProcessor):
                 class_counts[class_idx] += 1
                 transforms[utt] = transform
                 warps[utt] = self.lvtln.get_warp(class_idx)
-                self._log.debug(f'For utterance {utt}, auxf-impr from LVTLN is'
-                                f' {objf_impr/count}, over {count} frames')
+                self.log.debug(
+                    'utterance %s: auxf-impr from LVTLN is %s, over %s frames',
+                    utt, objf_impr / count, count)
                 tot_lvtln_impr += objf_impr
                 tot_t += count
 
         message = 'Distribution of classes is'
         for count in class_counts:
             message += " "+str(count)
-        message += f'\n Overall LVTLN auxfimpr per' \
+        message += f', overall LVTLN auxfimpr per' \
             f' frame is {tot_lvtln_impr/tot_t}  over {tot_t} frames'
-        self._log.debug(message)
+        self.log.debug(message)
         return transforms, warps
 
     def process(self, utterances, ubm=None, njobs=1):
@@ -561,7 +572,7 @@ class VtlnProcessor(BaseProcessor):
                 raise ValueError('Given UBM-GMM has not been trained')
             self.ubm = ubm.get_params()
 
-        self._log.info('Initializing base LVTLN transforms')
+        self.log.info('Initializing base LVTLN transforms')
         dim = ubm.gmm.dim()
         num_classes = int(1.5 + (self.max_warp-self.min_warp) / self.warp_step)
         default_class = int(0.5 + (1-self.min_warp)/self.warp_step)
@@ -569,13 +580,12 @@ class VtlnProcessor(BaseProcessor):
             dim, num_classes, default_class)
 
         cmvn_config = self.features.pop('sliding_window_cmvn', None)
-        # TODO here this is done on all the warp but not parametrized !
-        # get_logger(level='error')  # disable logger for features extraction
+
         raw_mfcc = pipeline.extract_features(
-            self.features, utterances, njobs=njobs)
+            self.features, utterances, njobs=njobs, log=null_logger())
 
         # Compute VAD decision
-        self._log.debug('... computing VAD decision')
+        self.log.debug('... computing VAD decision')
         vad = {}
         for utt, mfcc in raw_mfcc.items():
             this_vad = VadPostProcessor(**ubm.vad).process(mfcc)
@@ -599,15 +609,21 @@ class VtlnProcessor(BaseProcessor):
 
         # Computing base transforms
         featsub_unwarped = pipeline.extract_features(
-            self.features, utterances, njobs=njobs).trim(vad)
+            self.features, utterances,
+            njobs=njobs, log=null_logger()).trim(vad)
         featsub_unwarped = FeaturesCollection(
             {utt: feats.copy(subsample=self.subsample)
              for utt, feats in featsub_unwarped.items()})
+
         for c in range(num_classes):
-            self._log.debug('... base transform %s/%s', c+1, num_classes)
             this_warp = self.min_warp + c*self.warp_step
+            self.log.info(
+                'Computing base transform (warp=%s) %s/%s',
+                this_warp, c+1, num_classes)
+
             featsub_warped = pipeline.extract_features_warp(
-                self.features, utterances, this_warp, njobs=njobs).trim(vad)
+                self.features, utterances, this_warp,
+                null_logger(), njobs=njobs).trim(vad)
             featsub_warped = FeaturesCollection(
                 {utt: feats.copy(subsample=self.subsample)
                  for utt, feats in featsub_warped.items()})
@@ -618,19 +634,19 @@ class VtlnProcessor(BaseProcessor):
 
         if cmvn_config is not None:
             self.features['sliding_window_cmvn'] = cmvn_config
-        get_logger()
 
-        self._log.debug('Computing Gaussian selection info')
+        self.log.debug('Computing Gaussian selection info')
         ubm.gaussian_selection(orig_features)
 
-        self._log.info(
+        self.log.info(
             'Computing LVTLN transforms (%s iterations)', self.num_iters)
         posteriors = ubm.gaussian_selection_to_post(orig_features)
         self.transforms, self.warps = self.estimate(
             ubm, orig_features, posteriors, utt2speak)
 
         for i in range(self.num_iters):
-            self._log.debug('... iteration %s/%s', i+1, self.num_iters)
+            self.log.debug('Updating model on pass %s/%s', i+1, self.num_iters)
+
             # Transform the features
             features = FeaturesCollection()
             for utt, feats in orig_features.items():
@@ -642,12 +658,11 @@ class VtlnProcessor(BaseProcessor):
                 features[utt] = Features(data, feats.times, feats.properties)
 
             # Update the model
-            self._log.debug('Updating model on pass %s', i+1)
             gmm_accs = ubm.accumulate(features, njobs=njobs)
             ubm.estimate(gmm_accs)
 
             # Now update the LVTLN transforms (and warps)
-            self._log.debug('Re-estimating LVTLN transforms on pass %s', i+1)
+            # self.log.debug('Re-estimating LVTLN transforms on pass %s', i+1)
             posteriors = ubm.gaussian_selection_to_post(features)
             self.transforms, self.warps = self.estimate(
                 ubm, orig_features, posteriors, utt2speak)
@@ -658,5 +673,5 @@ class VtlnProcessor(BaseProcessor):
             self.warps = {utt: self.warps[spk]
                           for utt, spk in utt2speak.items()}
 
-        self._log.info('Done training LVTLN model')
+        self.log.info('Done training LVTLN model')
         return self.warps

@@ -27,7 +27,7 @@ def test_null_logger(capsys):
 @pytest.mark.parametrize(
     'level', ['debug', 'info', 'warning', 'error'])
 def test_logger(capsys, level):
-    log = utils.get_logger(level=level)
+    log = utils.get_logger('test', level=level)
     log.debug('DEBUG')
     log.info('INFO')
     log.warning('WARNING')
@@ -59,7 +59,7 @@ def test_logger(capsys, level):
 
 def test_logger_bad_level():
     with pytest.raises(ValueError) as err:
-        utils.get_logger(level='bad')
+        utils.get_logger('test', level='bad')
     assert 'invalid logging level' in str(err.value)
 
 

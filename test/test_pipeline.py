@@ -68,7 +68,8 @@ def test_config_format(utterances_index, capsys, tmpdir, kind):
             pipeline._init_config(config2)
         assert 'error in configuration' in str(err.value)
 
-    parsed = pipeline._init_config(config, log=utils.get_logger(level='info'))
+    parsed = pipeline._init_config(config, log=utils.get_logger(
+        'pipeline', level='info'))
     output = capsys.readouterr().err
     for word in ('mfcc', 'pitch', 'cmvn', 'delta'):
         assert word in output
@@ -120,7 +121,7 @@ def test_config_bad(utterances_index):
 
 
 def test_check_speakers(utterances_index, capsys):
-    log = utils.get_logger(level='info')
+    log = utils.get_logger('test', level='info')
 
     config = pipeline.get_default_config('mfcc')
     with pytest.raises(ValueError) as err:
@@ -146,7 +147,7 @@ def test_check_speakers(utterances_index, capsys):
 def test_check_environment(capsys):
     if 'OMP_NUM_THREADS' in os.environ:
         del os.environ['OMP_NUM_THREADS']
-    pipeline._check_environment(2, log=utils.get_logger())
+    pipeline._check_environment(2, log=utils.get_logger('test'))
     out = capsys.readouterr().err
     assert 'working on 2 threads but implicit parallelism is active' in out
 
@@ -302,12 +303,12 @@ def test_extract_features_full(ext, wav_file, wav_file_8k, wav_file_float32,
     config['cmvn']['with_vad'] = False
 
     feats = pipeline.extract_features(
-        config, index, njobs=2, log=utils.get_logger())
+        config, index, njobs=2, log=utils.get_logger('test'))
 
     # ensure we have the expected log messages
     messages = capsys.readouterr().err
-    assert 'INFO - get 3 utterances from 2 speakers in 3 wavs' in messages
-    assert 'WARNING - several sample rates found in wav files' in messages
+    assert 'INFO - test - get 3 utterances from 2 speakers in 3 wavs' in messages
+    assert 'WARNING - test - several sample rates found in wav files' in messages
 
     for utt in ('u1', 'u2', 'u3'):
         assert utt in feats

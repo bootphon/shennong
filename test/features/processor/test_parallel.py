@@ -23,9 +23,9 @@ def test_process_all(audio, proc):
 
 @pytest.mark.parametrize('njobs', [0, 1, 2, 1000])
 def test_njobs(capsys, njobs, audio):
-    get_logger().setLevel(0)
     signals = {'1': audio}
     p = MfccProcessor(sample_rate=audio.sample_rate)
+    p.set_logger('debug')
 
     if njobs == 0:
         with pytest.raises(ValueError) as err:

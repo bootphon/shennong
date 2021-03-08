@@ -207,7 +207,7 @@ def get_default_config(
 
 
 def extract_features(configuration, utterances_index,
-                     njobs=1, log=get_logger()):
+                     njobs=1, log=get_logger('pipeline')):
     """Speech features extraction pipeline
 
     Given a pipeline ``configuration`` and an ``utterances_index``
@@ -286,7 +286,7 @@ class _Parallel(joblib.Parallel):
         return self.name
 
 
-def _check_environment(njobs, log=get_logger()):
+def _check_environment(njobs, log=get_logger('pipeline')):
     if njobs == 1:
         return
 
@@ -395,7 +395,7 @@ def _get_config_to_yaml(config, comments=True):
     return '\n'.join(config_commented) + '\n'
 
 
-def _init_config(config, log=get_logger()):
+def _init_config(config, log=get_logger('pippeline')):
     try:
         if os.path.isfile(config):
             log.debug('loading configuration from %s', config)
@@ -473,7 +473,7 @@ _Utterance = collections.namedtuple(
     '_Utterance', ['file', 'speaker', 'tstart', 'tstop'])
 
 
-def _init_utterances(utts_index, log=get_logger()):
+def _init_utterances(utts_index, log=get_logger('pipeline')):
     """Returns a dict {utt_id: (wav_file, speaker_id, tstart, tstop)}
 
     Raises on any error, log a warning on strange but non-critical
@@ -555,7 +555,7 @@ def _undo_init_utterances(utterances):
             index, utt in utterances.items()]
 
 
-def _extract_features(config, utterances, njobs=1, log=get_logger()):
+def _extract_features(config, utterances, njobs=1, log=get_logger('pipeline')):
     # the manager will instanciate the pipeline components
     manager = _Manager(config, utterances, log=log)
 
@@ -599,7 +599,7 @@ def _extract_features(config, utterances, njobs=1, log=get_logger()):
     return features
 
 
-def _extract_pass_one(utt_name, manager, log=get_logger()):
+def _extract_pass_one(utt_name, manager, log):
     # load audio signal of the utterance
     log.debug('%s: load audio', utt_name)
     audio = manager.get_audio(utt_name)
@@ -658,8 +658,7 @@ def _extract_pass_one(utt_name, manager, log=get_logger()):
     return utt_name, features, pitch
 
 
-def _extract_pass_two(utt_name, manager, features, pitch,
-                      tolerance=2, log=get_logger()):
+def _extract_pass_two(utt_name, manager, features, pitch, log, tolerance=2):
     # apply cmvn
     if 'cmvn' in manager.config:
         log.debug('%s: apply cmvn', utt_name)
@@ -688,12 +687,12 @@ def _extract_pass_two(utt_name, manager, features, pitch,
     return utt_name, features
 
 
-def _extract_single_pass(utt_name, manager, log=get_logger()):
+def _extract_single_pass(utt_name, manager, log):
     _, features, pitch = _extract_pass_one(utt_name, manager, log=log)
     return _extract_pass_two(utt_name, manager, features, pitch, log=log)
 
 
-def _extract_single_pass_warp(utt_name, manager, warp, log=get_logger()):
+def _extract_single_pass_warp(utt_name, manager, warp, log):
     # load audio signal of the utterance
     log.debug('%s: load audio', utt_name)
     audio = manager.get_audio(utt_name)
@@ -711,8 +710,7 @@ def _extract_single_pass_warp(utt_name, manager, warp, log=get_logger()):
     return utt_name, features
 
 
-def extract_features_warp(configuration, utterances_index, warp,
-                          njobs=1, log=get_logger()):
+def extract_features_warp(configuration, utterances_index, warp, log, njobs=1):
     """Speech features extraction pipeline when all features are warped
     by the same factor. Used in the `process` method of the `VtlnProcessor`.
     """
@@ -772,7 +770,7 @@ class _Manager:
         'vad': ('postprocessor', 'VadPostProcessor')}
     """The features processors as a dict {name: (module, class)}"""
 
-    def __init__(self, config, utterances, log=get_logger()):
+    def __init__(self, config, utterances, log=get_logger('pipeline')):
         self._config = config
         self._utterances = utterances
         self._warps = {}

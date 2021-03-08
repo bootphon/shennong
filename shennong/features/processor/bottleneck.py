@@ -100,8 +100,8 @@ References
 """
 
 import os
-import pkg_resources
 import warnings
+import pkg_resources
 
 import numpy as np
 import scipy.linalg as spl
@@ -109,6 +109,7 @@ import scipy.fftpack
 
 from shennong.features import Features
 from shennong.features.processor.base import FeaturesProcessor
+from shennong.utils import get_logger
 
 
 def _add_dither(signal, level):
@@ -522,6 +523,8 @@ class BottleneckProcessor(FeaturesProcessor):
     _loaded_weights = {}
 
     def __init__(self, weights='BabelMulti', dither=0.1):
+        super().__init__()
+
         self.weights = weights
         self.dither = dither
         self._get_weights()
@@ -605,7 +608,7 @@ class BottleneckProcessor(FeaturesProcessor):
         if self.weights not in self._loaded_weights:
             # load the weights if not already loaded
             weights_file = self.available_weights()[self.weights]
-            self._log.info('loading %s', os.path.basename(weights_file))
+            self.log.info('loading %s', os.path.basename(weights_file))
 
             # explicitely load all the data once, instead of having a file
             # descriptor
@@ -657,7 +660,8 @@ class BottleneckProcessor(FeaturesProcessor):
             raise RuntimeError('no weights file found in {}'.format(directory))
         for k in expected_files.keys():
             if k not in files:  # pragma: nocover
-                cls.log.warning('weights file for "%s" is unavailable', k)
+                get_logger('bottleneck').warning(
+                    'weights file for "%s" is unavailable', k)
 
         return files
 
@@ -696,7 +700,7 @@ class BottleneckProcessor(FeaturesProcessor):
             signal.dtype is not np.dtype(np.int16))
 
         if need_resample:
-            self._log.debug(
+            self.log.debug(
                 'resampling audio from %dHz@%db to %dHz@%db',
                 signal.sample_rate, signal.dtype.itemsize * 8, 8000, 16)
             signal = signal.resample(8000).astype(np.int16)
@@ -715,7 +719,7 @@ class BottleneckProcessor(FeaturesProcessor):
         # (vad input format could be an instance of Alignment, or
         # simply an array of bool).
         vad = _compute_vad(
-            signal, self._log,
+            signal, self.log,
             win_length=frame_length, win_overlap=frame_noverlap)
 
         # ensure we have some voiced frames in the signal
@@ -723,7 +727,7 @@ class BottleneckProcessor(FeaturesProcessor):
         if not voiced_frames:
             raise RuntimeError(
                 'no voice detected in signal, failed to extract features')
-        self._log.debug('%d frames of speech detected (on %d total frames)',
+        self.log.debug('%d frames of speech detected (on %d total frames)',
                         voiced_frames, len(vad))
 
         # from audio signal to mel filterbank

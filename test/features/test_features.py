@@ -125,7 +125,6 @@ def test_concatenate(mfcc):
 
 
 def test_concatenate_tolerance(capsys):
-    get_logger(level='info')
     f1 = Features(np.random.random((12, 2)), np.ones((12,)))
     f2 = Features(np.random.random((10, 2)), np.ones((10,)))
 

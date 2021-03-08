@@ -112,6 +112,8 @@ class CmvnPostProcessor(FeaturesPostProcessor):
     """
 
     def __init__(self, dim, stats=None):
+        super().__init__()
+
         # init features dimension
         if not isinstance(dim, int) or dim <= 0:
             raise ValueError(
@@ -357,25 +359,25 @@ def apply_cmvn(feats_collection, by_collection=True, norm_vars=True,
         # accumulate CMVN stats over the whole collection
         cmvn = CmvnPostProcessor(dim)
         for k, f in feats_collection.items():
-            w = weights[k] if weights is not None else None
-            cmvn.accumulate(f, weights=w)
+            cmvn.accumulate(
+                f, weights=weights[k] if weights is not None else None)
 
         # apply CMVN stats
         return FeaturesCollection(
             {k: cmvn.process(f, norm_vars=norm_vars, skip_dims=skip_dims)
              for k, f in feats_collection.items()})
-    else:
-        # independently for each features in the collection,
-        # accumulate and apply CMNV stats
-        cmvn_collection = FeaturesCollection()
-        for k, f in feats_collection.items():
-            cmvn = CmvnPostProcessor(f.ndims)
-            cmvn.accumulate(
-                f, weights=weights[k] if weights is not None else None)
-            cmvn_collection[k] = cmvn.process(
-                f, norm_vars=norm_vars, skip_dims=skip_dims)
 
-        return cmvn_collection
+    # independently for each features in the collection,
+    # accumulate and apply CMNV stats
+    cmvn_collection = FeaturesCollection()
+    for k, f in feats_collection.items():
+        cmvn = CmvnPostProcessor(f.ndims)
+        cmvn.accumulate(
+            f, weights=weights[k] if weights is not None else None)
+        cmvn_collection[k] = cmvn.process(
+            f, norm_vars=norm_vars, skip_dims=skip_dims)
+
+    return cmvn_collection
 
 
 class SlidingWindowCmvnPostProcessor(FeaturesPostProcessor):
@@ -397,6 +399,8 @@ class SlidingWindowCmvnPostProcessor(FeaturesPostProcessor):
     """
     def __init__(self, center=True, cmn_window=600, min_window=100,
                  max_warnings=5, normalize_variance=False):
+        super().__init__()
+
         self._options = kaldi.feat.functions.SlidingWindowCmnOptions()
         self.center = center
         self.cmn_window = cmn_window
