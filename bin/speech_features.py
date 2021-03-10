@@ -120,7 +120,7 @@ import shennong.logger as logger
 import shennong.pipeline as pipeline
 import shennong.utils as utils
 from shennong import url, version_long
-from shennong.features.serializers import supported_extensions
+from shennong.serializers import supported_extensions
 
 
 #
@@ -273,8 +273,7 @@ def command_extract(args):
     # in the file
     utterances = [
         utt.split(' ') for utt in
-        (utt.strip() for utt in open(args.utts_index, 'r'))
-        if utt]
+        (utt.strip() for utt in open(args.utts_index, 'r')) if utt]
 
     # run the pipeline
     features = pipeline.extract_features(
