@@ -3,7 +3,7 @@
 Spectrogram
 ~~~~~~~~~~~
 
-.. automodule:: shennong.features.processor.spectrogram
+.. automodule:: shennong.processor.spectrogram
     :members:
     :inherited-members:
     :undoc-members:

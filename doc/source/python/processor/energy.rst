@@ -3,7 +3,7 @@
 Energy
 ~~~~~~
 
-.. automodule:: shennong.features.processor.energy
+.. automodule:: shennong.processor.energy
     :members:
     :inherited-members:
     :undoc-members:

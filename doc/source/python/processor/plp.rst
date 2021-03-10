@@ -3,7 +3,7 @@
 PLP
 ~~~
 
-.. automodule:: shennong.features.processor.plp
+.. automodule:: shennong.processor.plp
     :members:
     :inherited-members:
     :undoc-members:

@@ -18,17 +18,17 @@ Base processor
    :inherited-members:
 
 
-Base features processor
-~~~~~~~~~~~~~~~~~~~~~~~
+Base processor
+~~~~~~~~~~~~~~
 
-.. automodule:: shennong.features.processor.base
+.. automodule:: shennong.processor.base
    :members:
    :inherited-members:
 
 
-Base features post-processor
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Base post-processor
+~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: shennong.features.postprocessor.base
+.. automodule:: shennong.postprocessor.base
    :members:
    :inherited-members:
