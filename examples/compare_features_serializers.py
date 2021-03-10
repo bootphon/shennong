@@ -8,14 +8,13 @@ Comparison is on file size, writing and reading speed
 import argparse
 import datetime
 import os
-import tabulate
 import tempfile
 
-from shennong.audio import Audio
+import tabulate
+from shennong import Audio, FeaturesCollection
+from shennong.processor.mfcc import MfccProcessor
+from shennong.serializers import supported_extensions
 from shennong.utils import list_files_with_extension
-from shennong.features import FeaturesCollection
-from shennong.features.processor.mfcc import MfccProcessor
-from shennong.features.serializers import supported_extensions
 
 
 # results obtained from a previous run on 1:03:00

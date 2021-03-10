@@ -5,13 +5,13 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
-from shennong.audio import Audio
-from shennong.features.processor.filterbank import FilterbankProcessor
-from shennong.features.processor.mfcc import MfccProcessor
-from shennong.features.processor.plp import PlpProcessor
-from shennong.features.processor.rastaplp import RastaPlpProcessor
-from shennong.features.processor.bottleneck import BottleneckProcessor
-from shennong.features.processor.spectrogram import SpectrogramProcessor
+from shennong import Audio
+from shennong.processor.filterbank import FilterbankProcessor
+from shennong.processor.mfcc import MfccProcessor
+from shennong.processor.plp import PlpProcessor
+from shennong.processor.rastaplp import RastaPlpProcessor
+from shennong.processor.bottleneck import BottleneckProcessor
+from shennong.processor.spectrogram import SpectrogramProcessor
 
 
 def main():
