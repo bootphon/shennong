@@ -4,7 +4,6 @@ import multiprocessing
 import os
 import pytest
 
-from shennong.logger import get_logger
 from shennong.processor.mfcc import MfccProcessor
 from shennong.processor.bottleneck import BottleneckProcessor
 
