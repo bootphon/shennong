@@ -16,7 +16,7 @@ from shennong.features import Features
 from shennong.features_collection import FeaturesCollection
 
 
-__version__ = '0.1.1'
+__version__ = '1.0rc0'
 
 
 def url():

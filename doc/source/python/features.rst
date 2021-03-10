@@ -22,7 +22,6 @@ Features collection
 .. automodule:: shennong.features_collection
     :members:
     :inherited-members:
-    :undoc-members:
 
 
 Save/load features

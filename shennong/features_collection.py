@@ -1,4 +1,40 @@
-"""Builds, saves, loads and manipulate a collection of speech features"""
+"""Provides the `FeaturesCollection` class to manipulate speech features
+
+A `FeaturesCollection` is basically a dictionnary of
+:class:`~shennong.features.Features` indexed by names. A collection can be
+saved to file and loaded from file with :func:`save` and :func:`load`, see
+:mod:`~shennong.serializers` for more details on supported file formats.
+
+Examples
+--------
+
+>>> import os
+>>> import numpy as np
+>>> from shennong import FeaturesCollection
+
+Create a collection of two random features
+
+>>> fc = FeaturesCollection()
+>>> fc['feat1'] = Features(np.random.random((5, 2)), np.linspace(0, 4, num=5))
+>>> fc['feat2'] = Features(np.random.random((3, 2)), np.linspace(0, 2, num=3))
+>>> fc.keys()
+dict_keys(['feat1', 'feat2'])
+
+Save the collection to a npz file
+
+>>> fc.save('features.npz')
+
+Load it back to a new collection
+
+>>> fc2 = FeaturesCollection.load('features.npz')
+>>> fc2.keys()
+dict_keys(['feat1', 'feat2'])
+>>> fc == fc2
+True
+
+>>> os.remove('features.npz')
+
+"""
 
 import collections
 import numpy as np
@@ -8,6 +44,7 @@ from shennong.serializers import get_serializer
 
 
 class FeaturesCollection(dict):
+    """Handles a collection of :class:`~shennong.Features` as a dictionary"""
     # a tweak inspired by C++ metaprogramming to avoid import loops
     # with shennong.features.serializers
     _value_type = Features
@@ -45,6 +82,30 @@ class FeaturesCollection(dict):
         return get_serializer(cls, filename, log_level, serializer).load()
 
     def save(self, filename, serializer=None, log_level='warning', **kwargs):
+        """Saves a FeaturesCollection to a `filename`
+
+        Parameters
+        ----------
+        filename : str
+            The file to write
+        serializer : str, optional
+            The file serializer to use for loading, if not specified
+            guess the serializer from the `filename` extension
+        log_level : str, optional
+            The log level must be 'debug', 'info', 'warning' or 'error'.
+            Default to 'warning'.
+        **kwargs : optional
+            Additional keyword arguments to forward to the serializer.
+
+        Raises
+        ------
+        IOError
+            If the file `filename` already exists
+        ValueError
+            If the `serializer` or the file extension is not supported,
+            if the features saving fails.
+
+        """
         get_serializer(
             self.__class__, filename, log_level, serializer).save(
                 self, **kwargs)

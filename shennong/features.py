@@ -1,4 +1,54 @@
-"""Builds, saves, loads and manipulate speech features"""
+"""Provides the `Features` class to manipulate speech features
+
+A `Features` instance is designed to store the features extracted from a single
+utterance. It is made of three fields:
+
+- ``data`` is a numpy array storing the underlying features matrix with the
+  shape ``(nframes, ndims)``
+
+- ``times`` is a numpy array containg the timestamps for each frame
+
+- ``properties`` is a dictionary containing metadata about the features, such
+  as generation processor and parameters, original ausdio file, etc...
+
+A `Features` alone cannot be saved to or loaded from file, it must be
+encapsulated into a :class:`~shennong.features_collection.FeaturesCollection`.
+
+Examples
+--------
+
+>>> import numpy as np
+>>> from shennong import Features
+
+Build a random Features instance with timestamps
+
+>>> feat = Features(np.random.random((5, 2)), np.linspace(0, 4, num=5))
+>>> feat.shape
+(5, 2)
+>>> feat.nframes
+5
+>>> feat.ndims
+2
+>>> feat.properties
+{}
+
+Copy the features and add some properties to it
+
+>>> feat2 = Features(feat.data, feat.times, properties={'str': 'a', 'int': 0})
+>>> feat2.properties
+{'str': 'a', 'int': 0}
+>>> feat == feat2
+False
+>>> feat.data == feat2.data
+array([[ True,  True],
+       [ True,  True],
+       [ True,  True],
+       [ True,  True],
+       [ True,  True]])
+>>> feat.times == feat2.times
+array([ True,  True,  True,  True,  True])
+
+"""
 
 
 import copy
@@ -10,10 +60,11 @@ from shennong.utils import dict_equal
 
 
 class Features:
-    def __init__(self, data, times, properties={}, validate=True):
-        self._data = data
-        self._times = times
-        self._properties = properties
+    """Handles features data with attached timestamps and properties"""
+    def __init__(self, data, times, properties=None, validate=True):
+        self._data = np.asarray(data)
+        self._times = np.asarray(times)
+        self._properties = properties or {}
 
         # make sure the features are in a valid state
         if validate is True:
