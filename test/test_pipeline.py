@@ -7,10 +7,9 @@ import yaml
 
 import shennong.logger as logger
 import shennong.pipeline as pipeline
-import shennong.utils as utils
-from shennong.audio import Audio
-from shennong.features import FeaturesCollection
-from shennong.features.serializers import supported_extensions
+from shennong.pipeline_manager import PipelineManager
+from shennong import Audio, FeaturesCollection
+from shennong.serializers import supported_extensions
 
 
 @pytest.fixture(scope='session')
@@ -179,7 +178,7 @@ def test_check_wavs_bad(wav_file, wav_file_8k, tmpdir, capsys):
         c = pipeline._init_config(pipeline.get_default_config(
             'mfcc', with_cmvn=False))
         u = pipeline._init_utterances(utts, log=logger.get_logger('test', 'info'))
-        pipeline._Manager(c, u, log=logger.get_logger('test', 'info'))
+        PipelineManager(c, u, log=logger.get_logger('test', 'info'))
         return u
 
     # build a stereo file and make sure it is not supported by the
@@ -209,7 +208,7 @@ def test_check_wavs_bad(wav_file, wav_file_8k, tmpdir, capsys):
 
 
 def test_processor_bad():
-    get = pipeline._Manager.get_processor_class
+    get = PipelineManager.get_processor_class
     with pytest.raises(ValueError) as err:
         get('bad')
     assert 'invalid processor "bad"' in str(err.value)

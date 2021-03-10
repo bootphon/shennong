@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from kaldi.util.table import SequentialWaveReader
-from shennong.audio import Audio
+from shennong import Audio
 
 
 DTYPES = [np.int16, np.int32, np.float32, np.float64, float]

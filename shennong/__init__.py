@@ -11,6 +11,10 @@ See https://docs.cognitive-ml.fr/shennong for a complete documentation.
 import datetime
 import textwrap
 
+from shennong.audio import Audio
+from shennong.features import Features
+from shennong.features_collection import FeaturesCollection
+
 
 __version__ = '0.1.1'
 
