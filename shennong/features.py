@@ -62,9 +62,9 @@ from shennong.utils import dict_equal
 class Features:
     """Handles features data with attached timestamps and properties"""
     def __init__(self, data, times, properties=None, validate=True):
-        self._data = np.asarray(data)
-        self._times = np.asarray(times)
-        self._properties = properties or {}
+        self._data = data
+        self._times = times
+        self._properties = {} if properties is None else properties
 
         # make sure the features are in a valid state
         if validate is True:
