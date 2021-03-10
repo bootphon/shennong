@@ -1,6 +1,7 @@
 """Test of parallel features processing"""
 
 import multiprocessing
+import os
 import pytest
 
 from shennong.logger import get_logger
@@ -10,6 +11,10 @@ from shennong.processor.bottleneck import BottleneckProcessor
 
 @pytest.mark.parametrize('proc', [MfccProcessor, BottleneckProcessor])
 def test_process_all(audio, proc):
+    # the bottleneck test hangs on travis, skipping it
+    if proc == BottleneckProcessor and 'ON_TRAVIS' in os.environ:
+        pytest.skip('unsupported on travis')
+
     signals = {'{}'.format(n): audio for n in range(3)}
     p = proc()
     features = p.process_all(signals)

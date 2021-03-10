@@ -1,8 +1,9 @@
+os: linux
 dist: focal
 language: python
 
-notifications:
-  email: false
+env:
+  - ON_TRAVIS=true
 
 # no need of git history
 git:
@@ -49,3 +50,6 @@ script:
 
 after_success:
   - codecov
+
+notifications:
+  email: false
