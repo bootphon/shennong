@@ -231,6 +231,7 @@ class VtlnProcessor(BaseProcessor):
         """Save the LVTLN to a binary file"""
         if os.path.isfile(path):
             raise OSError('{}: file already exists'.format(path))
+
         if not isinstance(self.lvtln, kaldi.transform.lvtln.LinearVtln):
             raise TypeError('VTLN not initialized')
 
@@ -241,6 +242,7 @@ class VtlnProcessor(BaseProcessor):
         """Save the computed warps"""
         if os.path.isfile(path):
             raise OSError('{}: file already exists'.format(path))
+
         if not isinstance(self.warps, dict):
             raise TypeError('Warps not computed')
         try:

@@ -3,6 +3,9 @@
 - Gaussian Mixture Model (UBM-GMM) with diagonal covariances.
 - Uses the kaldi implementation of GMM (see [kaldi_gmm]_).
 
+The UBM is used as a preprocessing step by
+:class:`~shennong.features.processor.vtln.VtlnProcessor`.
+
 Examples
 --------
 
@@ -18,9 +21,12 @@ can be specified at construction, or after:
 >>> ubm.num_iters = 3
 
 Process the utterances to update the model.
+
 >>> ubm.process(utterances)
 
 Each gaussian of the model has as many dimensions as the features.
+
+
 >>> import kaldi.gmm
 >>> isinstance(ubm.gmm, kaldi.gmm.DiagGmm)
 True

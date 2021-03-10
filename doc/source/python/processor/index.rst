@@ -17,3 +17,5 @@ The available speech features processors are:
    onehot
    pitch
    energy
+   vtln
+   ubm
