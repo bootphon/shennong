@@ -108,14 +108,8 @@ def test_post_crepe_pitch(raw_pitch):
         post_processor.process(bad_pitch)
     assert 'No voiced frames' in str(err.value)
 
-
-# TODO this test fails from time to time
-def test_post_crepe_pitch_negative(raw_pitch):
-    post_processor = CrepePitchPostProcessor()
-
-    bad_pitch = Features(
-        np.random.random((raw_pitch.nframes, 2)), raw_pitch.times)
-    bad_pitch.data[:, 1] = -bad_pitch.data[:, 1]
+    bad_pitch = Features(np.ones((raw_pitch.nframes, 2)), raw_pitch.times)
+    bad_pitch.data[:, 1] = - np.random.random((raw_pitch.nframes))
     with pytest.raises(ValueError) as err:
         post_processor.process(bad_pitch)
     assert 'Not all pitch values are positive' in str(err.value)
