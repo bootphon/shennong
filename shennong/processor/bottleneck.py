@@ -1,5 +1,3 @@
-# coding: utf-8
-
 ###############################################################################
 #                                                                             #
 #  copyright (C) 2017 by Anna Silnova, Pavel Matejka, Oldrich Plchot,         #
@@ -104,12 +102,16 @@ import warnings
 import pkg_resources
 
 import numpy as np
-import scipy.linalg as spl
-import scipy.fftpack
 
 from shennong import Features
 from shennong.processor.base import FeaturesProcessor
 from shennong.logger import get_logger
+
+with warnings.catch_warnings():
+    # scipy issues a harmless warning on import
+    warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
+    import scipy.linalg as spl
+    import scipy.fftpack
 
 
 def _add_dither(signal, level):
