@@ -25,6 +25,10 @@
 - The documention for the *h5features* format is available at
   https://docs.cognitive-ml.fr/h5features.
 
+- The CSV serializer writes into a folder: one CSV file per feature in the
+  ``FeaturesCollection``, with an optional JSON file storing features
+  properties.
+
 Examples
 --------
 
