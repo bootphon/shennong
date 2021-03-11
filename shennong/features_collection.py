@@ -1,16 +1,36 @@
 """Provides the `FeaturesCollection` class to manipulate speech features
 
-A `FeaturesCollection` is basically a dictionnary of
-:class:`~shennong.features.Features` indexed by names. A collection can be
-saved to file and loaded from file with :func:`save` and :func:`load`, see
-:mod:`~shennong.serializers` for more details on supported file formats.
+- A `FeaturesCollection` is basically a dictionnary of
+  :class:`~shennong.features.Features` indexed by names.
+
+- A collection can be saved to and loaded from a file with the :func:`save` and
+  :func:`load` methods.
+
+- The following table details the supported file formats and compares the
+  obtained file size, writing and reading times on MFCC features computed on
+  the `Buckeye Corpus <https://buckeyecorpus.osu.edu`_
+  (English, 40 speakers, about 38 hours of speech and 254 files):
+
+  ===========  =========  =========  ============  ============
+  File format  Extension  File size  Writing time  Reading time
+  ===========  =========  =========  ============  ============
+  pickle       .pkl       883.7 MB   0:00:07       0:00:05
+  h5features   .h5f       873.0 MB   0:00:21       0:00:07
+  numpy        .npz       869.1 MB   0:02:30       0:00:22
+  matlab       .mat       721.1 MB   0:00:59       0:00:11
+  kaldi        .ark       1.3 GB     0:00:06       0:00:07
+  CSV          folder     4.8 GB     0:03:02       0:03:11
+  ===========  =========  =========  ============  ============
+
+- The documention for the *h5features* format is available at
+  https://docs.cognitive-ml.fr/h5features.
 
 Examples
 --------
 
 >>> import os
 >>> import numpy as np
->>> from shennong import FeaturesCollection
+>>> from shennong import Features, FeaturesCollection
 
 Create a collection of two random features
 
@@ -40,6 +60,7 @@ import collections
 import numpy as np
 
 from shennong import Features
+from shennong.logger import get_logger
 from shennong.serializers import get_serializer
 
 
@@ -50,7 +71,8 @@ class FeaturesCollection(dict):
     _value_type = Features
 
     @classmethod
-    def load(cls, filename, serializer=None, log_level='warning'):
+    def load(cls, filename, serializer=None,
+             log=get_logger('serializer', 'warning')):
         """Loads a FeaturesCollection from a `filename`
 
         Parameters
@@ -60,10 +82,9 @@ class FeaturesCollection(dict):
         serializer : str, optional
             The file serializer to use for loading, if not specified
             guess the serializer from the `filename` extension
-        log_level : str, optional
-            The log level must be 'debug', 'info', 'warning' or 'error'.
-            Default to 'warning'.
-
+        log : logging.Logger, optional
+            Where to send log messages. Default to a logger named 'serializer'
+            with a 'warning' level.
 
         Returns
         -------
@@ -79,9 +100,10 @@ class FeaturesCollection(dict):
             if the features loading fails.
 
         """
-        return get_serializer(cls, filename, log_level, serializer).load()
+        return get_serializer(cls, filename, log, serializer).load()
 
-    def save(self, filename, serializer=None, log_level='warning', **kwargs):
+    def save(self, filename, serializer=None,
+             log=get_logger('serializer', 'warning'), **kwargs):
         """Saves a FeaturesCollection to a `filename`
 
         Parameters
@@ -91,11 +113,15 @@ class FeaturesCollection(dict):
         serializer : str, optional
             The file serializer to use for loading, if not specified
             guess the serializer from the `filename` extension
-        log_level : str, optional
-            The log level must be 'debug', 'info', 'warning' or 'error'.
-            Default to 'warning'.
-        **kwargs : optional
-            Additional keyword arguments to forward to the serializer.
+        log : logging.Logger, optional
+            Where to send log messages. Default to a logger named 'serializer'
+            with a 'warning' level.
+        compress : bool_or_str_or_int, optional
+            Only valid for numpy (.npz), matlab (.mat) and h5features (.h5f)
+            serializers. When True compress the file. Default to True.
+        scp : bool, optional
+            Only valid for kaldi (.ark) serializer. When True writes a .scp
+            file along with the .ark file. Default to False.
 
         Raises
         ------
@@ -106,9 +132,8 @@ class FeaturesCollection(dict):
             if the features saving fails.
 
         """
-        get_serializer(
-            self.__class__, filename, log_level, serializer).save(
-                self, **kwargs)
+        get_serializer(self.__class__, filename, log, serializer).save(
+            self, **kwargs)
 
     def is_valid(self):
         """Returns True if all the features in the collection are valid"""

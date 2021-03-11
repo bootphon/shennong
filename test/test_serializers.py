@@ -12,8 +12,12 @@ import numpy as np
 import pytest
 
 from shennong import Features, FeaturesCollection
+from shennong.logger import get_logger
 from shennong.processor.mfcc import MfccProcessor
 import shennong.serializers as serializers
+
+
+log = get_logger('test', 'info')
 
 
 @pytest.fixture()
@@ -34,10 +38,10 @@ def mfcc_utf8(mfcc):
 SERIALIZERS = [
     serializers.NumpySerializer,
     serializers.MatlabSerializer,
-    serializers.JsonSerializer,
     serializers.PickleSerializer,
     serializers.H5featuresSerializer,
-    serializers.KaldiSerializer]
+    serializers.KaldiSerializer,
+    serializers.CsvSerializer]
 
 
 @pytest.mark.parametrize('name', serializers.supported_serializers().keys())
@@ -46,12 +50,13 @@ def test_get_serializer_byname(name):
     if name == 'kaldi':
         with pytest.raises(ValueError) as err:
             serializers.get_serializer(
-                FeaturesCollection, 'foo.file', 'info', name)
+                FeaturesCollection, 'foo.file', log, name)
         assert 'the file extension must be ".ark", it is ".file"' in str(
             err.value)
         filename = 'foo.ark'
 
-    h = serializers.get_serializer(FeaturesCollection, filename, 'info', name)
+    h = serializers.get_serializer(
+        FeaturesCollection, filename, log, name)
     assert not os.path.isfile(filename)
     assert isinstance(h, serializers.supported_serializers()[name])
 
@@ -59,36 +64,30 @@ def test_get_serializer_byname(name):
 @pytest.mark.parametrize('ext', serializers.supported_extensions().keys())
 def test_get_serializer_byext(ext):
     h = serializers.get_serializer(
-        FeaturesCollection, 'foo' + ext, 'info', None)
+        FeaturesCollection, 'foo' + ext, log, None)
     assert not os.path.isfile('foo' + ext)
     assert isinstance(h, serializers.supported_extensions()[ext])
 
 
 def test_get_serializer_bad():
     with pytest.raises(ValueError) as err:
-        serializers.get_serializer(
-            int, 'foo', 'info', None)
+        serializers.get_serializer(int, 'foo', log, None)
     assert 'must be shennong.features.FeaturesCollection' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         serializers.get_serializer(
-            FeaturesCollection, 'foo.spam', 'info', None)
+            FeaturesCollection, 'foo.spam', log, None)
     assert 'invalid extension .spam' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         serializers.get_serializer(
-            FeaturesCollection, 'foo', 'info', None)
-    assert 'no extension nor serializer name specified' in str(err.value)
-
-    with pytest.raises(ValueError) as err:
-        serializers.get_serializer(
-            FeaturesCollection, 'foo.spam', 'info', 'spam')
+            FeaturesCollection, 'foo.spam', log, 'spam')
     assert 'invalid serializer spam' in str(err.value)
 
 
 def test_load_nofile():
     h = serializers.get_serializer(
-        FeaturesCollection, 'foo.json', 'info', None)
+        FeaturesCollection, 'foo.npz', log, None)
     with pytest.raises(IOError) as err:
         h.load()
     assert 'file not found' in str(err.value)
@@ -96,8 +95,8 @@ def test_load_nofile():
 
 @pytest.mark.skipif(getpass.getuser() == 'root', reason='executed as root')
 def test_load_noreadable(tmpdir):
-    f = str(tmpdir.join('foo.json'))
-    h = serializers.get_serializer(FeaturesCollection, f, 'info', None)
+    f = str(tmpdir.join('foo.npz'))
+    h = serializers.get_serializer(FeaturesCollection, f, log, None)
     open(f, 'w').write('spam a lot')
     os.chmod(f, 0o222)  # write-only
     with pytest.raises(IOError) as err:
@@ -105,38 +104,18 @@ def test_load_noreadable(tmpdir):
     assert 'file not readable' in str(err.value)
 
 
-def test_load_invalid(tmpdir, mfcc_col):
-    f = str(tmpdir.join('foo.json'))
-    h = serializers.get_serializer(FeaturesCollection, f, 'info', None)
-    h.save(mfcc_col)
-
-    # remove 2 lines in the times array to corrupt the file
-    data = json.load(open(f, 'r'))
-    data['mfcc']['attributes']['_times']['__ndarray__'] = (
-        data['mfcc']['attributes']['_times']['__ndarray__'][2:])
-    open(f, 'w').write(json.dumps(data))
-
-    with warnings.catch_warnings():
-        # warns that 2 lines are missing...
-        warnings.filterwarnings('ignore')
-
-        with pytest.raises(ValueError) as err:
-            h.load()
-        assert 'features not valid in file' in str(err.value)
-
-
 def test_save_exists(tmpdir, mfcc_col):
-    f = str(tmpdir.join('foo.json'))
+    f = str(tmpdir.join('foo.npz'))
     open(f, 'w').write('something')
-    h = serializers.get_serializer(FeaturesCollection, f, 'info', None)
+    h = serializers.get_serializer(FeaturesCollection, f, log, None)
     with pytest.raises(IOError) as err:
         h.save(mfcc_col)
     assert 'file already exists' in str(err.value)
 
 
 def test_save_not_collection(tmpdir, mfcc):
-    f = str(tmpdir.join('foo.json'))
-    h = serializers.get_serializer(FeaturesCollection, f, 'info', None)
+    f = str(tmpdir.join('foo.npz'))
+    h = serializers.get_serializer(FeaturesCollection, f, log, None)
     with pytest.raises(ValueError) as err:
         h.save(mfcc)
     assert 'features must be FeaturesCollection but are Features' in str(
@@ -144,8 +123,8 @@ def test_save_not_collection(tmpdir, mfcc):
 
 
 def test_save_invalid(tmpdir, mfcc):
-    f = str(tmpdir.join('foo.json'))
-    h = serializers.get_serializer(FeaturesCollection, f, 'info', None)
+    f = str(tmpdir.join('foo.npz'))
+    h = serializers.get_serializer(FeaturesCollection, f, log, None)
     feats = FeaturesCollection(mfcc=Features(
         data=mfcc.data, times=0, validate=False))
     with pytest.raises(ValueError) as err:
@@ -158,11 +137,10 @@ def test_simple(mfcc_col, serializer, tmpdir):
     filename = ('feats.ark' if serializer is serializers.KaldiSerializer
                 else 'feats')
     tmpfile = str(tmpdir.join(filename))
-    h = serializer(mfcc_col.__class__, tmpfile)
-    h.save(mfcc_col)
+    serializer(mfcc_col.__class__, tmpfile, log).save(mfcc_col)
 
     assert os.path.exists(tmpfile)
-    mfcc_col2 = serializer(mfcc_col.__class__, tmpfile).load()
+    mfcc_col2 = serializer(mfcc_col.__class__, tmpfile, log).load()
     assert mfcc_col2 == mfcc_col
 
 
@@ -178,8 +156,8 @@ def test_times_1d(serializer, tmpdir):
 
     col = FeaturesCollection(mfcc=Features(np.random.random((10, 5)), times))
 
-    serializer(col.__class__, tmpfile).save(col)
-    col2 = serializer(col.__class__, tmpfile).load()
+    serializer(col.__class__, tmpfile, log).save(col)
+    col2 = serializer(col.__class__, tmpfile, log).load()
     assert col == col2
 
 
@@ -187,7 +165,7 @@ def test_times_1d(serializer, tmpdir):
 def test_utf8(mfcc_utf8, serializer, tmpdir):
     filename = ('feats.ark' if serializer is serializers.KaldiSerializer
                 else 'feats')
-    h = serializer(mfcc_utf8.__class__, str(tmpdir.join(filename)))
+    h = serializer(mfcc_utf8.__class__, str(tmpdir.join(filename)), log)
     h.save(mfcc_utf8)
     mfcc2 = h.load()
     assert mfcc2 == mfcc_utf8
@@ -200,7 +178,7 @@ def test_heterogeneous(mfcc, serializer, tmpdir):
 
     filename = ('feats.ark' if serializer is serializers.KaldiSerializer
                 else 'feats')
-    h = serializer(mfcc_col.__class__, str(tmpdir.join(filename)))
+    h = serializer(mfcc_col.__class__, str(tmpdir.join(filename)), log)
 
     # h5features doesn't support heteregoneous data
     if serializer is serializers.H5featuresSerializer:
@@ -260,3 +238,37 @@ def test_kaldiserializer_badfile(tmpdir, mfcc_col, missing):
     with pytest.raises(IOError) as err:
         FeaturesCollection.load(filename)
     assert 'file not found: {}'.format(str(tmpdir.join(missing))) in str(err.value)
+
+
+def test_csvserializer_badheader(tmpdir, mfcc_col):
+    # no header at all
+    filename = str(tmpdir.join('foo.csv'))
+    np.savetxt(filename, mfcc_col['mfcc'].data)
+    with pytest.raises(ValueError) as err:
+        FeaturesCollection.load(tmpdir, serializer='csv')
+    assert 'failed to parse header' in str(err.value)
+
+
+def test_csvserializer_corruptedheader(tmpdir, mfcc_col):
+    # corrupted header
+    filename = str(tmpdir.join('foo.csv'))
+    np.savetxt(
+        filename, mfcc_col['mfcc'].data, header='data_dtype', comments='# ')
+    with pytest.raises(ValueError) as err:
+        FeaturesCollection.load(tmpdir, serializer='csv')
+    assert 'failed to parse header' in str(err.value)
+
+
+def test_csvserializer_bad(tmpdir, mfcc_col):
+    with pytest.raises(OSError) as err:
+        FeaturesCollection.load(str(tmpdir.join('notexistingfolder')))
+    assert 'directory not found' in str(err.value)
+
+    open(str(tmpdir.join('file')), 'w').write('something')
+    with pytest.raises(OSError) as err:
+        FeaturesCollection.load(str(tmpdir.join('file')))
+    assert 'directory not found' in str(err.value)
+
+    with pytest.raises(IOError) as err:
+        mfcc_col.save(tmpdir)
+    assert 'already exists: ' in str(err.value)

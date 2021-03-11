@@ -1,38 +1,18 @@
-"""Saves and loads features collections to/from various file formats
-
-The following table shows the obtained file size, writing and reading
-times on MFCC features computed on the `Zero Resource Speech
-Challenge 2019 <https://zerospeech.com/2019>`_ train database
-(English, about 26 hours of speech and 10k files):
-
-===========  =========  =========  ============  ============
-File format  Extension  File size  Writing time  Reading time
-===========  =========  =========  ============  ============
-h5features   .h5f       562.9 MB   0:00:20       0:00:08
-pickle       .pkl       609.8 MB   0:00:08       0:00:06
-numpy        .npz       582.8 MB   0:02:07       0:00:19
-matlab       .mat       481.8 MB   0:00:58       0:00:13
-kaldi        .ark       927.8 MB   0:00:10       0:00:15
-JSON         .json      6.3 GB     0:11:34       1:04:25
-===========  =========  =========  ============  ============
-
-
-"""
+"""Saves and loads features collections to/from various file formats"""
 
 import abc
 import copy
 import os
 import pickle
+import numpy as np
+import scipy
 
 import h5features
 import json_tricks
 import kaldi.matrix
 import kaldi.util.table
-import numpy as np
-import scipy
 
-from shennong.logger import get_logger
-from shennong.utils import array2list
+from shennong.utils import array2list, list_files_with_extension
 
 
 def supported_extensions():
@@ -47,10 +27,11 @@ def supported_extensions():
     return {
         '.npz': NumpySerializer,
         '.mat': MatlabSerializer,
-        '.json': JsonSerializer,
         '.pkl': PickleSerializer,
         '.h5f': H5featuresSerializer,
-        '.ark': KaldiSerializer}
+        '.ark': KaldiSerializer,
+        '': CsvSerializer
+    }
 
 
 def supported_serializers():
@@ -65,13 +46,14 @@ def supported_serializers():
     return {
         'numpy': NumpySerializer,
         'matlab': MatlabSerializer,
-        'json': JsonSerializer,
         'pickle': PickleSerializer,
         'h5features': H5featuresSerializer,
-        'kaldi': KaldiSerializer}
+        'kaldi': KaldiSerializer,
+        'csv': CsvSerializer
+    }
 
 
-def get_serializer(cls, filename, log_level, serializer=None):
+def get_serializer(cls, filename, log, serializer=None):
     """Returns the file serializer from filename extension or serializer name
 
     Parameters
@@ -81,8 +63,8 @@ def get_serializer(cls, filename, log_level, serializer=None):
         a tweak to avoid circular imports
     filename : str
         The file to be handled (load or save)
-    log_level : str
-        The log level must be 'debug', 'info', 'warning' or 'error'
+    log : logging.Logger
+        Where to send log messages
     serializer : str, optional
         If not None must be one of the :func:`supported_serializers`, if
         not specified, guess the serializer from the `filename`
@@ -108,9 +90,6 @@ def get_serializer(cls, filename, log_level, serializer=None):
     if serializer is None:
         # guess serializer from file extension
         ext = os.path.splitext(filename)[1]
-        if not ext:
-            raise ValueError('no extension nor serializer name specified')
-
         try:
             serializer = supported_extensions()[ext]
         except KeyError:
@@ -125,7 +104,7 @@ def get_serializer(cls, filename, log_level, serializer=None):
                 'invalid serializer {}, must be in {}'.format(
                     serializer, list(supported_serializers().keys())))
 
-    return serializer(cls, filename, log=get_logger('serializer', log_level))
+    return serializer(cls, filename, log)
 
 
 class FeaturesSerializer(metaclass=abc.ABCMeta):
@@ -142,11 +121,15 @@ class FeaturesSerializer(metaclass=abc.ABCMeta):
         The file to save/load features to/from
 
     """
-    def __init__(self, cls, filename, log=get_logger('serializer', 'warning')):
+    def __init__(self, cls, filename, log):
         self._features_collection = cls
         self._features = self._features_collection._value_type
         self._filename = filename
         self._log = log
+
+        # disable the warning 'numpy serialization is experimental'
+        json_tricks.NumpyEncoder.SHOW_SCALAR_WARNING = False
+
 
     @property
     def filename(self):
@@ -157,42 +140,9 @@ class FeaturesSerializer(metaclass=abc.ABCMeta):
     def _save(self, features):  # pragma: nocover
         pass
 
-    @abc.abstractmethod
-    def _load(self):  # pragma: nocover
-        pass
-
-    def load(self, **kwargs):
-        """Returns a collection of features from the `filename`
-
-        Returns
-        -------
-        features : :class:`~shennong.features.FeaturesCollection`
-            The features stored in the file.
-        kwargs : optional
-            Optional supplementary arguments, specific to each serializer.
-
-        Raises
-        ------
-        IOError
-            If the input file does not exist or cannot be read.
-
-        ValueError
-            If the features cannot be loaded from the file or are not
-            in a valid state.
-
-        """
-        if not os.path.isfile(self.filename):
-            raise IOError('file not found: {}'.format(self.filename))
-        if not os.access(self.filename, os.R_OK):
-            raise IOError('file not readable: {}'.format(self.filename))
-
-        features = self._load(**kwargs)
-
-        if not features.is_valid():
-            raise ValueError(
-                'features not valid in file: {}'.format(self.filename))
-
-        return features
+    def _check_save(self):
+        if os.path.isfile(self.filename):
+            raise IOError(f'file already exists: {self.filename}')
 
     def save(self, features, **kwargs):
         """Saves a collection of `features` to a file
@@ -215,8 +165,7 @@ class FeaturesSerializer(metaclass=abc.ABCMeta):
             :class:`~shennong.features.FeaturesCollection`.
 
         """
-        if os.path.isfile(self.filename):
-            raise IOError('file already exists: {}'.format(self.filename))
+        self._check_save()
 
         if not isinstance(features, self._features_collection):
             raise ValueError(
@@ -229,6 +178,45 @@ class FeaturesSerializer(metaclass=abc.ABCMeta):
             raise ValueError('features are not valid')
 
         self._save(features, **kwargs)
+
+    @abc.abstractmethod
+    def _load(self):  # pragma: nocover
+        pass
+
+    def _check_load(self):
+        if not os.path.isfile(self.filename):
+            raise IOError(f'file not found: {self.filename}')
+        if not os.access(self.filename, os.R_OK):
+            raise IOError(f'file not readable: {self.filename}')
+
+    def load(self, **kwargs):
+        """Returns a collection of features from the `filename`
+
+        Returns
+        -------
+        features : :class:`~shennong.features.FeaturesCollection`
+            The features stored in the file.
+        kwargs : optional
+            Optional supplementary arguments, specific to each serializer.
+
+        Raises
+        ------
+        IOError
+            If the input file does not exist or cannot be read.
+
+        ValueError
+            If the features cannot be loaded from the file or are not
+            in a valid state.
+
+        """
+        self._check_load()
+
+        features = self._load(**kwargs)
+
+        if not features.is_valid():  # pragma: nocover
+            raise ValueError(f'features not valid in "{self.filename}"')
+
+        return features
 
 
 class NumpySerializer(FeaturesSerializer):
@@ -288,21 +276,21 @@ class MatlabSerializer(FeaturesSerializer):
                     validate=False)
         return features
 
-    @staticmethod
-    def _check_keys(d):
-        """Checks if entries in dictionary are mat-objects.
+    @classmethod
+    def _check_keys(cls, data):
+        """Checks if entries in the dictionary `data` are mat-objects.
 
         If yes todict is called to change them to nested dictionaries.
 
         From https://stackoverflow.com/a/8832212
 
         """
-        for key in d:
-            if isinstance(d[key], scipy.io.matlab.mio5_params.mat_struct):
-                d[key] = MatlabSerializer._todict(d[key])
-            elif isinstance(d[key], (list, np.ndarray)):
-                d[key] = [MatlabSerializer._todict(dd) for dd in d[key]]
-        return d
+        for key in data:
+            if isinstance(data[key], scipy.io.matlab.mio5_params.mat_struct):
+                data[key] = cls._todict(data[key])
+            elif isinstance(data[key], (list, np.ndarray)):
+                data[key] = [cls._todict(dd) for dd in data[key]]
+        return data
 
     @staticmethod
     def _todict(matobj):
@@ -311,14 +299,14 @@ class MatlabSerializer(FeaturesSerializer):
         From https://stackoverflow.com/a/8832212
 
         """
-        d = {}
+        data = {}
         for strg in matobj._fieldnames:
             elem = matobj.__dict__[strg]
             if isinstance(elem, scipy.io.matlab.mio5_params.mat_struct):
-                d[strg] = MatlabSerializer._todict(elem)
+                data[strg] = MatlabSerializer._todict(elem)
             else:
-                d[strg] = elem
-        return d
+                data[strg] = elem
+        return data
 
     @staticmethod
     def _make_list(properties):
@@ -334,59 +322,41 @@ class MatlabSerializer(FeaturesSerializer):
         return properties
 
 
-class JsonSerializer(FeaturesSerializer):
-    """Saves and loads features to/from the JSON format"""
-    def __init__(self, cls, filename, log=get_logger('serializer', 'warning')):
-        super().__init__(cls, filename, log=log)
-
-        # disable the warning 'numpy serialization is experimental'
-        json_tricks.NumpyEncoder.SHOW_SCALAR_WARNING = False
-
-    def _save(self, features):
-        self._log.info('writing %s', self.filename)
-        open(self.filename, 'wt').write(json_tricks.dumps(features, indent=4))
-
-    def _load(self):
-        self._log.info('loading %s', self.filename)
-        return self._features_collection(
-            json_tricks.loads(open(self.filename, 'r').read()))
-
-
 class PickleSerializer(FeaturesSerializer):
     """Saves and loads features to/from the Python pickle format"""
     def _save(self, features):
         self._log.info('writing %s', self.filename)
-        with open(self.filename, 'wb') as fh:
-            pickle.dump(features, fh)
+        with open(self.filename, 'wb') as stream:
+            pickle.dump(features, stream)
 
     def _load(self):
-        with open(self.filename, 'rb') as fh:
-            return pickle.load(fh)
+        self._log.info('loading %s', self.filename)
+        with open(self.filename, 'rb') as stream:
+            return pickle.load(stream)
 
 
 class H5featuresSerializer(FeaturesSerializer):
     """Saves and loads features to/from the h5features format"""
-    def _save(self, features, groupname='features',
-              compression='lzf', chunk_size='auto'):
+    def _save(self, features, compress=True):
         self._log.info('writing %s', self.filename)
 
         # we safely use append mode as we are sure at this point the
         # file does not exist (from FeaturesSerializer.save)
         with h5features.Writer(
-                self.filename, mode='a', chunk_size=chunk_size,
-                compression=compression) as writer:
+                self.filename, mode='a', chunk_size='auto',
+                compression='lzf' if compress else None) as writer:
             # append the feature in the file one by one (this avoid to
             # duplicate the whole collection in memory, which can
             # cause MemoryError on big datasets).
             for k, v in features.items():
                 data = h5features.Data(
                     [k], [v.times], [v.data], properties=[v.properties])
-                writer.write(data, groupname=groupname, append=True)
+                writer.write(data, groupname='features', append=True)
 
-    def _load(self, groupname='features'):
+    def _load(self):
         self._log.info('loading %s', self.filename)
 
-        data = h5features.Reader(self.filename, groupname=groupname).read()
+        data = h5features.Reader(self.filename, groupname='features').read()
 
         features = self._features_collection()
         for n in range(len(data.items())):
@@ -399,7 +369,8 @@ class H5featuresSerializer(FeaturesSerializer):
 
 
 class KaldiSerializer(FeaturesSerializer):
-    def __init__(self, cls, filename, log=get_logger('serializer', 'warning')):
+    """Saves and loads features to/from the Kaldi ark/scp format"""
+    def __init__(self, cls, filename, log):
         super().__init__(cls, filename, log=log)
 
         # make sure the filename extension is '.ark'
@@ -449,7 +420,7 @@ class KaldiSerializer(FeaturesSerializer):
         filename = self._fileroot + '.properties.json'
         self._log.info('writing %s', filename)
         data = {k: copy.deepcopy(v.properties) for k, v in features.items()}
-        for k, v in data.items():
+        for k in data:
             data[k]['__dtype_data__'] = str(features[k].dtype)
             data[k]['__dtype_times__'] = str(features[k].times.dtype)
         open(filename, 'wt').write(json_tricks.dumps(data, indent=4))
@@ -475,9 +446,9 @@ class KaldiSerializer(FeaturesSerializer):
             times = {k: v.numpy() for k, v in reader}
 
         # postprocess times: do 2d->1d if they are 1d vectors
-        for k, v in times.items():
-            if v.shape[0] == 1:
-                times[k] = v.reshape((v.shape[1]))
+        for key, value in times.items():
+            if value.shape[0] == 1:
+                times[key] = value.reshape((value.shape[1]))
 
         # loading features
         ark = self._fileroot + '.ark'
@@ -506,3 +477,98 @@ class KaldiSerializer(FeaturesSerializer):
                     if '__dtype_' not in k},
                 validate=False)
                for k in data.keys()})
+
+
+class CsvSerializer(FeaturesSerializer):
+    """Saves and loads features to/from the CSV format"""
+    def _check_load(self):
+        if not os.path.isdir(self.filename):
+            raise IOError(f'directory not found: {self.filename}')
+
+    def _check_save(self):
+        if os.path.exists(self.filename):
+            raise IOError(f'already exists: {self.filename}')
+
+    def _save(self, features):
+        # save one csv/json pair per features in a directory (csv for
+        # data/times, json for properties)
+        os.makedirs(self.filename)
+        self._log.info('writing directory "%s"', self.filename)
+        for name, feat in features.items():
+            # save data and times into the csv. We need to append the features
+            # dimension in the properties to rebuild the features on load,
+            # because times can be 1d or 2d.
+            csv_file = os.path.join(self.filename, name + '.csv')
+            self._log.debug('writing %s', csv_file)
+            np.savetxt(
+                csv_file,
+                np.hstack((
+                    feat.times.reshape((feat.nframes, 1))
+                    if feat.times.ndim == 1 else feat.times,
+                    feat.data)),
+                header=(
+                    f'data_dtype = {feat.dtype}, '
+                    f'times_dtype = {feat.times.dtype}, '
+                    f'features_ndims = {feat.ndims}'),
+                comments='# ')
+
+            # if any, save properties into a json file
+            if feat.properties:
+                json_file = os.path.join(self.filename, name + '.json')
+                self._log.debug('writing %s', json_file)
+                open(json_file, 'wt').write(
+                    json_tricks.dumps(feat.properties, indent=4))
+
+    @staticmethod
+    def _parse_header(csv_file):
+        header = open(csv_file, 'r').readline().strip()
+        if header[0] != '#':
+            raise ValueError(f'failed to parse header from {csv_file}')
+        header = header.split(', ')
+
+        try:
+            data_dtype = np.dtype(header[0].split('= ')[1])
+            times_dtype = np.dtype(header[1].split('= ')[1])
+            ndims = int(header[2].split('= ')[1])
+        except (IndexError, TypeError):
+            raise ValueError(f'failed to parse header from {csv_file}')
+
+        return data_dtype, times_dtype, ndims
+
+    def _load(self):
+        self._log.info('loading directory "%s"', self.filename)
+
+        # list all the csv and json files
+        csv_files = list_files_with_extension(
+            self.filename, '.csv', recursive=False)
+        json_files = list_files_with_extension(
+            self.filename, '.json', recursive=False)
+
+        features = self._features_collection()
+
+        # load the features one by one
+        for csv in csv_files:
+            self._log.debug('loading %s', csv)
+
+            data_dtype, times_dtype, ndims = self._parse_header(csv)
+
+            # read times and features
+            data = np.loadtxt(csv)
+            times = data[:, :data.shape[1] - ndims].astype(times_dtype)
+            if times.shape[1] == 1:
+                times = times.flatten()
+            data = data[:, data.shape[1] - ndims:].astype(data_dtype)
+
+            # read properties
+            properties = {}
+            json = csv.replace('.csv', '.json')
+            if json in json_files:
+                self._log.debug('loading %s', json)
+                properties = dict(json_tricks.loads(open(json, 'r').read()))
+
+            # build the features
+            name = os.path.basename(csv).replace('.csv', '')
+            features[name] = self._features(
+                data, times, properties=properties, validate=False)
+
+        return features

@@ -22,14 +22,3 @@ Features collection
 .. automodule:: shennong.features_collection
     :members:
     :inherited-members:
-
-
-Save/load features
-""""""""""""""""""
-
-.. _features_serialization:
-
-.. automodule:: shennong.serializers
-    :members:
-    :inherited-members:
-    :undoc-members:

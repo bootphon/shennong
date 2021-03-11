@@ -84,6 +84,13 @@ def test_equal(mfcc):
     assert not mfcc.is_close(mfcc2, atol=1)
 
 
+def test_validate(mfcc):
+    feat = Features(mfcc.data, mfcc.times[:-2, :], validate=False)
+    with pytest.raises(ValueError) as err:
+        feat.validate()
+    assert 'mismatch in number of frames' in str(err.value)
+
+
 def test_copy(mfcc):
     # by copy we allocate new arrays
     mfcc2 = mfcc.copy()
