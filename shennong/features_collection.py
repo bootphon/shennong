@@ -70,10 +70,6 @@ from shennong.serializers import get_serializer
 
 class FeaturesCollection(dict):
     """Handles a collection of :class:`~shennong.Features` as a dictionary"""
-    # a tweak inspired by C++ metaprogramming to avoid import loops
-    # with shennong.features.serializers
-    _value_type = Features
-
     @classmethod
     def load(cls, filename, serializer=None,
              log=get_logger('serializer', 'warning')):
@@ -106,7 +102,7 @@ class FeaturesCollection(dict):
         """
         return get_serializer(cls, filename, log, serializer).load()
 
-    def save(self, filename, serializer=None,
+    def save(self, filename, serializer=None, with_properties=True,
              log=get_logger('serializer', 'warning'), **kwargs):
         """Saves a FeaturesCollection to a `filename`
 
@@ -117,6 +113,8 @@ class FeaturesCollection(dict):
         serializer : str, optional
             The file serializer to use for loading, if not specified
             guess the serializer from the `filename` extension
+        with_properties : bool, optional
+            When False do not save the features properties, default to True.
         log : logging.Logger, optional
             Where to send log messages. Default to a logger named 'serializer'
             with a 'warning' level.
@@ -137,7 +135,7 @@ class FeaturesCollection(dict):
 
         """
         get_serializer(self.__class__, filename, log, serializer).save(
-            self, **kwargs)
+            self, with_properties=with_properties, **kwargs)
 
     def is_valid(self):
         """Returns True if all the features in the collection are valid"""

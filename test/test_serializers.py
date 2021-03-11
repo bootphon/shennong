@@ -272,3 +272,27 @@ def test_csvserializer_bad(tmpdir, mfcc_col):
     with pytest.raises(IOError) as err:
         mfcc_col.save(tmpdir)
     assert 'already exists: ' in str(err.value)
+
+
+@pytest.mark.parametrize(
+    'serializer, with_props',
+    [(s, p) for s in serializers.supported_serializers()
+     for p in (True, False)])
+def test_no_properties(tmpdir, mfcc_col, serializer, with_props):
+    filename = 'feats.ark' if serializer is 'kaldi' else 'feats'
+    filename = str(tmpdir.join(filename))
+    mfcc_col.save(filename, serializer=serializer, with_properties=with_props)
+
+    mfcc_col2 = FeaturesCollection.load(filename, serializer=serializer)
+
+    if with_props:
+        assert mfcc_col == mfcc_col2
+    else:
+        assert mfcc_col != mfcc_col2
+        for name in mfcc_col:
+            mfcc = mfcc_col[name]
+            mfcc2 = mfcc_col2[name]
+
+            assert mfcc2.properties == {}
+            assert np.all(mfcc.data == mfcc2.data)
+            assert np.all(mfcc.times == mfcc2.times)

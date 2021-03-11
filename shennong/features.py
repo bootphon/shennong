@@ -111,20 +111,22 @@ class Features:
         """
         return self._properties
 
-    def _to_dict(self):
+    def _to_dict(self, with_properties=True):
         """Returns the features as a dictionary
 
         Returns
         -------
         features : dict
             A dictionary with the following keys: 'data', 'times' and
-            'properties'.
+            optional 'properties'.
 
         """
-        return {
-            'data': self.data,
-            'times': self.times,
-            'properties': self.properties}
+        features = {}
+        features['data'] = self.data
+        features['times'] = self.times
+        if with_properties:
+            features['properties'] = self.properties
+        return features
 
     @staticmethod
     def _from_dict(features, validate=True):
@@ -133,9 +135,8 @@ class Features:
         Parameters
         ----------
         features : dict
-            The dictionary to load the features from. Must have the
-            following keys: 'data', 'times' and
-            'properties'.
+            The dictionary to load the features from. Must have the following
+            keys: 'data', 'times' and optional 'properties'.
 
         validate : bool, optional
             When True, validate the features before returning. Default
@@ -152,17 +153,18 @@ class Features:
             the underlying features data is not valid.
 
         """
-        requested_keys = {'data', 'times', 'properties'}
+        requested_keys = {'data', 'times'}
         missing_keys = requested_keys - set(features.keys())
         if missing_keys:
             raise ValueError(
                 'cannot read features from dict, missing keys: {}'
                 .format(', '.join(missing_keys)))
 
+        properties = features['properties'] if 'properties' in features else {}
         return Features(
             features['data'],
             features['times'],
-            properties=features['properties'],
+            properties=properties,
             validate=validate)
 
     def __eq__(self, other):

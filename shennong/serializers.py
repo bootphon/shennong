@@ -2,6 +2,7 @@
 
 import abc
 import copy
+import copyreg
 import os
 import pickle
 import numpy as np
@@ -12,6 +13,7 @@ import json_tricks
 import kaldi.matrix
 import kaldi.util.table
 
+from shennong import Features
 from shennong.utils import array2list, list_files_with_extension
 
 
@@ -123,13 +125,11 @@ class FeaturesSerializer(metaclass=abc.ABCMeta):
     """
     def __init__(self, cls, filename, log):
         self._features_collection = cls
-        self._features = self._features_collection._value_type
         self._filename = filename
         self._log = log
 
         # disable the warning 'numpy serialization is experimental'
         json_tricks.NumpyEncoder.SHOW_SCALAR_WARNING = False
-
 
     @property
     def filename(self):
@@ -137,20 +137,22 @@ class FeaturesSerializer(metaclass=abc.ABCMeta):
         return self._filename
 
     @abc.abstractmethod
-    def _save(self, features):  # pragma: nocover
+    def _save(self, features, with_times, with_properties):  # pragma: nocover
         pass
 
     def _check_save(self):
         if os.path.isfile(self.filename):
             raise IOError(f'file already exists: {self.filename}')
 
-    def save(self, features, **kwargs):
+    def save(self, features, with_properties=True, **kwargs):
         """Saves a collection of `features` to a file
 
         Parameters
         ----------
         features : :class:`~shennong.features.FeaturesCollection`
             The features to store in the file.
+        with_properties : bool, optional
+            When False do not save the features properties, default to True.
         kwargs : optional
             Optional supplementary arguments, specific to each serializer.
 
@@ -177,7 +179,7 @@ class FeaturesSerializer(metaclass=abc.ABCMeta):
         if not features.is_valid():
             raise ValueError('features are not valid')
 
-        self._save(features, **kwargs)
+        self._save(features, with_properties, **kwargs)
 
     @abc.abstractmethod
     def _load(self):  # pragma: nocover
@@ -221,11 +223,13 @@ class FeaturesSerializer(metaclass=abc.ABCMeta):
 
 class NumpySerializer(FeaturesSerializer):
     """Saves and loads features to/from the numpy '.npz' format"""
-    def _save(self, features, compress=True):
+    def _save(self, features, with_properties, compress=True):
         self._log.info('writing %s', self.filename)
 
         # represent the features as dictionaries
-        data = {k: v._to_dict() for k, v in features.items()}
+        data = {
+            k: v._to_dict(with_properties=with_properties)
+            for k, v in features.items()}
 
         # save (and optionally compress) the features
         save = np.savez_compressed if compress is True else np.savez
@@ -239,18 +243,19 @@ class NumpySerializer(FeaturesSerializer):
 
         features = self._features_collection()
         for k, v in data.items():
-            features[k] = self._features._from_dict(v, validate=False)
+            features[k] = Features._from_dict(v, validate=False)
         return features
 
 
 class MatlabSerializer(FeaturesSerializer):
     """Saves and loads features to/from the matlab '.mat' format"""
-    def _save(self, features, compress=True):
+    def _save(self, features, with_properties, compress=True):
         self._log.info('writing %s', self.filename)
 
         # represent the features as dictionaries
-        data = {k: v._to_dict() for k, v in features.items()}
-        # print(data['test']['properties'])
+        data = {
+            k: v._to_dict(with_properties=with_properties)
+            for k, v in features.items()}
 
         # save (and optionally compress) the features
         scipy.io.savemat(
@@ -269,11 +274,14 @@ class MatlabSerializer(FeaturesSerializer):
         features = self._features_collection()
         for k, v in data.items():
             if k not in ('__header__', '__version__', '__globals__'):
-                features[k] = self._features(
-                    v['data'],
-                    v['times'],
-                    self._make_list(self._check_keys(v['properties'])),
-                    validate=False)
+                if 'properties' in v:
+                    features[k] = Features(
+                        v['data'], v['times'],
+                        self._make_list(self._check_keys(v['properties'])),
+                        validate=False)
+                else:
+                    features[k] = Features(
+                        v['data'], v['times'], validate=False)
         return features
 
     @classmethod
@@ -322,12 +330,20 @@ class MatlabSerializer(FeaturesSerializer):
         return properties
 
 
+class _NoPropertiesPickler(pickle.Pickler):
+    """Implements the with_properties=False for PickleSerializer"""
+    dispatch_table = copyreg.dispatch_table.copy()
+    dispatch_table[Features] = lambda obj: (
+        obj.__class__, (obj.data, obj.times, None, False))
+
+
 class PickleSerializer(FeaturesSerializer):
     """Saves and loads features to/from the Python pickle format"""
-    def _save(self, features):
+    def _save(self, features, with_properties):
         self._log.info('writing %s', self.filename)
+        pickler = pickle.Pickler if with_properties else _NoPropertiesPickler
         with open(self.filename, 'wb') as stream:
-            pickle.dump(features, stream)
+            pickler(stream).dump(features)
 
     def _load(self):
         self._log.info('loading %s', self.filename)
@@ -337,7 +353,7 @@ class PickleSerializer(FeaturesSerializer):
 
 class H5featuresSerializer(FeaturesSerializer):
     """Saves and loads features to/from the h5features format"""
-    def _save(self, features, compress=True):
+    def _save(self, features, with_properties, compress=True):
         self._log.info('writing %s', self.filename)
 
         # we safely use append mode as we are sure at this point the
@@ -349,8 +365,11 @@ class H5featuresSerializer(FeaturesSerializer):
             # duplicate the whole collection in memory, which can
             # cause MemoryError on big datasets).
             for k, v in features.items():
-                data = h5features.Data(
-                    [k], [v.times], [v.data], properties=[v.properties])
+                if with_properties:
+                    data = h5features.Data(
+                        [k], [v.times], [v.data], properties=[v.properties])
+                else:
+                    data = h5features.Data([k], [v.times], [v.data])
                 writer.write(data, groupname='features', append=True)
 
     def _load(self):
@@ -360,11 +379,13 @@ class H5featuresSerializer(FeaturesSerializer):
 
         features = self._features_collection()
         for n in range(len(data.items())):
-            features[data.items()[n]] = self._features(
+            features[data.items()[n]] = Features(
                 data.features()[n],
                 data.labels()[n],
-                properties=data.properties()[n],
+                properties=(
+                    data.properties()[n] if data.has_properties() else {}),
                 validate=False)
+
         return features
 
 
@@ -382,7 +403,7 @@ class KaldiSerializer(FeaturesSerializer):
 
         self._fileroot = filename_split[0]
 
-    def _save(self, features, scp=False):
+    def _save(self, features, with_properties, scp=False):
         # writing features
         ark = self._fileroot + '.ark'
         if scp:
@@ -419,7 +440,12 @@ class KaldiSerializer(FeaturesSerializer):
         # to ensure equality on load
         filename = self._fileroot + '.properties.json'
         self._log.info('writing %s', filename)
-        data = {k: copy.deepcopy(v.properties) for k, v in features.items()}
+        if with_properties:
+            data = {
+                k: copy.deepcopy(v.properties) for k, v in features.items()}
+        else:
+            data = {k: {} for k in features}
+
         for k in data:
             data[k]['__dtype_data__'] = str(features[k].dtype)
             data[k]['__dtype_times__'] = str(features[k].times.dtype)
@@ -469,7 +495,7 @@ class KaldiSerializer(FeaturesSerializer):
                 'invalid features: items differ in data and times')
 
         return self._features_collection(
-            **{k: self._features(
+            **{k: Features(
                 data[k].astype(properties[k]['__dtype_data__']),
                 times[k].astype(properties[k]['__dtype_times__']),
                 properties={
@@ -489,7 +515,7 @@ class CsvSerializer(FeaturesSerializer):
         if os.path.exists(self.filename):
             raise IOError(f'already exists: {self.filename}')
 
-    def _save(self, features):
+    def _save(self, features, with_properties):
         # save one csv/json pair per features in a directory (csv for
         # data/times, json for properties)
         os.makedirs(self.filename)
@@ -513,7 +539,7 @@ class CsvSerializer(FeaturesSerializer):
                 comments='# ')
 
             # if any, save properties into a json file
-            if feat.properties:
+            if with_properties and feat.properties:
                 json_file = os.path.join(self.filename, name + '.json')
                 self._log.debug('writing %s', json_file)
                 open(json_file, 'wt').write(
@@ -568,7 +594,7 @@ class CsvSerializer(FeaturesSerializer):
 
             # build the features
             name = os.path.basename(csv).replace('.csv', '')
-            features[name] = self._features(
+            features[name] = Features(
                 data, times, properties=properties, validate=False)
 
         return features

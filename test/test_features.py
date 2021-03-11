@@ -154,7 +154,6 @@ def test_concatenate_tolerance(capsys):
 
 
 def test_collection(mfcc):
-    assert FeaturesCollection._value_type is Features
     assert FeaturesCollection().is_valid()
     assert FeaturesCollection(mfcc=mfcc).is_valid()
     assert not FeaturesCollection(mfcc=Features(
