@@ -127,6 +127,8 @@ def test_post_pitch_output(raw_pitch, options):
         add_delta_pitch=options[2],
         add_raw_log_pitch=options[3])
 
+    raw_pitch.data[1, 0] = 0
+
     if sum(options):
         d = p.process(raw_pitch)
         assert p.ndims == sum(options)

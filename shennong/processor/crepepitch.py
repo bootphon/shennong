@@ -231,7 +231,7 @@ class CrepePitchProcessor(FeaturesProcessor):
             audio = audio.resample(self.sample_rate)
 
         # tensorflow verbosity
-        if self.log.level == logging.DEBUG:
+        if self.log.level == logging.DEBUG:  # pragma: nocover
             os.environ["TF_CPP_MIN_LOG_LEVEL"] = "0"
             verbose = 2
         else:
