@@ -3,7 +3,7 @@
 MFCC
 ~~~~
 
-.. automodule:: shennong.features.processor.mfcc
+.. automodule:: shennong.processor.mfcc
     :members:
     :inherited-members:
     :undoc-members:

@@ -1,10 +1,9 @@
+os: linux
+dist: focal
 language: python
 
-# run on Travis 'new' container-based infrastructure
-sudo: false
-
-notifications:
-  email: false
+env:
+  - ON_TRAVIS=true
 
 # no need of git history
 git:
@@ -43,7 +42,7 @@ before_install:
 install:
   - conda env update --name shennong -f environment.yml
   - source activate shennong
-  - pip install codecov
+  - pip install --upgrade codecov
   - make install
 
 script:
@@ -51,3 +50,6 @@ script:
 
 after_success:
   - codecov
+
+notifications:
+  email: false

@@ -10,7 +10,7 @@ Framing and windowing
 Frames extraction
 """""""""""""""""
 
-.. automodule:: shennong.features.frames
+.. automodule:: shennong.frames
     :members:
     :inherited-members:
     :undoc-members:
@@ -19,7 +19,7 @@ Frames extraction
 Windows functions
 """""""""""""""""
 
-.. automodule:: shennong.features.window
+.. automodule:: shennong.window
     :members:
     :inherited-members:
     :undoc-members:

@@ -4,89 +4,15 @@ Those fonctions are not designed to be used by the end-user.
 
 """
 
-import logging
 import multiprocessing
-import numpy as np
 import os
-import pkg_resources
 import re
 import sys
 
+import numpy as np
+import pkg_resources
 
-_logger = logging.getLogger()
-
-
-def null_logger():
-    """Configures and returns a logger sending messages to nowhere
-
-    This is used as default logger for some functions.
-
-    Returns
-    -------
-    logging.Logger
-        Logging instance ignoring all the messages.
-
-    """
-    _logger.handlers = []
-    _logger.addHandler(logging.NullHandler())
-    return _logger
-
-
-def get_logger(name='shennong', level='info',
-               formatter='%(levelname)s - %(message)s'):
-    """Configures and returns a logger sending messages to standard error
-
-    Parameters
-    ----------
-    name : str
-        Name of the created logger, to be displayed in the header of
-        log messages.
-    level : str, optional
-        The minimum log level handled by the logger (any message above
-        this level will be ignored). Must be 'debug', 'info',
-        'warning' or 'error'. Default to 'info'.
-    formatter : str, optional
-        A string to format the log messages, see
-        https://docs.python.org/3/library/logging.html#formatter-objects. By
-        default display level and message. Use '%(asctime)s -
-        %(levelname)s - %(name)s - %(message)s' to display time,
-        level, name and message.
-
-    Returns
-    -------
-    logging.Logger
-        A configured logging instance displaying messages to the
-        standard error stream.
-
-    Raises
-    ------
-    ValueError
-        If the logging `level` is not 'debug', 'info', 'warning' or
-        'error'.
-
-    """
-    levels = {
-        'debug': logging.DEBUG,
-        'info': logging.INFO,
-        'warning': logging.WARNING,
-        'error': logging.ERROR}
-
-    formatter = logging.Formatter(formatter)
-    handler = logging.StreamHandler(sys.stderr)
-    handler.setFormatter(formatter)
-
-    _logger.handlers = []
-    _logger.addHandler(handler)
-
-    _logger.name = name
-    try:
-        _logger.setLevel(levels[level])
-    except KeyError:
-        raise ValueError(
-            'invalid logging level "{}", must be in {}'.format(
-                level, ', '.join(levels.keys())))
-
-    return _logger
+from shennong.logger import null_logger
 
 
 def get_njobs(njobs, log=null_logger()):
@@ -117,10 +43,10 @@ def get_njobs(njobs, log=null_logger()):
     max_njobs = multiprocessing.cpu_count()
     if njobs is None:
         return max_njobs
-    elif njobs <= 0:
+    if njobs <= 0:
         raise ValueError(
             'njobs must be strictly positive, it is {}'.format(njobs))
-    elif njobs > max_njobs:
+    if njobs > max_njobs:
         log.warning(
             'asking %d CPU cores but reducing to %d (max available)',
             njobs, max_njobs)
@@ -128,45 +54,45 @@ def get_njobs(njobs, log=null_logger()):
     return njobs
 
 
-def list2array(x):
-    """Converts lists in `x` into numpy arrays"""
-    if isinstance(x, list):
-        return np.asarray(x)
-    elif isinstance(x, dict):
-        return {k: list2array(v) for k, v in x.items()}
-    return x
+def list2array(seq):
+    """Converts lists in `seq` into numpy arrays"""
+    if isinstance(seq, list):
+        return np.asarray(seq)
+    if isinstance(seq, dict):
+        return {k: list2array(v) for k, v in seq.items()}
+    return seq
 
 
-def array2list(x):
-    """Converts numpy arrays in `x` into lists"""
-    if isinstance(x, dict):
+def array2list(seq):
+    """Converts numpy arrays in `seq` into lists"""
+    if isinstance(seq, dict):
         return {
             k: array2list(v)
-            for k, v in x.items()}
-    elif isinstance(x, np.ndarray):
-        return x.tolist()
-    return x
+            for k, v in seq.items()}
+    if isinstance(seq, np.ndarray):
+        return seq.tolist()
+    return seq
 
 
-def dict_equal(x, y):
-    """Returns True if `x` and `y` are equals
+def dict_equal(dict1, dict2):
+    """Returns True if `dict1` and `dict2` are equals
 
-    The dictionnaries `x` and `y` can contain numpy arrays.
+    The dictionnaries `dict1` and `dict2` can contain numpy arrays.
 
     Parameters
     ----------
-    x : dict
+    dict1 : dict
         The first dictionnary to compare
-    y : dict
+    dict2 : dict
         The second dictionnary to compare
 
     Returns
     -------
     equal : bool
-        True if `x` == `y`, False otherwise
+        True if `dict1` == `dict2`, False otherwise
 
     """
-    return array2list(x) == array2list(y)
+    return array2list(dict1) == array2list(dict2)
 
 
 def list_files_with_extension(
@@ -217,7 +143,7 @@ def list_files_with_extension(
     return sorted(matched)
 
 
-class CatchExceptions(object):
+class CatchExceptions:
     """Decorator wrapping a function in a try/except block
 
     When an exception occurs, display a user friendly message on
@@ -233,7 +159,6 @@ class CatchExceptions(object):
         The function to wrap in a try/except block
 
     """
-
     def __init__(self, function):
         self.function = function
 

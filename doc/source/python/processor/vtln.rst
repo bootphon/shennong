@@ -3,7 +3,7 @@
 VTLN
 ~~~~
 
-.. automodule:: shennong.features.processor.vtln
+.. automodule:: shennong.processor.vtln
     :members:
     :inherited-members:
     :undoc-members:

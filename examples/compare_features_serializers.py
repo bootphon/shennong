@@ -8,14 +8,16 @@ Comparison is on file size, writing and reading speed
 import argparse
 import datetime
 import os
-import tabulate
+import pathlib
 import tempfile
 
-from shennong.audio import Audio
+
+import joblib
+import tabulate
+from shennong import Audio, FeaturesCollection
+from shennong.processor.mfcc import MfccProcessor
+from shennong.serializers import supported_serializers
 from shennong.utils import list_files_with_extension
-from shennong.features import FeaturesCollection
-from shennong.features.processor.mfcc import MfccProcessor
-from shennong.features.serializers import supported_extensions
 
 
 # results obtained from a previous run on 1:03:00
@@ -50,6 +52,16 @@ def sizeof_fmt(num, suffix='B'):
     return "%.1f%s%s" % (num, 'P', suffix)
 
 
+def get_size(path):
+    """Return the total size of a file or folder"""
+    if os.path.isfile(path):
+        return os.path.getsize(path)
+
+    path = pathlib.Path(path)
+    return sum(os.path.getsize(f) for f in path.glob('**/*') if f.is_file())
+
+
+
 def print_results(results):
     print('total duration: {}'.format(results['duration']))
     print(
@@ -61,23 +73,25 @@ def print_results(results):
             tablefmt='fancy_grid'))
 
 
-def analyze_serializer(features, ext, output_dir):
+def analyze_serializer(features, serializer, output_dir):
     with tempfile.TemporaryDirectory(dir=output_dir) as tmpdir:
-        filename = os.path.join(tmpdir, 'features' + ext)
+        filename = os.path.join(tmpdir, 'features_' + serializer)
+        if serializer == 'kaldi':
+            filename += '.ark'
 
         print('writing {}...'.format(filename))
         t1 = datetime.datetime.now()
-        features.save(filename)
+        features.save(filename, serializer=serializer)
         t2 = datetime.datetime.now()
         t_write = t2 - t1
         print('took {}'.format(t_write))
 
-        f_size = os.path.getsize(filename)
+        f_size = get_size(filename)
         print('filesize: {}'.format(sizeof_fmt(f_size)))
 
         print('reading {}...'.format(filename))
         t1 = datetime.datetime.now()
-        features2 = FeaturesCollection.load(filename)
+        features2 = FeaturesCollection.load(filename, serializer=serializer)
         t2 = datetime.datetime.now()
         t_read = t2 - t1
         print('took {}'.format(t_read))
@@ -95,6 +109,9 @@ def main():
     parser.add_argument(
         'output_dir', default='/tmp', nargs='?',
         help='output directory (created files are deleted at exit)')
+    parser.add_argument(
+        '-j', '--njobs', type=int, default=1,
+        help='njobs for MFCC computation')
 
     args = parser.parse_args()
 
@@ -107,20 +124,24 @@ def main():
     print('found {} wav files, total duration of {}'
           .format(len(audio_data), str(total_duration)))
 
+
     # compute the features (default MFCC)
-    print('computing MFCC features...')
+    print(f'computing MFCC features on {args.njobs} jobs...')
     t1 = datetime.datetime.now()
-    processor = MfccProcessor()
     features = FeaturesCollection(
-        **{k: processor.process(v) for k, v in audio_data.items()})
+        **{k: v for k, v in joblib.Parallel(n_jobs=args.njobs, prefer='threads')(
+            joblib.delayed(lambda k, v: (k, MfccProcessor().process(v)))(
+                k, v) for k, v in audio_data.items())})
     t2 = datetime.datetime.now()
     print('took {}'.format(t2 - t1))
 
     # save the features in all the supported formats
-    data = {'duration': total_duration,
-            'data': {
-                ext: analyze_serializer(features, ext, args.output_dir)
-                for ext in supported_extensions().keys()}}
+    data = {
+        'duration': total_duration,
+        'data': {
+            serializer: analyze_serializer(
+                features, serializer, args.output_dir)
+            for serializer in supported_serializers() if serializer != 'json'}}
 
     print_results(data)
 

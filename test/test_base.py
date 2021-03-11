@@ -4,7 +4,7 @@ import pytest
 
 from shennong import version, version_long, url
 from shennong.base import BaseProcessor
-from shennong.features.processor.mfcc import MfccProcessor
+from shennong.processor.mfcc import MfccProcessor
 
 
 def test_version():

@@ -3,7 +3,7 @@
 Pitch estimation
 ~~~~~~~~~~~~~~~~
 
-.. automodule:: shennong.features.processor.pitch
+.. automodule:: shennong.processor.pitch
     :members:
     :inherited-members:
     :undoc-members:

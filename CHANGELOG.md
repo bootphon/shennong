@@ -2,6 +2,18 @@
 
 Version numbers follow [semantic versioning](https://semver.org).
 
+
+## not yet released
+
+### new functionnalities
+
+* Vocal Tract Length Normalization (VTLN) implemented after Kaldi.
+
+### breaking changes
+
+* renamed `shennong.features.*` to `shennong.*`.
+
+
 ## shennong-0.1.1
 
 ### bugfixes

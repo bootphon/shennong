@@ -3,6 +3,6 @@
 Delta features
 ~~~~~~~~~~~~~~
 
-.. automodule:: shennong.features.postprocessor.delta
+.. automodule:: shennong.postprocessor.delta
     :members:
     :inherited-members:

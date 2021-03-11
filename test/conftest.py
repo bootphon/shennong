@@ -5,10 +5,9 @@ import struct
 import numpy as np
 import pytest
 
-from shennong.audio import Audio
+from shennong import Audio, Features, FeaturesCollection
 from shennong.alignment import AlignmentCollection
-from shennong.features import Features, FeaturesCollection
-from shennong.features.processor.mfcc import MfccProcessor
+from shennong.processor.mfcc import MfccProcessor
 
 
 @pytest.fixture(scope='session')

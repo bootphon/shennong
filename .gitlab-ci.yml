@@ -12,6 +12,7 @@ test-linux:
     - module load anaconda/3
     - conda activate shennong-ci
     - python setup.py test
+  needs: ["build-linux"]
 
 build-osx:
   tags:
@@ -31,8 +32,9 @@ test-osx:
   script:
    - conda activate shennong
    - python setup.py test
+  needs: ["build-osx"]
 
-# documentation is available on https://coml.lscp.ens.fr/docs/shennong
+# documentation is available on https://docs.cognitive-ml.fr/shennong
 documentation:
   stage: deploy
   only:
@@ -43,7 +45,8 @@ documentation:
     - module load texlive/2018
     - conda activate shennong-ci
     - sphinx-build doc/source doc/build
-    - scp -r doc/build/* syntheticlearner.net:/var/www/docs.syntheticlearner.net/shennong
+    - scp -r doc/build/* cognitive-ml.fr:/var/www/docs.cognitive-ml.fr/shennong
+  needs: ["test-linux"]
 
 # shennong package is available on oberon with "conda activate shennong"
 deploy-oberon:
@@ -59,6 +62,7 @@ deploy-oberon:
     - conda activate shennong
     - python setup.py install
     - python setup.py test
+  needs: ["test-linux"]
 
 # shennong package available on conda with "conda install -c coml
 # shennong". Build and upload the package only on new git tags or
@@ -74,3 +78,4 @@ deploy-conda:
     - cd .conda
     - conda build -c coml --user coml --token $CONDA_TOKEN --skip-existing .
     - conda build purge
+  needs: ["test-linux"]

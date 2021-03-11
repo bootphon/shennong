@@ -1,9 +1,9 @@
 .. _features.ubm:
 
-UBM-GMM
-~~~~~~~
+UBM
+~~~
 
-.. automodule:: shennong.features.processor.ubm
+.. automodule:: shennong.processor.ubm
     :members:
     :inherited-members:
     :undoc-members:

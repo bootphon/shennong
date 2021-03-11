@@ -33,13 +33,14 @@ Implemented models
   ``shennong``, the detailed documentation is available :ref:`here
   <features.postprocessor>`:
 
-  ===================================== ==============
-  Post-processing                       Implementation
-  ===================================== ==============
-  Delta / Delta-delta                   from Kaldi_
-  Mean Variance Normalization (CMVN)    from Kaldi_
-  Voice Activity Detection              from Kaldi_
-  ===================================== ==============
+  ======================================= ==============
+  Post-processing                         Implementation
+  ======================================= ==============
+  Delta / Delta-delta                     from Kaldi_
+  Mean Variance Normalization (CMVN)      from Kaldi_
+  Voice Activity Detection                from Kaldi_
+  Vocal Tract Length Normalization (VTLN) from Kaldi_
+  ======================================= ==============
 
 * Here is an illustration of the features (without post-processing)
   computed on the example wav file provided as

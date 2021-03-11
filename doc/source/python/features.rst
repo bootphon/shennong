@@ -7,21 +7,18 @@ Features manipulation
    :local:
 
 
-Features classes
-""""""""""""""""
+Features
+""""""""
 
-.. automodule:: shennong.features.features
+.. automodule:: shennong.features
     :members:
     :inherited-members:
     :undoc-members:
 
 
-Save/load features
-""""""""""""""""""
+Features collection
+"""""""""""""""""""
 
-.. _features_serialization:
-
-.. automodule:: shennong.features.serializers
+.. automodule:: shennong.features_collection
     :members:
     :inherited-members:
-    :undoc-members:

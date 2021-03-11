@@ -5,7 +5,10 @@ import numpy as np
 import pytest
 
 from kaldi.util.table import SequentialWaveReader
-from shennong.audio import Audio
+from shennong import Audio
+
+
+DTYPES = [np.int16, np.int32, np.float32, np.float64, float]
 
 
 def test_scan(wav_file, audio):
@@ -19,7 +22,7 @@ def test_scan(wav_file, audio):
 def test_scan_bad():
     with pytest.raises(ValueError) as err:
         Audio.scan(__file__)
-    assert 'is it a wav?' in str(err.value)
+    assert 'SoXI failed' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         Audio.scan('/path/to/some/lost/place')
@@ -33,12 +36,13 @@ def test_load(audio):
     assert audio.data.shape == (22713,)
     assert audio.nsamples == 22713
     assert audio.dtype == np.int16
+    assert audio.precision == 16
 
 
 def test_load_notwav():
     with pytest.raises(ValueError) as err:
         Audio.load(__file__)
-    assert 'is it a wav?' in str(err.value)
+    assert 'not understood' in str(err.value)
 
 
 def test_load_badfile():
@@ -67,10 +71,12 @@ def test_save(tmpdir, audio):
     audio = Audio(signal, 1000)
     audio.save(p)
     meta = Audio.scan(p)
-    assert meta.nsamples == 1000
     assert meta.nchannels == 1
+    assert meta.nsamples == 1000
 
     audio2 = Audio.load(p)
+    assert audio2.nchannels == 1
+    assert audio2.nsamples == 1000
     assert audio2 == audio
     assert audio2.data.min() == -1.0
     assert audio2.data.max() == 1.0
@@ -89,6 +95,15 @@ def test_equal(audio):
     assert audio.duration == audio2.duration
     assert audio.sample_rate == audio2.sample_rate
     assert audio != audio2
+
+
+@pytest.mark.parametrize('dtype', DTYPES)
+def test_save_load(tmpdir, audio, dtype):
+    audio = Audio(np.random.random((1000, 2)), 16000).astype(dtype)
+    audio.save(tmpdir / 'test.wav')
+
+    audio2 = Audio.load(tmpdir / 'test.wav')
+    assert audio == audio2
 
 
 def test_shape():
@@ -149,7 +164,7 @@ def test_isvalid(audio):
     with pytest.raises(ValueError) as err:
         Audio(audio.data.astype(np.float32),
               audio.sample_rate, validate=True)
-        'invalid audio data' in err
+        assert 'invalid audio data' in err
 
     # smooth cast from int16 to float32
     audio3 = audio.astype(np.float32)
@@ -171,9 +186,6 @@ def test_isvalid(audio):
         audio.data.astype(np.uint8), audio.sample_rate, validate=False)
     assert audio5.dtype is np.dtype(np.uint8)
     assert not audio5.is_valid()
-
-
-DTYPES = [np.int16, np.int32, np.float32, np.float64, float]
 
 
 @pytest.mark.parametrize('dtype', DTYPES)
@@ -236,6 +248,10 @@ def test_resample_bad(audio):
     with pytest.raises(ValueError) as err:
         audio.resample(5, backend='a_bad_one')
     assert 'backend must be sox or scipy, it is' in str(err.value)
+
+    with pytest.raises(ValueError) as err:
+        audio.resample(0)
+    assert 'resampling at 0 failed' in str(err.value)
 
 
 def test_compare_kaldi(wav_file):

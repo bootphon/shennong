@@ -3,7 +3,7 @@
 Voice Activity Detection
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: shennong.features.postprocessor.vad
+.. automodule:: shennong.postprocessor.vad
     :members:
     :inherited-members:
     :undoc-members:

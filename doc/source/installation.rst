@@ -92,8 +92,9 @@ conda image for macos, you must install from sources.
     conda env create --name shennong -f environment.macos.yml
     conda activate shennong
 
-    # install pykaldi (see https://github.com/pykaldi/pykaldi#from-source)
-    git clone https://github.com/pykaldi/pykaldi.git
+    # install the shennong fork of pykaldi
+    # (see https://github.com/mxmpl/pykaldi#from-source)
+    git clone https://github.com/mxmpl/pykaldi.git
     cd pykaldi
     brew install automake cmake git graphviz libtool pkg-config wget
     pip install --upgrade pip setuptools numpy pyparsing ninja
