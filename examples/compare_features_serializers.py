@@ -11,8 +11,6 @@ import os
 import pathlib
 import tempfile
 
-
-import joblib
 import tabulate
 from shennong import Audio, FeaturesCollection
 from shennong.processor.mfcc import MfccProcessor
@@ -61,7 +59,6 @@ def get_size(path):
     return sum(os.path.getsize(f) for f in path.glob('**/*') if f.is_file())
 
 
-
 def print_results(results):
     print('total duration: {}'.format(results['duration']))
     print(
@@ -73,7 +70,7 @@ def print_results(results):
             tablefmt='fancy_grid'))
 
 
-def analyze_serializer(features, serializer, output_dir):
+def analyze_serializer(features, serializer, output_dir, with_properties=True):
     with tempfile.TemporaryDirectory(dir=output_dir) as tmpdir:
         filename = os.path.join(tmpdir, 'features_' + serializer)
         if serializer == 'kaldi':
@@ -81,7 +78,8 @@ def analyze_serializer(features, serializer, output_dir):
 
         print('writing {}...'.format(filename))
         t1 = datetime.datetime.now()
-        features.save(filename, serializer=serializer)
+        features.save(
+            filename, serializer=serializer, with_properties=with_properties)
         t2 = datetime.datetime.now()
         t_write = t2 - t1
         print('took {}'.format(t_write))
@@ -95,7 +93,6 @@ def analyze_serializer(features, serializer, output_dir):
         t2 = datetime.datetime.now()
         t_read = t2 - t1
         print('took {}'.format(t_read))
-        print('rw equality: {}'.format(features2 == features))
 
         return (t_write, t_read, f_size)
 
@@ -109,6 +106,9 @@ def main():
     parser.add_argument(
         'output_dir', default='/tmp', nargs='?',
         help='output directory (created files are deleted at exit)')
+    parser.add_argument(
+        '--no-properties', action='store_true',
+        help='do not save features properties')
     parser.add_argument(
         '-j', '--njobs', type=int, default=1,
         help='njobs for MFCC computation')
@@ -124,14 +124,11 @@ def main():
     print('found {} wav files, total duration of {}'
           .format(len(audio_data), str(total_duration)))
 
-
     # compute the features (default MFCC)
     print(f'computing MFCC features on {args.njobs} jobs...')
+    processor = MfccProcessor()
     t1 = datetime.datetime.now()
-    features = FeaturesCollection(
-        **{k: v for k, v in joblib.Parallel(n_jobs=args.njobs, prefer='threads')(
-            joblib.delayed(lambda k, v: (k, MfccProcessor().process(v)))(
-                k, v) for k, v in audio_data.items())})
+    features = processor.process_all(audio_data, njobs=args.njobs)
     t2 = datetime.datetime.now()
     print('took {}'.format(t2 - t1))
 
@@ -140,7 +137,8 @@ def main():
         'duration': total_duration,
         'data': {
             serializer: analyze_serializer(
-                features, serializer, args.output_dir)
+                features, serializer, args.output_dir,
+                with_properties=not args.no_properties)
             for serializer in supported_serializers() if serializer != 'json'}}
 
     print_results(data)
