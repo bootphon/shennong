@@ -347,7 +347,8 @@ class Features:
             raise ValueError(
                 'data contains non-finite numbers (nan of infinity)')
 
-    def concatenate(self, other, tolerance=0):
+    def concatenate(
+            self, other, tolerance=0, log=get_logger('features', 'info')):
         """Returns the concatenation of this features with `other`
 
         Build a new Features instance made of the concatenation of
@@ -367,6 +368,8 @@ class Features:
             which can alter the resulting number of frames (the same
             tolerance is applied in Kaldi, e.g. in paste-feats).
             Default to 0.
+        log : logging.Logger, optional
+            Where to send log messages
 
         Returns
         -------
@@ -393,7 +396,7 @@ class Features:
                     'greater than tolerance: |{} - {}| > {}'.format(
                         self.nframes, other.nframes, tolerance))
 
-            get_logger('features', 'warning').warning(
+            log.warning(
                 'features differs in number of frames, but '
                 'within tolerance (|%s - %s| <= %s), trim the longest one',
                 self.nframes, other.nframes, tolerance)

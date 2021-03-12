@@ -23,5 +23,5 @@ most of the algorithms while providing simple to use **Python API** and
         conda install -c coml shennong
 
 * Implementented models include filterbanks, MFCC, PLP, bottleneck, pitch,
-  delta, CMVN, VAD. See the complete list of available features
+  delta, CMVN, VAD, VTLN. See the complete list of available features
   [here](https://docs.cognitive-ml.fr/shennong/intro_features.html).

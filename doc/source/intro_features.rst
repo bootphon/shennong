@@ -25,7 +25,7 @@ Implemented models
   RASTA-PLP       from rastapy_, after labrosa_
   Bottleneck      from BUTspeech_
   One Hot Vectors shennong
-  Pitch           from Kaldi_
+  Pitch           from Kaldi_ and CREPE_
   Energy          from Kaldi_
   =============== ==============
 
@@ -155,7 +155,7 @@ experiment is available at ``shennong/examples/features_abx``.
   +--------------------+--------+--------+--------+--------+
   | shennong-full      |  24.0  |  12.4  |  26.0  | 14.6   |
   +--------------------+--------+--------+--------+--------+
-  |   ZRC2015-vtln     |  24.0  |  14.6  |        |        |
+  | ZRC2015-vtln       |  24.0  |  14.6  |        |        |
   +--------------------+--------+--------+--------+--------+
   | shennong-only-vtln |  23.4  |  12.8  |  31.4  | 17.5   |
   +--------------------+--------+--------+--------+--------+
@@ -163,6 +163,7 @@ experiment is available at ``shennong/examples/features_abx``.
   +--------------------+--------+--------+--------+--------+
 
 .. _Kaldi: https://kaldi-asr.org
+.. _CREPE: https://github.com/marl/crepe
 .. _rastapy: https://github.com/mystlee/rasta_py
 .. _labrosa: https://labrosa.ee.columbia.edu/matlab/rastamat/
 .. _BUTspeech: https://speech.fit.vutbr.cz/software/but-phonexia-bottleneck-feature-extractor

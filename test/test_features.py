@@ -144,11 +144,11 @@ def test_concatenate_tolerance(capsys):
     assert 'features differs number of frames, and greater than ' in str(
         err.value)
 
-    f3 = f1.concatenate(f2, tolerance=2)
+    f3 = f1.concatenate(f2, tolerance=2, log=get_logger('test', 'info'))
     assert f3.shape == (10, 4)
     assert 'WARNING' in capsys.readouterr().err
 
-    f3 = f2.concatenate(f1, tolerance=2)
+    f3 = f2.concatenate(f1, tolerance=2, log=get_logger('test', 'warning'))
     assert f3.shape == (10, 4)
     assert 'WARNING' in capsys.readouterr().err
 

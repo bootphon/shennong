@@ -189,11 +189,14 @@ class PipelineManager:
             _module, _class = cls.valid_processors[name]
         except KeyError:
             raise ValueError('invalid processor "{}"'.format(name))
-        if name == 'pitch_post':
-            name = 'pitch'
-        if name == 'crepe_pitch' or name == 'crepe_pitch_post':
+
+        if 'crepe_pitch' in name:
+            # crepe pitch (post)processor
             name = 'crepepitch'
-        if name == 'sliding_window_cmvn':
+        elif 'pitch_post' in name:
+            # kaldi pitch postprocessor
+            name = 'pitch'
+        elif name == 'sliding_window_cmvn':
             name = 'cmvn'
 
         module = 'shennong.{}.{}'.format(_module, name)
@@ -308,31 +311,29 @@ class PipelineManager:
         """Instanciates and returns a pitch processor"""
         wav = self.utterances[utterance].file
         params = {k: v for k, v in self.config['pitch'].items()
-                  if k != 'postprocessing'}
+                  if k not in ('processor', 'postprocessing')}
         params['sample_rate'] = self._wavs_metadata[wav].sample_rate
         params['frame_shift'] = self.frame_shift
         params['frame_length'] = self.frame_length
 
-        return self._set_logger(self.get_processor_class('pitch')(**params))
+        # fall back to kaldi or crepe processor according to config
+        name = 'pitch'
+        if self.config['pitch']['processor'] == 'crepe':
+            name = 'crepe_' + name
+            del params['sample_rate']
+
+        return self._set_logger(self.get_processor_class(name)(**params))
 
     def get_pitch_post_processor(self, utterance):
         """Instanciates and returns a pitch post-processor"""
+        # fall back to kaldi or crepe post-processor according to config
+        name = 'pitch_post'
+        if self.config['pitch']['processor'] == 'crepe':
+            name = 'crepe_' + name
+
         return self._set_logger(
-            self.get_processor_class('pitch_post')(
+            self.get_processor_class(name)(
                 **self.config['pitch']['postprocessing']))
-
-    def get_crepe_pitch_processor(self, utterance):
-        """Instanciates and returns a pitch processor"""
-        params = {k: v for k, v in self.config['crepe_pitch'].items()
-                  if k != 'postprocessing'}
-        params['frame_shift'] = self.frame_shift
-        params['frame_length'] = self.frame_length
-        return self.get_processor_class('crepe_pitch')(**params)
-
-    def get_crepe_pitch_post_processor(self, utterance):
-        """Instanciates and returns a pitch post-processor"""
-        return self.get_processor_class('crepe_pitch_post')(
-            **self.config['crepe_pitch']['postprocessing'])
 
     def get_delta_processor(self, utterance):
         """Instanciates and returns a delta processor"""

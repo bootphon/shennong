@@ -5,13 +5,17 @@ Version numbers follow [semantic versioning](https://semver.org).
 
 ## not yet released
 
-### new functionnalities
+* Vocal Tract Length Normalization (VTLN) implemented using Kaldi:
+  `shennong.processor.vtln`.
 
-* Vocal Tract Length Normalization (VTLN) implemented after Kaldi.
+* CREPE pitch extraction: `shennong.processor.crepepitch`.
 
-### breaking changes
+* Features serialization supported in CSV (replace JSON format).
 
-* renamed `shennong.features.*` to `shennong.*`.
+* Optionnally ignore features properties when saving them.
+
+* Code reorganization and improvments (renamed `shennong.features.*` to
+  `shennong.*`, new `shennong.logger`, etc...)
 
 
 ## shennong-0.1.1

@@ -57,7 +57,7 @@ def test_output(audio, audio_8k):
         data = np.random.random((1000, 2))
         stereo = Audio(data, sample_rate=16000)
         CrepePitchProcessor(model_capacity='tiny').process(stereo)
-    assert 'audio signal must have one channel' in str(err.value)
+    assert 'audio must have one channel' in str(err.value)
 
 
 def test_post_crepe_pitch_params():

@@ -8,7 +8,7 @@
 
 - The following table details the supported file formats and compares the
   obtained file size, writing and reading times on MFCC features computed on
-  the `Buckeye Corpus <https://buckeyecorpus.osu.edu`_
+  the `Buckeye Corpus <https://buckeyecorpus.osu.edu>`_
   (English, 40 speakers, about 38 hours of speech and 254 files):
 
   ===========  =========  =========  ============  ============

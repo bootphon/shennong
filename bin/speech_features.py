@@ -97,16 +97,16 @@ metadata.
 Several file formats are supported, the format is guessed by the file
 extension specified in command line:
 
-  ===========  ========= ========================================
+  ===========  ========= ===========================================
   File format  Extension Use case
-  ===========  ========= ========================================
-  h5features   .h5f      First choice, fast and efficient
-  numpy        .npz      Second choice, standard numpy format
+  ===========  ========= ===========================================
   pickle       .pkl      Very fast, standard Python format
+  h5features   .h5f      Fast and efficient
+  numpy        .npz      Standard numpy format
   matlab       .mat      Compatibility with Matlab
   kaldi        .ark      Compatibility with Kaldi
-  JSON         .json     Very slow, for manual introspection only
-  ===========  ========= ========================================
+  CSV          <folder>  Very slow, raw text, one utterance per file
+  ===========  ========= ===========================================
 
 More info on file formats are available on the online documentation.
 
@@ -152,15 +152,6 @@ def parser_config(subparsers, epilog):
         help='Configure the pipeline to extract those features')
 
     group.add_argument(
-        '--no-pitch', action='store_true',
-        help='Configure without pitch extraction')
-
-    group.add_argument(
-        '--no-crepe-pitch', action='store_true',
-        help='Configure without pitch extraction with CREPE'
-    )
-
-    group.add_argument(
         '--no-cmvn', action='store_true',
         help='Configure without CMVN normalization')
 
@@ -168,13 +159,25 @@ def parser_config(subparsers, epilog):
         '--no-delta', action='store_true',
         help='Configure without deltas extraction')
 
-    group.add_argument(
+    pitch = group.add_mutually_exclusive_group()
+    pitch.add_argument(
+        '--no-pitch', action='store_true',
+        help='Configure without pitch extraction')
+
+    pitch.add_argument(
+        '--pitch', choices=['kaldi', 'crepe'], default='kaldi',
+        help=(
+            'Configure with Kaldi or CREPE pitch extraction, '
+            'default to %(default)s'))
+
+    vtln = group.add_mutually_exclusive_group()
+    vtln.add_argument(
         '--no-vtln', action='store_true',
         help='Configure without VTLN normalization')
 
-    group.add_argument(
+    vtln.add_argument(
         '--vtln-full', action='store_true',
-        help='Expose all the VTLN parameters')
+        help='Expose all the VTLN parameters, expose a reduced set by default')
 
 
 def command_config(args):
@@ -183,11 +186,14 @@ def command_config(args):
     if with_vtln:
         with_vtln = 'full' if args.vtln_full else 'simple'
 
+    with_pitch = not args.no_pitch
+    if with_pitch:
+        with_pitch = args.pitch
+
     config = pipeline.get_default_config(
         args.features,
         to_yaml=True, yaml_commented=not args.no_comments,
-        with_pitch=not args.no_pitch,
-        with_crepe_pitch=not args.no_crepe_pitch,
+        with_pitch=with_pitch,
         with_cmvn=not args.no_cmvn,
         with_delta=not args.no_delta,
         with_vtln=with_vtln)

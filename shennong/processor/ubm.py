@@ -1,7 +1,7 @@
 """Provides the DiagUbmProcessor class to train a Universal Background Model
 
 - Gaussian Mixture Model (UBM-GMM) with diagonal covariances.
-- Uses the kaldi implementation of GMM (see [kaldi_gmm]_).
+- Uses the kaldi implementation of GMM (see [kaldi-gmm]_).
 
 The UBM is used as a preprocessing step by
 :class:`~shennong.processor.vtln.VtlnProcessor`.
@@ -38,7 +38,8 @@ True
 References
 ----------
 
-.. [kaldi-gmm] https://kaldi-asr.org/doc/model.html
+.. [kaldi-gmm]
+     https://kaldi-asr.org/doc/model.html
 
 """
 
@@ -264,7 +265,7 @@ class DiagUbmProcessor(BaseProcessor):
         """Initializes a single diagonal GMM
 
         Also does multiple iterations of initial training. Adapted from
-        [kaldi_init]_.
+        [kaldi-init]_.
 
         Parameters
         ----------
@@ -281,7 +282,7 @@ class DiagUbmProcessor(BaseProcessor):
         References
         ----------
         .. [kaldi-init]
-            https://kaldi-asr.org/doc/gmm-global-init-from-feats_8cc.html
+             https://kaldi-asr.org/doc/gmm-global-init-from-feats_8cc.html
 
         """
         num_gauss_init = int(self.initial_gauss_proportion * self.num_gauss)
@@ -428,7 +429,9 @@ class DiagUbmProcessor(BaseProcessor):
 
         References
         ----------
-        .. [kaldi-gselect] https://kaldi-asr.org/doc/gmm-gselect_8cc.html
+        .. [kaldi-gselect]
+             https://kaldi-asr.org/doc/gmm-gselect_8cc.html
+
         """
         if not isinstance(self.gmm, kaldi.gmm.DiagGmm):
             raise TypeError('GMM not initialized')
@@ -518,7 +521,7 @@ class DiagUbmProcessor(BaseProcessor):
         References
         ----------
         .. [kaldi-gselect-to-post]
-            https://kaldi-asr.org/doc/gmm-global-gselect-to-post_8cc.html
+              https://kaldi-asr.org/doc/gmm-global-gselect-to-post_8cc.html
 
         """
         if not isinstance(self.selection, dict):
@@ -605,7 +608,8 @@ class DiagUbmProcessor(BaseProcessor):
 
         References
         ----------
-        .. [kaldi_acc] https://kaldi-asr.org/doc/gmm-global-acc-stats_8cc.html
+        .. [kaldi-acc]
+             https://kaldi-asr.org/doc/gmm-global-acc-stats_8cc.html
 
         """
         if not isinstance(self.gmm, kaldi.gmm.DiagGmm):
@@ -676,7 +680,9 @@ class DiagUbmProcessor(BaseProcessor):
 
         References
         ----------
-        .. [kaldi-gmm-est] https://kaldi-asr.org/doc/gmm-global-est_8cc.html
+        .. [kaldi-gmm-est]
+             https://kaldi-asr.org/doc/gmm-global-est_8cc.html
+
         """
         if not isinstance(self.gmm, kaldi.gmm.DiagGmm):
             raise TypeError('GMM not initialized')

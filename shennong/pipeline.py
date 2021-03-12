@@ -99,8 +99,7 @@ def get_default_config(
         features,
         to_yaml=False,
         yaml_commented=True,
-        with_pitch=True,
-        with_crepe_pitch=False,
+        with_pitch='kaldi',
         with_cmvn=True,
         with_sliding_window_cmvn=False,
         with_delta=True,
@@ -125,11 +124,9 @@ def get_default_config(
         If True add the docstring of each parameter as a comment in
         the YAML string, if False do nothing. This option has an
         effect only if ``to_yaml`` is True. Default to True.
-    with_pitch : bool, optional
-        Configure the pipeline for pitch extraction, default to True
-    with_crepe_pitch : bool, optional
-        Configure the pipeline for pitch extraction using CREPE model,
-        default to False.
+    with_pitch : False, 'kaldi' or 'crepe', optional
+        Configure the pipeline for pitch extraction using Kaldi or CREPE,
+        default to 'kaldi'
     with_cmvn : bool, optional
         Configure the pipeline for CMVN normalization of the features,
         default to True.
@@ -154,13 +151,19 @@ def get_default_config(
     Raises
     ------
     ValueError
-        If ``features`` is not in :func:`valid_features`.
+        If ``features`` is not in :func:`valid_features` or if ``with_pitch``
+        is not valid.
 
     """
     # check features are correct
     if features not in valid_features():
         raise ValueError('invalid features "{}", must be in {}'.format(
             features, ', '.join(valid_features())))
+
+    if with_pitch not in (False, 'kaldi', 'crepe'):
+        raise ValueError(
+            f'with_pitch argument must be False, "kaldi" or "crepe" '
+            f'but is "{with_pitch}"')
 
     config = {}
 
@@ -171,24 +174,26 @@ def get_default_config(
         PipelineManager.get_processor_params(features).items()
         if k not in ('sample_rate', 'htk_compat')}
 
-    if with_pitch:
+    if with_pitch == 'kaldi':
         # filter out the frame parameters, already specified for
         # the features, and sample rate
-        config['pitch'] = {
-            k: v for k, v
-            in PipelineManager.get_processor_params('pitch').items()
-            if k not in ('frame_length', 'frame_shift', 'sample_rate')}
+        config['pitch'] = {'processor': 'kaldi'}
+        for key, value in (
+                PipelineManager.get_processor_params('pitch').items()):
+            if key not in ('frame_length', 'frame_shift', 'sample_rate'):
+                config['pitch'][key] = value
         config['pitch']['postprocessing'] = (
             PipelineManager.get_processor_params('pitch_post'))
 
-    if with_crepe_pitch:
+    elif with_pitch == 'crepe':
         # filter out the frame parameters, already specified for
         # the features, and sample rate
-        config['crepe_pitch'] = {
-            k: v for k, v
-            in PipelineManager.get_processor_params('crepe_pitch').items()
-            if k not in ('frame_length', 'frame_shift', 'sample_rate')}
-        config['crepe_pitch']['postprocessing'] = (
+        config['pitch'] = {'processor': 'crepe'}
+        for key, value in (
+                PipelineManager.get_processor_params('crepe_pitch').items()):
+            if key not in ('frame_length', 'frame_shift', 'sample_rate'):
+                config['pitch'][key] = value
+        config['pitch']['postprocessing'] = (
             PipelineManager.get_processor_params('crepe_pitch_post'))
 
     if with_cmvn:
@@ -346,6 +351,12 @@ def _get_config_to_yaml(config, comments=True):
     yaml.add_representer(
         np.float32, yaml.representer.Representer.represent_float)
 
+    # store the pitch processor (if any)
+    try:
+        pitch_processor = config['pitch']['processor']
+    except KeyError:
+        pitch_processor = None
+
     # build the yaml formated multiline string
     config = yaml.dump(config).strip()
 
@@ -395,6 +406,12 @@ def _get_config_to_yaml(config, comments=True):
                     'MFCCs with default parameters. Regenerate this '
                     'configuration file with "speech-features config" using '
                     'the "--vtln-full" option to expose all the parameters.')
+            elif processor == 'pitch' and param == 'processor':
+                docstring = f'Computing pitch using {pitch_processor}'
+            elif processor == 'pitch' and param != 'processor':
+                model = '' if pitch_processor == 'kaldi' else 'crepe_'
+                docstring = PipelineManager.get_docstring(
+                    model + processor, param, default)
             else:
                 docstring = PipelineManager.get_docstring(
                     processor, param, default)
@@ -457,23 +474,14 @@ def _init_config(config, log=get_logger('pipeline', 'warning')):
         if 'with_vad' not in config['cmvn']:
             config['cmvn']['with_vad'] = True
 
-    if 'pitch' in config and 'crepe_pitch' in config:
-        raise ValueError('both default pitch and CREPE pitch are requested')
-
     # if pitch, make sure we have a 'postprocessing' entry
     if 'pitch' in config and 'postprocessing' not in config['pitch']:
         config['pitch']['postprocessing'] = {}
 
-    if 'crepe_pitch' in config and 'postprocessing' not in \
-            config['crepe_pitch']:
-        config['crepe_pitch']['postprocessing'] = {}
-
     # log message describing the pipeline configuration
     msg = []
     if 'pitch' in config:
-        msg.append('pitch')
-    if 'crepe_pitch' in config:
-        msg.append('crepe pitch')
+        msg.append(f'{config["pitch"]["processor"]} pitch')
     if 'delta' in config:
         msg.append('delta')
     if 'cmvn' in config:
@@ -651,14 +659,10 @@ def _extract_pass_one(utt_name, manager, log):
 
     # pitch extraction
     if 'pitch' in manager.config:
-        log.debug('%s: extract pitch', utt_name)
+        processor = manager.config['pitch']['processor']
+        log.debug('%s: extract %s pitch', processor, utt_name)
         p1 = manager.get_pitch_processor(utt_name)
         p2 = manager.get_pitch_post_processor(utt_name)
-        pitch = p2.process(p1.process(audio))
-    elif 'crepe_pitch' in manager.config:
-        log.debug('%s: extract crepe pitch', utt_name)
-        p1 = manager.get_crepe_pitch_processor(utt_name)
-        p2 = manager.get_crepe_pitch_post_processor(utt_name)
         pitch = p2.process(p1.process(audio))
     else:
         pitch = None
@@ -708,8 +712,7 @@ def _extract_pass_two(utt_name, manager, features, pitch, log, tolerance=2):
     # the paste-feats binary)
     if pitch:
         log.debug('%s: concatenate pitch', utt_name)
-        features._log = log
-        features = features.concatenate(pitch, tolerance=tolerance)
+        features = features.concatenate(pitch, tolerance=tolerance, log=log)
 
     return utt_name, features
 

@@ -36,16 +36,19 @@ def equal_dict(d1, d2):
 
 
 @pytest.mark.parametrize(
-    'features, with_vtln',
-    [(f, v) for f in pipeline.valid_features()
-     for v in (False, 'simple', 'full')])
-def test_config_good(features, with_vtln):
+    'features, with_vtln, with_pitch',
+    [(f, v, p) for f in pipeline.valid_features()
+     for v in (False, 'simple', 'full')
+     for p in (False, 'kaldi', 'crepe')])
+def test_config_good(features, with_vtln, with_pitch):
     c1 = pipeline.get_default_config(
-        features, to_yaml=False, with_vtln=with_vtln)
+        features, to_yaml=False, with_vtln=with_vtln, with_pitch=with_pitch)
     c2 = pipeline.get_default_config(
-        features, to_yaml=True, yaml_commented=False, with_vtln=with_vtln)
+        features, to_yaml=True, yaml_commented=False,
+        with_vtln=with_vtln, with_pitch=with_pitch)
     c3 = pipeline.get_default_config(
-        features, to_yaml=True, yaml_commented=True, with_vtln=with_vtln)
+        features, to_yaml=True, yaml_commented=True,
+        with_vtln=with_vtln, with_pitch=with_pitch)
     assert features in c1.keys()
     assert '#' not in c2
     assert '#' in c3
@@ -103,11 +106,9 @@ def test_config_bad(utterances_index):
         pipeline.get_default_config('mfcc', with_vtln=True)
     assert 'must be "simple" or "full" but is "True"' in str(err.value)
 
-    config = pipeline.get_default_config(
-        'mfcc', with_pitch=True, with_crepe_pitch=True)
     with pytest.raises(ValueError) as err:
-        pipeline.extract_features(config, utterances_index)
-    assert 'both default pitch and CREPE pitch are requested' in str(err.value)
+        config = pipeline.get_default_config('mfcc', with_pitch='bad')
+    assert 'with_pitch argument must be' in str(err.value)
 
     config = pipeline.get_default_config('mfcc')
     del config['cmvn']['with_vad']
@@ -121,15 +122,16 @@ def test_config_bad(utterances_index):
     assert not c['cmvn']['by_speaker']
 
     config = pipeline.get_default_config('mfcc')
+    assert config['pitch']['processor'] == 'kaldi'
     del config['pitch']['postprocessing']
     c = pipeline._init_config(config)
     assert c['pitch']['postprocessing'] == {}
 
-    config = pipeline.get_default_config(
-        'mfcc', with_pitch=False, with_crepe_pitch=True)
-    del config['crepe_pitch']['postprocessing']
+    config = pipeline.get_default_config('mfcc', with_pitch='crepe')
+    assert config['pitch']['processor'] == 'crepe'
+    del config['pitch']['postprocessing']
     c = pipeline._init_config(config)
-    assert c['crepe_pitch']['postprocessing'] == {}
+    assert c['pitch']['postprocessing'] == {}
 
 
 def test_check_speakers(utterances_index, capsys):
@@ -241,7 +243,7 @@ def test_extract_features(utterances_index, features):
     assert feat1.dtype == np.float32
 
     config = pipeline.get_default_config(
-        features, with_cmvn=False, with_pitch=True)
+        features, with_cmvn=False, with_pitch='kaldi')
     feats = pipeline.extract_features(config, utterances_index)
     feat2 = feats[utterances_index[0][0]]
     assert feat2.is_valid()
@@ -249,8 +251,8 @@ def test_extract_features(utterances_index, features):
     assert feat2.shape[1] == feat1.shape[1] + 3
 
     config = pipeline.get_default_config(
-        features, with_cmvn=False, with_pitch=False, with_crepe_pitch=True)
-    config['crepe_pitch']['model_capacity'] = 'tiny'
+        features, with_cmvn=False, with_pitch='crepe')
+    config['pitch']['model_capacity'] = 'tiny'
     feats = pipeline.extract_features(config, utterances_index)
     feat2 = feats[utterances_index[0][0]]
     assert feat2.is_valid()
@@ -309,8 +311,8 @@ def test_extract_features_with_vtln(utterances_index, with_vtln):
 
 
 @pytest.mark.parametrize('ext', supported_extensions().keys())
-def test_extract_features_full(ext, wav_file, wav_file_8k, wav_file_float32,
-                               capsys, tmpdir):
+def test_extract_features_full(
+        ext, wav_file, wav_file_8k, wav_file_float32, capsys, tmpdir):
     # difficult case with parallel jobs, different sampling rates,
     # speakers and segments
     index = [

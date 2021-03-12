@@ -1,7 +1,7 @@
 .. _features.pitch:
 
-Pitch estimation
-~~~~~~~~~~~~~~~~
+Pitch estimation using Kaldi
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: shennong.processor.pitch
     :members:

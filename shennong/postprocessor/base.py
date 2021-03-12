@@ -13,10 +13,10 @@ from shennong.processor.base import FeaturesProcessor
 
 
 class FeaturesPostProcessor(FeaturesProcessor):
+    """Base class of all features post-processors"""
     @abc.abstractmethod
     def process(self, features):
         """Returns features post-processed from input `features`"""
-        pass  # pragma: no cover
 
     def get_properties(self, features):
         properties = copy.deepcopy(features.properties)

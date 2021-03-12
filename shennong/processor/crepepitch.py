@@ -2,7 +2,7 @@
 using the CREPE model (see [Kim2018]_). Integrates the CREPE package
 (see [crepe-repo]_) into shennong API and provides postprocessing
 to turn the raw pitch into usable features, using
-:class:`~shennong.features.processor.pitch.PitchPostProcessor`.
+:class:`~shennong.processor.pitch.PitchPostProcessor`.
 
 The maximum value of the output of the neural network is
 used as a heuristic estimate of the voicing probability (POV).
@@ -22,7 +22,7 @@ specified at construction, or after:
 ...   model_capacity='tiny', frame_shift=0.01)
 
 Compute the pitch with the specified options, the output is an
-instance of :class:`~shennong.features.features.Features`:
+instance of :class:`~shennong.features.Features`:
 
 >>> pitch = processor.process(audio)
 >>> type(pitch)
@@ -66,20 +66,20 @@ import scipy.interpolate
 import scipy.signal
 
 from shennong import Features
-from shennong.logger import get_logger
 from shennong.processor.base import FeaturesProcessor
 from shennong.processor.pitch import PitchPostProcessor
 
 
 def _nccf_to_pov(x):
-    y = -5.2 + 5.4*np.exp(7.5*(x - 1)) + 4.8*x - 2 * \
-        np.exp(-10*x)+4.2*np.exp(20*(x-1))
-    return 1/(1+np.exp(-y))
+    y = (
+        -5.2 + 5.4 * np.exp(7.5 * (x - 1)) + 4.8 * x - 2 *
+        np.exp(-10 * x) + 4.2 * np.exp(20 * (x - 1)))
+    return 1 / (1 + np.exp(-y))
 
 
 def predict_voicing(confidence):
-    """
-    Find the Viterbi path for voiced versus unvoiced frames.
+    """Find the Viterbi path for voiced versus unvoiced frames.
+
     Adapted from https://github.com/sannawag/crepe.
 
     Parameters
@@ -94,39 +94,38 @@ def predict_voicing(confidence):
         HMM predictions for each frames state, 0 if unvoiced, 1 if
         voiced
     """
-    # uniform prior on the voicing confidence
-    starting = np.array([0.5, 0.5])
-
-    # transition probabilities inducing continuous voicing state
-    transition = np.array([[0.99, 0.01], [0.01, 0.99]])
-
-    # mean and variance for unvoiced and voiced states
-    means = np.array([[0.0], [1.0]])
-    variances = np.array([[0.25], [0.25]])
-
     # fix the model parameters because we are not optimizing the model
     model = hmmlearn.hmm.GaussianHMM(n_components=2)
-    model.startprob_, model.covars_, model.transmat_, model.means_, \
-        model.n_features = starting, variances, transition, means, 1
+
+    # uniform prior on the voicing confidence
+    model.startprob_ = np.array([0.5, 0.5])
+
+    #  mean and variance for unvoiced and voiced states
+    model.means_ = np.array([[0.0], [1.0]])
+    model.covars_ = np.array([[0.25], [0.25]])
+
+    # transition probabilities inducing continuous voicing state
+    model.transmat_ = np.array([[0.99, 0.01], [0.01, 0.99]])
+
+    model.n_features = 1
 
     # find the Viterbi path
-    voicing_states = model.predict(
-        confidence.reshape(-1, 1), [len(confidence)])
-    return np.array(voicing_states)
+    return np.array(
+        model.predict(confidence.reshape(-1, 1), [len(confidence)]))
 
 
 class CrepePitchProcessor(FeaturesProcessor):
     """Extracts the (POV, pitch) per frame from a speech signal
-    using the CREPE model.
+
+    This processor uses the pre-trained CREPE model.
 
     The output will have as many rows as there are frames, and two
     columns corresponding to (POV, pitch). POV is the Probability of
     Voicing.
 
     """
-    def __init__(self, model_capacity='full',
-                 viterbi=True, center=True, frame_shift=0.01,
-                 frame_length=0.025):
+    def __init__(self, model_capacity='full', viterbi=True, center=True,
+                 frame_shift=0.01, frame_length=0.025):
         super().__init__()
 
         self.model_capacity = model_capacity
@@ -141,7 +140,11 @@ class CrepePitchProcessor(FeaturesProcessor):
 
     @property
     def model_capacity(self):
-        """String specifying the model capacity"""
+        """String specifying the model capacity to use
+
+        Must be 'tiny', 'small', 'medium', 'large' or 'full'
+
+        """
         return self._model_capacity
 
     @model_capacity.setter
@@ -152,7 +155,7 @@ class CrepePitchProcessor(FeaturesProcessor):
 
     @property
     def viterbi(self):
-        """Apply viterbi smoothing to the estimated pitch curve"""
+        """Whether to apply viterbi smoothing to the estimated pitch curve"""
         return self._viterbi
 
     @viterbi.setter
@@ -188,7 +191,7 @@ class CrepePitchProcessor(FeaturesProcessor):
 
     @property
     def sample_rate(self):
-        """Sample rate"""
+        """CREPE operates at 16kHz"""
         return 16000
 
     @property
@@ -196,18 +199,19 @@ class CrepePitchProcessor(FeaturesProcessor):
         return 2
 
     def times(self, nframes):
-        """Returns the time label for the rows given by the `process` method"""
+        """Returns the time label for the rows given by :func:`process`"""
         return np.vstack((
             np.arange(nframes) * self.frame_shift,
             np.arange(nframes) * self.frame_shift + self.frame_length)).T
 
     def process(self, audio):
-        """Extracts the (POV, pitch) from a given speech `audio` using CREPE.
+        """Extracts the (POV, pitch) from a given speech ``audio`` using CREPE.
 
         Parameters
         ----------
         audio : Audio
-            The speech signal on which to estimate the pitch.
+            The speech signal on which to estimate the pitch. Will be
+            transparently resampled at 16kHz if needed.
 
         Returns
         -------
@@ -221,13 +225,14 @@ class CrepePitchProcessor(FeaturesProcessor):
         ValueError
             If the input `signal` has more than one channel (i.e. is
             not mono).
+
         """
         if audio.nchannels != 1:
             raise ValueError(
-                'audio signal must have one channel, but it has {}'
-                .format(audio.nchannels))
+                f'audio must have one channel but has {audio.nchannels}')
 
         if audio.sample_rate != self.sample_rate:
+            self.log.debug('resampling audio to 16 kHz')
             audio = audio.resample(self.sample_rate)
 
         # tensorflow verbosity
@@ -239,56 +244,56 @@ class CrepePitchProcessor(FeaturesProcessor):
             verbose = 0
 
         with warnings.catch_warnings():
-            # tensorflow (used by crepe) issues irrelevant warnings
+            # tensorflow (used by crepe) issues irrelevant warnings, we just
+            # ignore them
             warnings.simplefilter('ignore')
+
             _, frequency, confidence, _ = crepe.predict(
                 audio.data,
                 audio.sample_rate,
                 model_capacity=self.model_capacity,
                 viterbi=self.viterbi,
                 center=self.center,
-                step_size=int(self.frame_shift*1000),
+                step_size=int(self.frame_shift * 1000),
                 verbose=verbose)
 
         # number of samples in the resampled signal
         hop_length = np.round(self.sample_rate * self.frame_shift).astype(int)
-        nsamples = 1 + int((audio.shape[0] - self.frame_length *
-                            self.sample_rate) / hop_length)
+        nsamples = 1 + int((
+            audio.shape[0] - self.frame_length * self.sample_rate)
+                           / hop_length)
+
         # scipy method issues warnings we want to inhibit
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', category=FutureWarning)
             data = scipy.signal.resample(
                 np.array([confidence, frequency]).T, nsamples)
-            # hack needed beacause resample confidence
-            data[data[:, 0] < 1e-2, 0] = 0
-            data[data[:, 0] > 1, 0] = 1
+
+        # hack needed beacause resample confidence
+        data[data[:, 0] < 1e-2, 0] = 0
+        data[data[:, 0] > 1, 0] = 1
 
         return Features(
             data, self.times(data.shape[0]), properties=self.get_properties())
 
 
 class CrepePitchPostProcessor(PitchPostProcessor):
-    """Processes the raw (POV, pitch) computed by the :class:`CrepePitchProcessor`
-    using :class:`PitchPostProcessor`.
+    """Processes the raw (POV, pitch) computed by the CrepePitchProcessor
 
     Turns the raw pitch quantities into usable features. Converts the POV into
     NCCF usable by :class:`PitchPostProcessor`, then removes the pitch at
     frames with the worst POV (according to the `pov_threshold` or the
-    `proportion_voiced` option) and replace them with interpolated values,
-    and finally gives the new (NCCF, pitch) to the
-    :func:`~shennong.features.processor.pitch.PitchProcessor.process`
-    method of :class:`PitchPostProcessor`
+    `proportion_voiced` option) and replace them with interpolated values, and
+    finally sends this (NCCF, pitch) pair to
+    :func:`shennong.processor.pitch.PitchPostProcessor.process`.
+
     """
-    def __init__(self, pitch_scale=2.0,
-                 delta_pitch_scale=10.0,
+    def __init__(self, pitch_scale=2.0, delta_pitch_scale=10.0,
                  delta_pitch_noise_stddev=0.005,
-                 normalization_left_context=75,
-                 normalization_right_context=75,
+                 normalization_left_context=75, normalization_right_context=75,
                  delta_window=2, delay=0,
-                 add_pov_feature=True,
-                 add_normalized_log_pitch=True,
-                 add_delta_pitch=True,
-                 add_raw_log_pitch=False):
+                 add_pov_feature=True, add_normalized_log_pitch=True,
+                 add_delta_pitch=True, add_raw_log_pitch=False):
         super().__init__(
             pitch_scale=pitch_scale,
             delta_pitch_scale=delta_pitch_scale,
@@ -376,12 +381,12 @@ class CrepePitchPostProcessor(PitchPostProcessor):
 
         # Converts POV into NCCF
         nccf = []
-        for y in crepe_pitch.data[:, 0]:
-            if y in [0, 1]:
-                nccf.append(y)
+        for sample in crepe_pitch.data[:, 0]:
+            if sample in [0, 1]:
+                nccf.append(sample)
             else:
                 nccf.append(scipy.optimize.bisect(functools.partial(
-                    lambda x, y: _nccf_to_pov(x)-y, y=y), 0, 1))
+                    lambda x, y: _nccf_to_pov(x)-y, y=sample), 0, 1))
 
         return super(CrepePitchPostProcessor, self).process(
             Features(np.vstack((nccf, data)).T,

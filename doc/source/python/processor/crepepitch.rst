@@ -3,7 +3,7 @@
 Pitch estimation using CREPE
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: shennong.features.processor.crepepitch
+.. automodule:: shennong.processor.crepepitch
     :members:
     :inherited-members:
     :undoc-members:
