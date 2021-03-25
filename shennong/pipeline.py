@@ -660,7 +660,7 @@ def _extract_pass_one(utt_name, manager, log):
     # pitch extraction
     if 'pitch' in manager.config:
         processor = manager.config['pitch']['processor']
-        log.debug('%s: extract %s pitch', processor, utt_name)
+        log.debug('%s: extract %s pitch', utt_name, processor)
         p1 = manager.get_pitch_processor(utt_name)
         p2 = manager.get_pitch_post_processor(utt_name)
         pitch = p2.process(p1.process(audio))
@@ -764,7 +764,7 @@ def extract_features_warp(configuration, utterances_index, warp, log, njobs=1):
     verbose = 8 if log.getEffectiveLevel() > 10 else 0
 
     return FeaturesCollection(**{k: v for k, v in _Parallel(
-        'features extraction with warp {}'.format(warp), log,
+        f'features extraction with warp {warp}', log,
         n_jobs=njobs, verbose=verbose, prefer='threads')(
             joblib.delayed(_extract_single_pass_warp)(
                 utterance, manager, warp, log=log)

@@ -293,7 +293,7 @@ def command_extract(args):
 
     # save the features
     log.info('saving the features to %s', output_file)
-    features.save(output_file, log_level=level)
+    features.save(output_file)
 
 
 @utils.CatchExceptions
