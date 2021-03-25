@@ -80,7 +80,6 @@ True
 
 import collections
 import functools
-import logging
 import os
 import warnings
 import wave
@@ -89,6 +88,8 @@ import numpy as np
 import scipy.io.wavfile
 import scipy.signal
 import sox
+
+from shennong.logger import get_logger
 
 
 class Audio:
@@ -112,14 +113,15 @@ class Audio:
         :meth:`is_valid`)
 
     """
-    _log = logging.getLogger()
-
     _metawav = collections.namedtuple(
         '_metawav', 'nchannels sample_rate nsamples duration')
     """A structure to store wavs metadata, see :meth:`Audio.scan`"""
 
-    def __init__(self, data, sample_rate, validate=True):
+    def __init__(self, data, sample_rate, validate=True,
+                 log=get_logger('audio', 'warning')):
         self._sample_rate = int(sample_rate)
+
+        self._log = log
 
         # force shape (n, 1) to be (n,)
         self._data = (
@@ -176,7 +178,7 @@ class Audio:
         return self.dtype.itemsize * 8
 
     @classmethod
-    def scan(cls, filename):
+    def scan(cls, filename, log=get_logger('audio', 'warning')):
         """Returns the audio metadata without loading the file
 
         Returns a Python namespace (a named tuple) `metadata` with the
@@ -196,6 +198,8 @@ class Audio:
         filename : str
             Audio filename on which to retrieve metadata, must be
             an existing file
+        log : logging.Logger
+            Where to send log messages (only debug messages are emitted)
 
         Returns
         -------
@@ -212,7 +216,7 @@ class Audio:
         if not os.path.isfile(filename):
             raise ValueError('{filename}: file not found')
 
-        cls._log.debug('scanning %s', filename)
+        log.debug('scanning %s', filename)
 
         try:
             return cls._scan_wave(filename)
@@ -261,13 +265,15 @@ class Audio:
     # ordered.
     @classmethod
     @functools.lru_cache(maxsize=2)
-    def load(cls, filename):
+    def load(cls, filename, log=get_logger('audio', 'warning')):
         """Creates an `Audio` instance from a WAV file
 
         Parameters
         ----------
         filename : str
             Path to the audio file to load, must be an existing file
+        log : logging.Logger
+            Where to send log messages (only debug messages are emitted)
 
         Returns
         -------
@@ -286,9 +292,9 @@ class Audio:
 
         try:
             # load the audio signal
-            cls._log.debug('loading %s', filename)
+            log.debug('loading %s', filename)
             rate, data = scipy.io.wavfile.read(filename)
-            return Audio(data, rate, validate=False)
+            return Audio(data, rate, validate=False, log=log)
         except ValueError as err:
             raise ValueError(f'{filename}: cannot read file, {err}') from None
 

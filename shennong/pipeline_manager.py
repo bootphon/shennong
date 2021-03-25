@@ -58,7 +58,7 @@ class PipelineManager:
         # store the metadata because we need to access the sample rate
         # for processors instanciation
         wavs = set(u.file for u in utterances.values())
-        self._wavs_metadata = {w: Audio.scan(w) for w in wavs}
+        self._wavs_metadata = {w: Audio.scan(w, log=log) for w in wavs}
 
         # make sure all the wavs are compatible with the pipeline
         log.info('scanning %s utterances...', len(self._utterances))
@@ -245,7 +245,7 @@ class PipelineManager:
     def get_audio(self, utterance):
         """Returns the audio data for that `utterance`"""
         utt = self.utterances[utterance]
-        audio = Audio.load(utt.file)
+        audio = Audio.load(utt.file, log=self.log)
         if utt.tstart is not None:
             assert utt.tstop > utt.tstart
             audio = audio.segment([(utt.tstart, utt.tstop)])[0]
