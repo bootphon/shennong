@@ -2,8 +2,8 @@
 
 .. note::
 
-   All audio files supported by sox are supported (wav, mp3, ogg, etc...). See
-   http://sox.sourceforge.net/Docs/Features for details.
+   Supports all audio format from ffmpeg (wav, mp3, flac, etc...). See
+   https://www.ffmpeg.org/general.html#File-Formats for details.
 
 The :class:`Audio` class allows to load, save and manipulate
 multichannels audio data. The underlying audio samples can be of one
@@ -80,14 +80,15 @@ True
 
 import collections
 import functools
+import io
 import os
 import warnings
-import wave
 
 import numpy as np
 import scipy.io.wavfile
 import scipy.signal
 import sox
+import pydub
 
 from shennong.logger import get_logger
 
@@ -189,9 +190,8 @@ class Audio:
           - metadata.nsamples : int, number of audio samples in the file
           - metadata.duration : float, audio duration in seconds
 
-        This method is usefull to access metadata of a wav file
-        without loading it into memory, far more faster than
-        :func:`load`.
+        This method is usefull to access metadata of an audio file without
+        loading it into memory, far more faster than :func:`load`.
 
         Parameters
         ----------
@@ -209,7 +209,8 @@ class Audio:
         Raises
         ------
         ValueError
-            If the `filename` is not a valid audio file that sox can process.
+            If the `filename` is not a valid audio file that ffmpeg can
+            process.
 
         """
         filename = str(filename)
@@ -219,44 +220,14 @@ class Audio:
         log.debug('scanning %s', filename)
 
         try:
-            return cls._scan_wave(filename)
-        except ValueError:  # not a wav, or wav with floats
-            return cls._scan_sox(filename)
-
-    @classmethod
-    def _scan_sox(cls, filename):
-        """Scan the `filename` using soxi
-
-        Support for floating point formats, but relies on external
-        `soxi` program.
-
-        """
-        try:
-            nchannels = sox.file_info.channels(filename)
-            sample_rate = sox.file_info.sample_rate(filename)
-            nsamples = sox.file_info.num_samples(filename)
-            duration = nsamples / sample_rate if nsamples else None
-
-            return cls._metawav(nchannels, sample_rate, nsamples, duration)
-        except sox.core.SoxiError as err:
-            raise ValueError(f'cannot read file {filename}: {err}') from None
-
-    @classmethod
-    def _scan_wave(cls, filename):
-        """Scan the `filename` using Python wave module
-
-        Support only wav file in integer formats but efficient implementation.
-
-        """
-        try:
-            with wave.open(filename, 'r') as fwav:
-                return cls._metawav(
-                    fwav.getnchannels(),
-                    fwav.getframerate(),
-                    fwav.getnframes(),
-                    fwav.getnframes() / fwav.getframerate())
-        except wave.Error:
-            raise ValueError(f'{filename}: cannot read file, is it a wav?')
+            info = pydub.utils.mediainfo(filename)
+            return cls._metawav(
+                int(info['channels']),
+                int(info['sample_rate']),
+                int(int(info['sample_rate']) * float(info['duration'])),
+                float(info['duration']))
+        except Exception:
+            raise ValueError(f'cannot scan audio file {filename}') from None
 
     # we use a memoize cache because Audio.load is often called to
     # load only segments of a file. So the cache avoid to reload again
@@ -283,20 +254,33 @@ class Audio:
         Raises
         ------
         ValueError
-            If the `filename` is not a valid WAV file.
+            If the `filename` is not a valid audio file.
 
         """
         filename = str(filename)
         if not os.path.isfile(filename):
             raise ValueError(f'{filename}: file not found')
 
+        # load the audio signal
+        log.debug('loading %s', filename)
         try:
-            # load the audio signal
-            log.debug('loading %s', filename)
+            # first try with scipy. It only supports wav files, but support
+            # float32 wavs (which pydub/ffmpeg or sox don't support)
             rate, data = scipy.io.wavfile.read(filename)
-            return Audio(data, rate, validate=False, log=log)
-        except ValueError as err:
-            raise ValueError(f'{filename}: cannot read file, {err}') from None
+        except ValueError:
+            try:
+                # if scipy failed (mostly because it is not a WAV file), give a
+                # try to ffmpeg with pydub
+                segment = pydub.AudioSegment.from_file(filename)
+                rate = segment.frame_rate
+                data = np.atleast_2d(np.array(
+                    [c.get_array_of_samples()
+                     for c in segment.split_to_mono()])).T
+            except pydub.exceptions.PydubException as err:
+                raise ValueError(
+                    f'{filename}: cannot read file, {err}') from None
+
+        return cls(data, rate, validate=False, log=log)
 
     def save(self, filename):
         """Saves the audio data to a `filename`
@@ -316,10 +300,29 @@ class Audio:
         if os.path.isfile(filename):
             raise ValueError(f'{filename}: file already exists')
 
-        try:
-            scipy.io.wavfile.write(filename, self.sample_rate, self.data)
-        except ValueError as err:  # pragma: nocover
-            raise ValueError(f'{filename}: cannot write file, {err}') from None
+        if '.' not in filename:
+            raise ValueError(
+                f'{filename}: cannot write audio file without extension')
+        extension = filename.split('.')[-1]
+
+        self._log.info('writing %s', filename)
+        if extension.lower() == 'wav':
+            # saving wav files using scipy
+            try:
+                scipy.io.wavfile.write(filename, self.sample_rate, self.data)
+            except ValueError as err:  # pragma: nocover
+                raise ValueError(
+                    f'{filename}: cannot write file, {err}') from None
+        else:
+            # all other audio extensions are handled by pydub/ffmpeg.
+            self._aspydub().export(filename, format=extension)
+
+    def _aspydub(self):
+        """Converts the audio to a pydub.AudioSegment instance"""
+        with io.BytesIO() as wav:
+            scipy.io.wavfile.write(wav, self.sample_rate, self.data)
+            wav.seek(0)
+            return pydub.AudioSegment.from_wav(wav)
 
     def channel(self, index):
         """Builds a mono signal from a multi-channel one

@@ -1,5 +1,6 @@
 """Test of the module shennong.audio"""
 
+import os
 import tempfile
 import numpy as np
 import pytest
@@ -9,40 +10,53 @@ from shennong import Audio
 
 
 DTYPES = [np.int16, np.int32, np.float32, np.float64, float]
+FORMATS = ['.wav', '.flac', '.mp3']
 
 
-def test_scan(wav_file, audio):
-    meta = Audio.scan(wav_file)
+@pytest.mark.parametrize('ext', FORMATS)
+def test_scan(data_path, ext, audio):
+    filename = os.path.join(data_path, 'test' + ext)
+    meta = Audio.scan(filename)
     assert meta.sample_rate == audio.sample_rate == 16000
     assert meta.nchannels == audio.nchannels == 1
-    assert meta.nsamples == audio.nsamples == 22713
-    assert meta.duration == audio.duration == pytest.approx(1.419, rel=1e-3)
+
+    # due to compression method mp3 metadata is approximative
+    if ext != '.mp3':
+        assert meta.nsamples == audio.nsamples == 22713
+        assert meta.duration == pytest.approx(audio.duration)
+        assert meta.duration == pytest.approx(1.419, rel=1e-3)
 
 
 def test_scan_bad():
     with pytest.raises(ValueError) as err:
         Audio.scan(__file__)
-    assert 'SoXI failed' in str(err.value)
+    assert 'cannot scan audio file' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         Audio.scan('/path/to/some/lost/place')
     assert 'file not found' in str(err.value)
 
 
-def test_load(audio):
-    assert audio.sample_rate == 16000
-    assert audio.nchannels == 1
-    assert audio.duration == pytest.approx(1.419, rel=1e-3)
-    assert audio.data.shape == (22713,)
-    assert audio.nsamples == 22713
-    assert audio.dtype == np.int16
-    assert audio.precision == 16
+@pytest.mark.parametrize('ext', FORMATS)
+def test_load(ext, data_path, audio):
+    audio2 = Audio.load(os.path.join(data_path, 'test' + ext))
+    assert audio2.sample_rate == audio.sample_rate == 16000
+    assert audio2.nchannels == audio.nchannels == 1
+    assert audio2.duration == audio.duration == pytest.approx(1.419, rel=1e-3)
+    assert audio2.data.shape == audio.data.shape == (22713,)
+    assert audio2.nsamples == audio.nsamples == 22713
+    assert audio2.dtype == audio.dtype == np.int16
+    assert audio2.precision == audio.precision == 16
+    if ext == '.mp3':
+        assert audio2.data == pytest.approx(audio.data, abs=1e4)
+    else:
+        assert np.all(audio2.data == audio.data)
 
 
-def test_load_notwav():
+def test_load_notaudio():
     with pytest.raises(ValueError) as err:
         Audio.load(__file__)
-    assert 'not understood' in str(err.value)
+    assert 'Decoding failed' in str(err.value)
 
 
 def test_load_badfile():
@@ -51,8 +65,9 @@ def test_load_badfile():
     assert 'file not found' in str(err.value)
 
 
-def test_save(tmpdir, audio):
-    p = str(tmpdir.join('test.wav'))
+@pytest.mark.parametrize('ext', FORMATS)
+def test_save(tmpdir, ext, audio):
+    p = str(tmpdir.join('test' + ext))
     audio.save(p)
 
     # cannot overwrite an existing file
@@ -60,24 +75,38 @@ def test_save(tmpdir, audio):
         audio.save(p)
     assert 'file already exist' in str(err.value)
 
-    audio2 = Audio.load(p)
-    assert audio == audio2
+    # cannot write without extension
+    with pytest.raises(ValueError) as err:
+        audio.save('toto')
+    assert 'cannot write audio file without extension' in str(err.value)
 
-    # test with float32 wav
+    audio2 = Audio.load(p)
+    if ext == '.mp3':
+        # do not compare raw data on mp3 because of compression loss
+        assert audio.sample_rate == audio2.sample_rate
+        assert audio.shape == audio2.shape
+        assert audio.dtype == audio2.dtype
+    else:
+        assert audio == audio2
+
+
+def test_save_float32(tmpdir):
     signal = np.zeros((1000,), dtype=np.float32)
     signal[10] = 1.0
     signal[20] = -1.0
     p = str(tmpdir.join('test2.wav'))
     audio = Audio(signal, 1000)
+    assert audio.dtype == np.float32
     audio.save(p)
     meta = Audio.scan(p)
     assert meta.nchannels == 1
     assert meta.nsamples == 1000
 
     audio2 = Audio.load(p)
+    assert audio2.dtype == np.float32
     assert audio2.nchannels == 1
     assert audio2.nsamples == 1000
-    assert audio2 == audio
+    # assert audio2 == audio
     assert audio2.data.min() == -1.0
     assert audio2.data.max() == 1.0
 
