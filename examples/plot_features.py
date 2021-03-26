@@ -6,12 +6,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from shennong import Audio
-from shennong.processor.filterbank import FilterbankProcessor
-from shennong.processor.mfcc import MfccProcessor
-from shennong.processor.plp import PlpProcessor
-from shennong.processor.rastaplp import RastaPlpProcessor
-from shennong.processor.bottleneck import BottleneckProcessor
-from shennong.processor.spectrogram import SpectrogramProcessor
+from shennong.processor import (
+    FilterbankProcessor, MfccProcessor, PlpProcessor, RastaPlpProcessor,
+    BottleneckProcessor, SpectrogramProcessor)
 
 
 def main():
@@ -35,7 +32,7 @@ def main():
     features = {k: v.process(audio) for k, v in processors.items()}
 
     # plot the audio signal and the resulting features
-    fig, axes = plt.subplots(
+    _, axes = plt.subplots(
         nrows=len(processors)+1,
         gridspec_kw={'top': 0.95, 'bottom': 0.05, 'hspace': 0},
         subplot_kw={'xticks': [], 'yticks': []})

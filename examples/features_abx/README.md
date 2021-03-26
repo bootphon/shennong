@@ -23,4 +23,4 @@ Results
 -------
 
 The results are available at
-https://coml.lscp.ens.fr/shennong/intro_features.html#features-comparison.
+https://docs.cognitive-ml.fr/shennong/intro_features.html#features-comparison

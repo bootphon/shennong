@@ -31,7 +31,7 @@ def main():
         os.makedirs(os.path.join(data_directory, 'features'))
     except FileExistsError:
         pass
-    log = get_logger(level='debug' if args.verbose else 'info')
+    log = get_logger('extraction', 'debug' if args.verbose else 'info')
 
     # load input utterances
     utterances = [line.split(' ') for line in open(os.path.join(

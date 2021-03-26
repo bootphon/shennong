@@ -13,7 +13,7 @@ import tempfile
 
 import tabulate
 from shennong import Audio, FeaturesCollection
-from shennong.processor.mfcc import MfccProcessor
+from shennong.processor import MfccProcessor
 from shennong.serializers import supported_serializers
 from shennong.utils import list_files_with_extension
 

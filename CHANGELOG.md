@@ -5,10 +5,17 @@ Version numbers follow [semantic versioning](https://semver.org).
 
 ## not yet released
 
+### new models
+
 * Vocal Tract Length Normalization (VTLN) implemented using Kaldi:
   `shennong.processor.vtln`.
 
 * CREPE pitch extraction: `shennong.processor.crepepitch`.
+
+### improvments
+
+* `shennong.Audio` can now read/write more than wav files: flac, mp3, etc...
+  (anything supported by pydub/ffmpeg).
 
 * Features serialization supported in CSV (replace JSON format).
 

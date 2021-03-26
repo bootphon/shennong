@@ -4,6 +4,7 @@ import argparse
 import os
 import tempfile
 import urllib.request
+
 import shennong.pipeline as pipeline
 from shennong.utils import list_files_with_extension, get_logger
 
@@ -24,7 +25,7 @@ XITSONGA_FILES_LIST = (
     'https://raw.githubusercontent.com/bootphon/'
     'Zerospeech2015/master/xitsonga_files.txt')
 
-log = get_logger(level='info')
+log = get_logger('data setup', 'info')
 
 
 def setup_data(data_directory, buckeye_directory, xitsonga_directory):
@@ -33,8 +34,8 @@ def setup_data(data_directory, buckeye_directory, xitsonga_directory):
     * creates the ``data_directory``
     * make a symlink to ``buckeye_directory`` and ``xitsonga_directory`` in it
     * download the ABX item files for buckeye and xitsonga
-    * create the list of utterances both corpora
-    * create the configuration files  for features extraction
+    * create the list of utterances for both corpora
+    * create the configuration files for features extraction
 
     """
     # basic checks
