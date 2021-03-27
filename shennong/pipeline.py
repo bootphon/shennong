@@ -69,9 +69,6 @@ dict_keys(['pipeline', 'mfcc', 'speaker', 'audio', 'pitch'])
 """
 
 import collections
-
-import datetime
-import importlib
 import os
 import textwrap
 
@@ -611,20 +608,20 @@ def _extract_features(config, utterances, log, njobs=1):
                     utterance, manager, log=log) for utterance in utterances)
 
         # apply cmvn and extract deltas
-        features = FeaturesCollection(**{k: v for k, v in _Parallel(
+        features = FeaturesCollection(_Parallel(
             'features extraction, pass 2', log,
             n_jobs=njobs, verbose=verbose, prefer='threads')(
                 joblib.delayed(_extract_pass_two)(
                     utterance, manager, features, pitch, log=log)
-                for utterance, features, pitch in pass_one)})
+                for utterance, features, pitch in pass_one))
 
     # no cmvn: single pass
     else:
-        features = FeaturesCollection(**{k: v for k, v in _Parallel(
+        features = FeaturesCollection(_Parallel(
             'features extraction', log,
             n_jobs=njobs, verbose=verbose, prefer='threads')(
                 joblib.delayed(_extract_single_pass)(
-                    utterance, manager, log=log) for utterance in utterances)})
+                    utterance, manager, log=log) for utterance in utterances))
 
     return features
 
@@ -763,9 +760,9 @@ def extract_features_warp(configuration, utterances_index, warp, log, njobs=1):
     # loops
     verbose = 8 if log.getEffectiveLevel() > 10 else 0
 
-    return FeaturesCollection(**{k: v for k, v in _Parallel(
+    return FeaturesCollection(_Parallel(
         f'features extraction with warp {warp}', log,
         n_jobs=njobs, verbose=verbose, prefer='threads')(
             joblib.delayed(_extract_single_pass_warp)(
                 utterance, manager, warp, log=log)
-            for utterance in utterances)})
+            for utterance in utterances))

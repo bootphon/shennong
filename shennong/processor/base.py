@@ -51,7 +51,7 @@ class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
 
         """
 
-    def process_all(self, signals, njobs=None):
+    def process_all(self, signals, njobs=None, **kwargs):
         """Returns features processed from several input `signals`
 
         This function processes the features in parallel jobs.
@@ -65,6 +65,9 @@ class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
         njobs: int, optional
             The number of parallel jobs to run in background. Default
             to the number of CPU cores available on the machine.
+        **kwargs: dict, optional
+            Extra arguments to be forwarded to the `process` method. Keys must
+            be the same as for `signals`.
 
         Returns
         -------
@@ -75,19 +78,32 @@ class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
         Raises
         ------
         ValueError
-            If the `njobs` parameter is <= 0
+            If the `njobs` parameter is <= 0 or if an entry is missing in
+            optioanl kwargs.
 
         """
         # checks the number of background jobs
         njobs = get_njobs(njobs, log=self.log)
 
-        def _process_one(name, signal):
-            return name, self.process(signal)
+        # check the extra arguments
+        for name, value in kwargs.items():
+            if not isinstance(value, dict):
+                raise ValueError(
+                    f'argument "{name}" is not a dict')
+            if value.keys() != signals.keys():
+                raise ValueError(
+                    f'arguments "signals" and "{name}" have different keys')
 
-        return FeaturesCollection(**{k: v for k, v in joblib.Parallel(
-            n_jobs=njobs, verbose=0, backend='threading')(
-                joblib.delayed(_process_one)(name, signal)
-                for name, signal in signals.items())})
+        def _process_one(name, signal, **kwargs):
+            return name, self.process(
+                signal, **{k: v[name] for k, v in kwargs.items()})
+
+        verbose = 8 if self.log.getEffectiveLevel() > 10 else 0
+
+        return FeaturesCollection(joblib.Parallel(
+            n_jobs=njobs, verbose=verbose, prefer='threads')(
+                joblib.delayed(_process_one)(name, signal, **kwargs)
+                for name, signal in signals.items()))
 
 
 class FramesProcessor(FeaturesProcessor, metaclass=abc.ABCMeta):

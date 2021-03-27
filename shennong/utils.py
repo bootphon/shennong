@@ -15,7 +15,7 @@ import pkg_resources
 from shennong.logger import null_logger
 
 
-def get_njobs(njobs, log=null_logger()):
+def get_njobs(njobs=None, log=null_logger()):
     """Returns the number of parallel jobs to run
 
     The returned number of jobs is adapted from the input `njobs`
@@ -24,8 +24,9 @@ def get_njobs(njobs, log=null_logger()):
 
     Parameters
     ----------
-    njobs : int
-        The desired number of jobs to use.
+    njobs : int, optional
+        The desired number of jobs to use, default to the number of cores
+        available on the machine.
     log : logging.Logger, optional
         A logger where to send messages, no logging by default.
 

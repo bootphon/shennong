@@ -542,7 +542,7 @@ class VtlnProcessor(BaseProcessor):
 
         Parameters
         ----------
-        utts_index : list[tuple]
+        utterances : list[tuple]
             The utterances can be defined in one of the following format:
             * 1-uple (or str): ``<wav-file>``
             * 2-uple: ``<utterance-id> <wav-file>``
@@ -675,10 +675,12 @@ class VtlnProcessor(BaseProcessor):
                 ubm, orig_features, posteriors, utt2speak)
 
         if utt2speak is not None:
-            self.transforms = {utt: self.transforms[spk]
-                               for utt, spk in utt2speak.items()}
-            self.warps = {utt: self.warps[spk]
-                          for utt, spk in utt2speak.items()}
+            self.transforms = {
+                utt: self.transforms[spk]
+                for utt, spk in utt2speak.items()}
+            self.warps = {
+                utt: self.warps[spk]
+                for utt, spk in utt2speak.items()}
 
         self.log.info('Done training LVTLN model')
         return self.warps
