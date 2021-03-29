@@ -221,20 +221,19 @@ def get_default_config(
     return config
 
 
-def extract_features(configuration, utterances_index,
+def extract_features(configuration, utterances,
                      njobs=1, log=get_logger('pipeline', 'warning')):
     """Speech features extraction pipeline
 
-    Given a pipeline ``configuration`` and an ``utterances_index``
-    defining a list of utterances on which to extract features, this
-    function applies the whole pipeline and returns the extracted
-    features as an instance of
-    :class:`~shennong.features.features.FeaturesCollection`. It uses
-    ``njobs`` parallel subprocesses.
+    Given a pipeline ``configuration`` and ``utterances`` defining a list of
+    utterances on which to extract features, this function applies the whole
+    pipeline and returns the extracted features as an instance of
+    :class:`~shennong.features.features.FeaturesCollection`. It uses ``njobs``
+    parallel subprocesses.
 
-    The utterances in the ``utterances_index`` can be defined in one
-    of the following format (the format must be homogoneous across the
-    index, i.e. only one format can be used):
+    The ``utterances`` can be defined in one of the following format (the
+    format must be homogoneous across the index, i.e. only one format can be
+    used):
 
     * 1-uple (or str): ``<wav-file>``
     * 2-uple: ``<utterance-id> <wav-file>``
@@ -248,7 +247,7 @@ def extract_features(configuration, utterances_index,
         The pipeline configuration, can be a dictionary, a path to a
         YAML file or a string formatted in YAML. To get a
         configuration example, see :func:`get_default_config`
-    utterances_index : sequence of tuples
+    utterances : sequence of tuples
         The list of utterances to extract the features on.
     njobs : int, optional
         The number to subprocesses to execute in parallel, use a
@@ -264,9 +263,8 @@ def extract_features(configuration, utterances_index,
     Raises
     ------
     ValueError
-        If the ``configuration`` or the ``utterances_index`` are
-        invalid, or if something goes wrong during features
-        extraction.
+        If the ``configuration`` or the ``utterances`` are invalid, or if
+        something goes wrong during features extraction.
 
     """
     # intialize the pipeline configuration, the list of wav files to
@@ -274,7 +272,7 @@ def extract_features(configuration, utterances_index,
     # checks to ensure all is correct
     njobs = get_njobs(njobs, log=log)
     config = _init_config(configuration, log=log)
-    utterances = _init_utterances(utterances_index, log=log)
+    utterances = _init_utterances(utterances, log=log)
 
     # check the OMP_NUM_THREADS variable for parallel computations
     _check_environment(njobs, log=log)

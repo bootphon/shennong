@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Speech features extraction pipeline from raw wav files
+"""Speech features extraction pipeline from raw audio files
 
 The general extraction pipeline is as follow::
 
@@ -27,9 +27,9 @@ Features extraction basically involves three steps:
    you can write a ``utterances.txt`` file with the following content
    (see below for details on the format)::
 
-     utterance1 /path/to/wav1.wav speaker1
-     utterance2 /path/to/wav2.wav speaker1
-     utterance3 /path/to/wav3.wav speaker2
+     utterance1 /path/to/audio1.wav speaker1
+     utterance2 /path/to/audio2.wav speaker1
+     utterance3 /path/to/audio3.wav speaker2
 
 3. Apply the configured pipeline on the defined utterances. For
    exemple this computes the features using 4 parallel subprocesses
@@ -60,29 +60,29 @@ which to apply the extraction pipeline. Each line of the file defines
 a single utterance (or sentence, or speech fragment), it can have one
 of the following formats:
 
-1. ``<wav-file>``
+1. ``<audio-file>``
 
-    The simplest format, with a wav file per line. Each wav is
-    considered as a single utterance. Each wav file must be unique.
+    The simplest format, with an audio file per line. Each file is
+    considered as a single utterance. Each file must be unique.
 
-2. ``<utterance-id> <wav-file>``
+2. ``<utterance-id> <audio-file>``
 
     Give a name to each utterance, identifiers must be unique.
 
-3. ``<utterance-id> <wav-file> <speaker-id>``
+3. ``<utterance-id> <audio-file> <speaker-id>``
 
     Specify a speaker for each utterance. This is required if you are
     using CMVN normalization per speaker.
 
-4. ``<utterance-id> <wav-file> <tstart> <tstop>``
+4. ``<utterance-id> <audio-file> <tstart> <tstop>``
 
-    Each wav contains several utterances, the utterance boundaries are
-    defined by the start and stop timestamps within the wav file
-    (given in seconds).
+    Each audio file contains several utterances, the utterance boundaries are
+    defined by the start and stop timestamps within the audio file (given in
+    seconds).
 
-5. ``<utterance-id> <wav-file> <speaker-id> <tstart> <tstop>``
+5. ``<utterance-id> <audio-file> <speaker-id> <tstart> <tstop>``
 
-    Combination of 3 and 4. Several utterances per wav, with speakers
+    Combination of 3 and 4. Several utterances per audio file, with speakers
     identification.
 
 
@@ -101,7 +101,7 @@ extension specified in command line:
   File format  Extension Use case
   ===========  ========= ===========================================
   pickle       .pkl      Very fast, standard Python format
-  h5features   .h5f      Fast and efficient
+  h5features   .h5f      Fast and efficient for very big datasets
   numpy        .npz      Standard numpy format
   matlab       .mat      Compatibility with Matlab
   kaldi        .ark      Compatibility with Kaldi
