@@ -10,11 +10,12 @@ import shennong.pipeline as pipeline
 from shennong.pipeline_manager import PipelineManager
 from shennong import Audio, FeaturesCollection
 from shennong.serializers import supported_extensions
+from shennong.utterances import Utterance, Utterances
 
 
 @pytest.fixture(scope='session')
-def utterances_index(wav_file):
-    return [('utt1', wav_file, 'speaker1')]
+def utterances(wav_file):
+    return Utterances([Utterance('utt1', wav_file, speaker='speaker1')])
 
 
 def equal_dict(d1, d2):
@@ -57,7 +58,7 @@ def test_config_good(features, with_vtln, with_pitch):
 
 
 @pytest.mark.parametrize('kind', ['dict', 'file', 'str'])
-def test_config_format(utterances_index, capsys, tmpdir, kind):
+def test_config_format(utterances, capsys, tmpdir, kind):
     config = pipeline.get_default_config('mfcc', to_yaml=kind != 'dict')
 
     if kind == 'file':
@@ -79,7 +80,7 @@ def test_config_format(utterances_index, capsys, tmpdir, kind):
         assert word in parsed
 
 
-def test_config_bad(utterances_index):
+def test_config_bad(utterances):
     with pytest.raises(ValueError) as err:
         pipeline.get_default_config('bad')
     assert 'invalid features "bad"' in str(err.value)
@@ -134,25 +135,25 @@ def test_config_bad(utterances_index):
     assert c['pitch']['postprocessing'] == {}
 
 
-def test_check_speakers(utterances_index, capsys):
+def test_check_speakers(utterances, capsys):
     log = logger.get_logger('test', 'info')
 
     config = pipeline.get_default_config('mfcc')
     with pytest.raises(ValueError) as err:
         pipeline.extract_features(
-            config, [(utterances_index[0][1], )], log=log)
+            config, [(utterances[0][1], )], log=log)
     assert 'no speaker information provided' in str(err.value)
 
     capsys.readouterr()  # clean the buffer
     config = pipeline.get_default_config('mfcc', with_cmvn=False)
-    pipeline.extract_features(config, utterances_index, log=log)
+    pipeline.extract_features(config, utterances, log=log)
     log_out = capsys.readouterr()
     assert 'cmvn' not in log_out.err
     assert '(CMVN disabled)' in log_out.err
 
     config = pipeline.get_default_config('mfcc', with_cmvn=True)
     config['cmvn']['by_speaker'] = False
-    pipeline.extract_features(config, utterances_index, log=log)
+    pipeline.extract_features(config, utterances, log=log)
     log_out = capsys.readouterr().err
     assert 'cmvn by utterance' in log_out
     assert '(CMVN by speaker disabled)' in log_out
@@ -233,19 +234,19 @@ def test_processor_bad():
 
 
 @pytest.mark.parametrize('features', pipeline.valid_features())
-def test_extract_features(utterances_index, features):
+def test_extract_features(utterances, features, wav_file):
     config = pipeline.get_default_config(
         features, with_cmvn=False, with_pitch=False)
-    feats = pipeline.extract_features(config, utterances_index)
-    feat1 = feats[utterances_index[0][0]]
+    feats = pipeline.extract_features(config, utterances)
+    feat1 = feats[utterances.as_list()[0].name]
     assert feat1.is_valid()
     assert feat1.shape[0] == 140
     assert feat1.dtype == np.float32
 
     config = pipeline.get_default_config(
         features, with_cmvn=False, with_pitch='kaldi')
-    feats = pipeline.extract_features(config, utterances_index)
-    feat2 = feats[utterances_index[0][0]]
+    feats = pipeline.extract_features(config, utterances)
+    feat2 = feats[utterances.as_list()[0].name]
     assert feat2.is_valid()
     assert feat2.shape[0] == 140
     assert feat2.shape[1] == feat1.shape[1] + 3
@@ -253,17 +254,17 @@ def test_extract_features(utterances_index, features):
     config = pipeline.get_default_config(
         features, with_cmvn=False, with_pitch='crepe')
     config['pitch']['model_capacity'] = 'tiny'
-    feats = pipeline.extract_features(config, utterances_index)
-    feat2 = feats[utterances_index[0][0]]
+    feats = pipeline.extract_features(config, utterances)
+    feat2 = feats[utterances.as_list()[0].name]
     assert feat2.is_valid()
     assert feat2.shape[0] == 140
     assert feat2.shape[1] == feat1.shape[1] + 3
 
-    utterances_index = [('u1', utterances_index[0][1], 0, 1)]
+    utterances2 = Utterances([Utterance('u1', wav_file, 0, 1)])
     config = pipeline.get_default_config(
         features, with_cmvn=False, with_pitch=False)
-    feats = pipeline.extract_features(config, utterances_index)
-    feat3 = feats[utterances_index[0][0]]
+    feats = pipeline.extract_features(config, utterances2)
+    feat3 = feats[utterances2.as_list()[0].name]
     assert feat3.is_valid()
     assert feat3.shape[0] == 98
     assert feat3.shape[1] == feat1.shape[1]
@@ -272,39 +273,39 @@ def test_extract_features(utterances_index, features):
 @pytest.mark.parametrize(
     'by_speaker, with_vad',
     [(s, v) for s in (True, False) for v in (True, False)])
-def test_cmvn(utterances_index, by_speaker, with_vad):
+def test_cmvn(utterances, by_speaker, with_vad):
     config = pipeline.get_default_config(
         'mfcc', with_cmvn=True, with_pitch=False, with_delta=False)
     config['cmvn']['by_speaker'] = by_speaker
     config['cmvn']['with_vad'] = with_vad
-    feats = pipeline.extract_features(config, utterances_index)
-    feat2 = feats[utterances_index[0][0]]
+    feats = pipeline.extract_features(config, utterances)
+    feat2 = feats[utterances_index.as_list()[0].name]
     assert feat2.is_valid()
     assert feat2.shape[0] == 140
     assert feat2.shape[1] == 13
 
 
-def test_sliding_window_cmvn(utterances_index):
+def test_sliding_window_cmvn(utterances):
     config = pipeline.get_default_config(
         'mfcc', with_cmvn=False, with_pitch=False,
         with_sliding_window_cmvn=True, with_delta=False)
-    feats = pipeline.extract_features(config, utterances_index)
-    feat2 = feats[utterances_index[0][0]]
+    feats = pipeline.extract_features(config, utterances)
+    feat2 = feats[utterances.as_list()[0].name]
     assert feat2.is_valid()
     assert feat2.shape[0] == 140
     assert feat2.shape[1] == 13
 
 
 @pytest.mark.parametrize('with_vtln', ['simple', 'full'])
-def test_extract_features_with_vtln(utterances_index, with_vtln):
+def test_extract_features_with_vtln(utterances, with_vtln):
     config = pipeline.get_default_config(
         'mfcc', with_pitch=False, with_vtln=with_vtln, with_delta=False)
     config['vtln']['ubm']['num_gauss'] = 4
     config['vtln']['ubm']['num_iters'] = 1
     config['vtln']['ubm']['num_iters_init'] = 1
     config['vtln']['num_iters'] = 1
-    feats = pipeline.extract_features(config, utterances_index)
-    feat2 = feats[utterances_index[0][0]]
+    feats = pipeline.extract_features(config, utterances)
+    feat2 = feats[utterances.as_list()[0].name]
     assert feat2.is_valid()
     assert feat2.shape[0] == 140
     assert feat2.shape[1] == 13

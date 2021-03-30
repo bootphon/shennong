@@ -121,6 +121,7 @@ import shennong.pipeline as pipeline
 import shennong.utils as utils
 from shennong import url, version_long
 from shennong.serializers import supported_extensions
+from shennong.utterances import Utterances
 
 
 #
@@ -276,16 +277,13 @@ def command_extract(args):
             output_ext, ", ".join(supported_extensions().keys()))
         return
 
-    # make sure the input config and wavs_index exists
+    # make sure the input config and utterances exists
     for filename in (args.config, args.utts_index):
         if not os.path.exists(filename):
             log.error('input file not found: %s', filename)
 
-    # read the utterances file as a list of lists, ignore empty lines
-    # in the file
-    utterances = [
-        utt.split(' ') for utt in
-        (utt.strip() for utt in open(args.utts_index, 'r')) if utt]
+    # read the utterances file
+    utterances = Utterances.load(args.utts_index)
 
     # run the pipeline
     features = pipeline.extract_features(

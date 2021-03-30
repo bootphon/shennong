@@ -90,8 +90,6 @@ import scipy.signal
 import sox
 import pydub
 
-from shennong.logger import get_logger
-
 
 class Audio:
     """Create an audio signal with the given `data` and `sample_rate`
@@ -118,11 +116,8 @@ class Audio:
         '_metawav', 'nchannels sample_rate nsamples duration')
     """A structure to store wavs metadata, see :meth:`Audio.scan`"""
 
-    def __init__(self, data, sample_rate, validate=True,
-                 log=get_logger('audio', 'warning')):
+    def __init__(self, data, sample_rate, validate=True):
         self._sample_rate = int(sample_rate)
-
-        self._log = log
 
         # force shape (n, 1) to be (n,)
         self._data = (
@@ -143,12 +138,12 @@ class Audio:
 
     @property
     def sample_rate(self):
-        """The sample frequency of the signal, in Hertz"""
+        """The sample frequency of the signal in Hertz"""
         return self._sample_rate
 
     @property
     def duration(self):
-        """The duration of the signal, in seconds"""
+        """The duration of the signal in seconds"""
         return self.nsamples / self.sample_rate
 
     @property
@@ -179,7 +174,8 @@ class Audio:
         return self.dtype.itemsize * 8
 
     @classmethod
-    def scan(cls, filename, log=get_logger('audio', 'warning')):
+    @functools.lru_cache()
+    def scan(cls, filename):
         """Returns the audio metadata without loading the file
 
         Returns a Python namespace (a named tuple) `metadata` with the
@@ -198,8 +194,6 @@ class Audio:
         filename : str
             Audio filename on which to retrieve metadata, must be
             an existing file
-        log : logging.Logger
-            Where to send log messages (only debug messages are emitted)
 
         Returns
         -------
@@ -215,9 +209,7 @@ class Audio:
         """
         filename = str(filename)
         if not os.path.isfile(filename):
-            raise ValueError('{filename}: file not found')
-
-        log.debug('scanning %s', filename)
+            raise ValueError(f'{filename}: file not found')
 
         try:
             info = pydub.utils.mediainfo(filename)
@@ -236,15 +228,13 @@ class Audio:
     # ordered.
     @classmethod
     @functools.lru_cache(maxsize=2)
-    def load(cls, filename, log=get_logger('audio', 'warning')):
+    def load(cls, filename):
         """Creates an `Audio` instance from a WAV file
 
         Parameters
         ----------
         filename : str
             Path to the audio file to load, must be an existing file
-        log : logging.Logger
-            Where to send log messages (only debug messages are emitted)
 
         Returns
         -------
@@ -262,7 +252,6 @@ class Audio:
             raise ValueError(f'{filename}: file not found')
 
         # load the audio signal
-        log.debug('loading %s', filename)
         try:
             # first try with scipy. It only supports wav files, but support
             # float32 wavs (which pydub/ffmpeg or sox don't support)
@@ -280,7 +269,7 @@ class Audio:
                 raise ValueError(
                     f'{filename}: cannot read file, {err}') from None
 
-        return cls(data, rate, validate=False, log=log)
+        return cls(data, rate, validate=False)
 
     def save(self, filename):
         """Saves the audio data to a `filename`
@@ -305,7 +294,6 @@ class Audio:
                 f'{filename}: cannot write audio file without extension')
         extension = filename.split('.')[-1]
 
-        self._log.info('writing %s', filename)
         if extension.lower() == 'wav':
             # saving wav files using scipy
             try:
@@ -438,7 +426,7 @@ class Audio:
         """
         # make sure the data type is valid
         if not self._is_valid_dtype(self.dtype):
-            self._log.warning('unsupported audio data type: %s', self.dtype)
+            warnings.warn(f'unsupported audio data type: {self.dtype}')
             return False
 
         # get the theoretical min/max
@@ -457,11 +445,11 @@ class Audio:
         dmin = np.amin(self.data)
         dmax = np.amax(self.data)
         if dmin < emin or dmax > emax:
-            self._log.warning(
-                'invalid audio for type %s: boundaries must be in (%s, %s) '
-                'but are (%s, %s)', self.dtype, emin, emax, dmin, dmax)
+            warnings.warn(
+                'invalid audio for type {self.dtype}: '
+                f'boundaries must be in ({emin}, {emax}) '
+                f'but are ({dmin}, {dmax})')
             return False
-
         return True
 
     def astype(self, dtype):

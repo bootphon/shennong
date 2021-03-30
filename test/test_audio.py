@@ -189,10 +189,13 @@ def test_isvalid(audio):
     audio2 = Audio(
         audio.data.astype(np.float32), audio.sample_rate, validate=False)
     assert audio2.dtype is np.dtype(np.float32)
-    assert not audio2.is_valid()
+    with pytest.warns(UserWarning):
+        assert not audio2.is_valid()
+
     with pytest.raises(ValueError) as err:
-        Audio(audio.data.astype(np.float32),
-              audio.sample_rate, validate=True)
+        with pytest.warns(UserWarning):
+            Audio(audio.data.astype(np.float32),
+                  audio.sample_rate, validate=True)
         assert 'invalid audio data' in err
 
     # smooth cast from int16 to float32
@@ -204,17 +207,20 @@ def test_isvalid(audio):
     data = audio3.data.copy()
     data[6] = 1.1
     with pytest.raises(ValueError) as err:
-        Audio(data, audio.sample_rate)
+        with pytest.warns(UserWarning):
+            Audio(data, audio.sample_rate)
         assert 'invalid audio data for type' in err
 
     audio4 = Audio(data, audio.sample_rate, validate=False)
-    assert not audio4.is_valid()
+    with pytest.warns(UserWarning):
+        assert not audio4.is_valid()
 
     # brutal cast to invalid uint8 dtype
     audio5 = Audio(
         audio.data.astype(np.uint8), audio.sample_rate, validate=False)
     assert audio5.dtype is np.dtype(np.uint8)
-    assert not audio5.is_valid()
+    with pytest.warns(UserWarning):
+        assert not audio5.is_valid()
 
 
 @pytest.mark.parametrize('dtype', DTYPES)

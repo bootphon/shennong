@@ -50,15 +50,18 @@ class PipelineManager:
         self.log = log
 
         # the list of speakers
-        self._speakers = set(u.speaker for u in self.utterances.values())
-        if self._speakers == {None}:
-            self._speakers = None
+        self._speakers = (
+            utterances.by_speaker.keys() if utterances.with_speakers()
+            else None)
         self._check_speakers()
 
         # store the metadata because we need to access the sample rate
         # for processors instanciation
-        wavs = set(u.file for u in utterances.values())
-        self._wavs_metadata = {w: Audio.scan(w, log=log) for w in wavs}
+        wavs = set(u.audio for u in utterances.by_name.values())
+        self._wavs_metadata = {}
+        for w in wavs:
+            log.debug('scanning %s', w)
+            self._wavs_metadata[w] = Audio.scan(w)
 
         # make sure all the wavs are compatible with the pipeline
         log.info('scanning %s utterances...', len(self._utterances))

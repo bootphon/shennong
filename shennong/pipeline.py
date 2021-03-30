@@ -68,7 +68,6 @@ dict_keys(['pipeline', 'mfcc', 'speaker', 'audio', 'pitch'])
 
 """
 
-import collections
 import os
 import textwrap
 
@@ -247,7 +246,7 @@ def extract_features(configuration, utterances,
         The pipeline configuration, can be a dictionary, a path to a
         YAML file or a string formatted in YAML. To get a
         configuration example, see :func:`get_default_config`
-    utterances : sequence of tuples
+    utterances : :class:`~shennong.utterances.Utterances`
         The list of utterances to extract the features on.
     njobs : int, optional
         The number to subprocesses to execute in parallel, use a
@@ -494,90 +493,11 @@ def _init_config(config, log=get_logger('pipeline', 'warning')):
     return config
 
 
-_Utterance = collections.namedtuple(
-    '_Utterance', ['file', 'speaker', 'tstart', 'tstop'])
-
-
-def _init_utterances(utts_index, log=get_logger('pipeline', 'warning')):
-    """Returns a dict {utt_id: (wav_file, speaker_id, tstart, tstop)}
-
-    Raises on any error, log a warning on strange but non-critical
-    issues.
-
-    """
-    # guess the for format of `wavs` and ensure it is homogeneous
-    utts = list((u,) if isinstance(u, str) else u for u in utts_index)
-    index_format = set(len(u) for u in utts)
-    if not len(index_format) == 1:
-        raise ValueError(
-            'the wavs index is not homogeneous, entries have different '
-            'lengths: {}'.format(', '.join(str(t) for t in index_format)))
-    index_format = list(index_format)[0]
-
-    # ensure the utterances index format is valid
-    valid_formats = {
-        1: '<wav-file>',
-        2: '<utterance-id> <wav-file>',
-        3: '<utterance-id> <wav-file> <speaker-id>',
-        4: '<utterance-id> <wav-file> <tstart> <tstop>',
-        5: '<utterance-id> <wav-file> <speaker-id> <tstart> <tstop>'}
-    try:
-        log.info(
-            'detected format for utterances index is: %s',
-            valid_formats[index_format])
-    except KeyError:
-        raise ValueError('unknown format for utterances index')
-
-    # ensure 1st column has unique elements
-    duplicates = [u for u, c in collections.Counter(
-        u[0] for u in utts).items() if c > 1]
-    if duplicates:
-        raise ValueError(
-            'duplicates found in utterances index: {}'.format(
-                ', '.join(duplicates)))
-
-    # sort the utterances by wav_file (and then by utt_id), this
-    # is a minor optimization to use the cache system of Audio.load(),
-    # ie this avoids to reload several times the same wav when using
-    # tstart/tstop segments.
-    utts = sorted(utts, key=lambda u: u if index_format == 1 else (u[1], u[0]))
-
-    # build the utterances collection as a dict
-    # {utt_id: (wav_file, speaker_id, tstart, tstop)}
-    utterances = {}
-    for num, utt in enumerate(utts, start=1):
-        if index_format == 1:
-            utt_id = f'utt_{num}'
-            wav_file = utt[0]
-        else:
-            utt_id = utt[0]
-            wav_file = utt[1]
-
-        utterances[utt_id] = _Utterance(
-            file=wav_file,
-            speaker=utt[2] if index_format in (3, 5) else None,
-            tstart=(float(utt[2]) if index_format == 4
-                    else float(utt[3]) if index_format == 5 else None),
-            tstop=(float(utt[3]) if index_format == 4
-                   else float(utt[4]) if index_format == 5 else None))
-
-    # ensure all the wavs are here
-    wavs = [w.file for w in utterances.values()]
-    not_found = [w for w in wavs if not os.path.isfile(w)]
-    if not_found:
-        raise ValueError(
-            'the following wav files are not found: {}'
-            .format(', '.join(not_found)))
-
-    return utterances
-
-
-def _undo_init_utterances(utterances):
-    """Given a dict {utt_id: (wav_file, speaker_id, tstart, tstop)},
-    returns utterances index in a valid format for ``extract_features``
-    """
-    return [(index,)+tuple(info for info in utt if info is not None) for
-            index, utt in utterances.items()]
+def _init_utterances(utterances, log=get_logger('pipeline', 'warning')):
+    """Displays some stats on the loaded utterances"""
+    log.info(
+        'detected format for utterances index is: %s',
+        utterances.format(as_string=True))
 
 
 def _extract_features(config, utterances, log, njobs=1):
@@ -592,8 +512,7 @@ def _extract_features(config, utterances, log, njobs=1):
     # vtln : compute vtln warps or load pre-computed warps
     if 'vtln' in config:
         manager.warps = manager.get_vtln_processor(
-            'vtln').process(
-                _undo_init_utterances(utterances), njobs=njobs)
+            'vtln').process(utterances, njobs=njobs)
 
     # cmvn : two passes. 1st with features pitch and cmvn
     # accumulation, 2nd with cmvn application and delta
