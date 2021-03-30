@@ -21,10 +21,10 @@ njobs=10
 partition=all
 
 # command to activate the shennong environment
-activate_shennong="module load anaconda/3; source activate shennong"
+activate_shennong="source /shared/apps/anaconda3/etc/profile.d/conda.sh; conda activate shennong"
 
 # command to activate the abx environment
-activate_abx="module load anaconda/3; source activate abx"
+activate_abx="source /shared/apps/anaconda3/etc/profile.d/conda.sh; conda activate abx"
 
 ## end of parameters
 ####################

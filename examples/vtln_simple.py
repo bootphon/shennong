@@ -104,12 +104,8 @@ def main():
         min_warp=args.warp_min,
         max_warp=args.warp_max)
     processor.set_logger('info')
-    warps = processor.process(vtln_utterances, njobs=args.njobs)
-
-    # at this point we have a dict (utterance_vtln -> warp), with an identical
-    # warp for each utterance of a same speaker, but we need to retrieve a dict
-    # (speaker -> warp)
-    warps = {utt[:3]: warp for utt, warp in warps.items()}
+    warps = processor.process(
+        vtln_utterances, njobs=args.njobs, group_by='speaker')
 
     print('VTLN warps per speaker are:')
     for spk, warp in sorted(warps.items()):

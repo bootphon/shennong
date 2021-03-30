@@ -2,17 +2,22 @@
 
 import argparse
 import os
-from shennong import pipeline
-from shennong.logger import get_logger
+
+from shennong.processor import VtlnProcessor
+from shennong.utils import duration_per_speaker
 
 
 def main():
     # parse input arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('data_directory', help='input/output data directory')
-    parser.add_argument('config_file', help='YAML configuration file')
     parser.add_argument(
         'corpus', choices=['english', 'xitsonga'], help='corpus to process')
+    parser.add_argument(
+        '-d', '--duration', default=10*60, type=float,
+        help=(
+            'speech duration per speaker to use for VTLN training '
+            'in seconds, (default to %(default)s)'))
     parser.add_argument(
         '-j', '--njobs', type=int, default=4, metavar='<int>',
         help='number of parallel jobs (default to %(default)s)')
@@ -20,32 +25,32 @@ def main():
         '-v', '--verbose', action='store_true', help='increase log level')
     args = parser.parse_args()
 
+
     # check and setup arguments
     data_directory = args.data_directory
     if not os.path.isdir(data_directory):
         raise ValueError(f'directory not found: {data_directory}')
-    config = args.config_file
-    if not os.path.isfile(config):
-        raise ValueError(f'file not found: {config}')
-    try:
-        os.makedirs(os.path.join(data_directory, 'features'))
-    except FileExistsError:
-        pass
-    log = get_logger('extraction', 'debug' if args.verbose else 'info')
+    output_warps = f'{data_directory}/{args.corpus}.warps'
+    if os.path.isfile(output_warps):
+        raise ValueError(f'file already exists: {output_warps}')
 
     # load input utterances
     utterances = [line.split(' ') for line in open(os.path.join(
         data_directory, f'{args.corpus}.utts'), 'r')]
 
-    # extract the features
-    features = pipeline.extract_features(
-        config, utterances, njobs=args.njobs, log=log)
+    # build utterances for VTLN training
+    utterances = duration_per_speaker(
+        utterances, args.duration, truncate=False)
 
-    # save them
-    h5f_file = os.path.join(
-        data_directory, 'features', f'{args.corpus}_{os.path.basename(config)}'
-        .replace('.yaml', '.h5f'))
-    features.save(h5f_file)
+    # train VTLN model
+    proc = VtlnProcessor()
+    proc.set_logger('debug' if args.verbose else 'info')
+    warps = proc.process(utterances, njobs=args.njobs, group_by='speaker')
+
+    # write the VTLN warps
+    open(output_warps, 'w').write(
+        '\n'.join(f'{s} {w}' for s, w in warps.items()) + '\n')
+
 
 
 if __name__ == '__main__':
