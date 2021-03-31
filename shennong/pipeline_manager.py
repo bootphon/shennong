@@ -87,14 +87,17 @@ class PipelineManager:
 
     @property
     def config(self):
+        """The pipeline configuration"""
         return self._config
 
     @property
     def utterances(self):
+        """Utterance on which to apply the pipeline"""
         return self._utterances
 
     @property
     def warps(self):
+        """VTLN waprs of the utterances (optional)"""
         return self._warps
 
     @warps.setter
@@ -103,6 +106,7 @@ class PipelineManager:
 
     @property
     def audio_metadata(self):
+        """Audio metadata corresponding to utterances"""
         return self._audio_metadata
 
     def _check_utterances(self):
@@ -135,7 +139,7 @@ class PipelineManager:
         speakers = (
             '' if not self.utterances.has_speakers()
             else ' from {} speakers'.format(
-                    len(set(utt.speaker for utt in self.utterances))))
+                len(set(utt.speaker for utt in self.utterances))))
 
         self.log.info(
             'get %s utterances%s in %s audio files, total duration: %s',
@@ -270,7 +274,7 @@ class PipelineManager:
             utterance.audio_file].sample_rate
         return self._set_logger(proc)
 
-    def get_vad_processor(self, utterance):
+    def get_vad_processor(self, _):
         """Instanciates and returns a VAD processor"""
         return self._set_logger(
             self.get_processor_class('vad')(**self.config['cmvn']['vad']))
@@ -283,7 +287,7 @@ class PipelineManager:
 
         return self._set_logger(self._cmvn_processors[utterance.name])
 
-    def get_sliding_window_cmvn_processor(self, utterrance):
+    def get_sliding_window_cmvn_processor(self, _):
         """Instanciates and returns a sliding-window CMVN processor"""
         return self._set_logger(
             self.get_processor_class('sliding_window_cmvn')(
@@ -306,7 +310,7 @@ class PipelineManager:
 
         return self._set_logger(self.get_processor_class(name)(**params))
 
-    def get_pitch_post_processor(self, utterance):
+    def get_pitch_post_processor(self, _):
         """Instanciates and returns a pitch post-processor"""
         # fall back to kaldi or crepe post-processor according to config
         name = 'kaldi_pitch_post'
@@ -317,12 +321,12 @@ class PipelineManager:
             self.get_processor_class(name)(
                 **self.config['pitch']['postprocessing']))
 
-    def get_delta_processor(self, utterance):
+    def get_delta_processor(self, _):
         """Instanciates and returns a delta processor"""
         return self._set_logger(
             self.get_processor_class('delta')(**self.config['delta']))
 
-    def get_vtln_processor(self, utterance):
+    def get_vtln_processor(self, _):
         """Instanciates and returns a VTLN processor"""
         return self._set_logger(self.get_processor_class('vtln')(
             **self.config['vtln']))
