@@ -41,8 +41,10 @@ the min/max F0 frequency for pitch extraction:
 Generates a list of utterances to extract the features on (here we
 have 2 utterances from the same speaker and same file):
 
+>>> from shennong import Utterances
 >>> wav = './test/data/test.wav'
->>> utterances = [('utt1', wav, 'spk1', 0, 1), ('utt2', wav, 'spk1', 1, 1.5)]
+>>> utterances = Utterances([
+...     ('utt1', wav, 'spk1', 0, 1), ('utt2', wav, 'spk1', 1, 1.4)])
 
 Extract the features:
 
@@ -170,27 +172,17 @@ def get_default_config(
         PipelineManager.get_processor_params(features).items()
         if k not in ('sample_rate', 'htk_compat')}
 
-    if with_pitch == 'kaldi':
+    if with_pitch:  # 'kaldi' or 'crepe'
         # filter out the frame parameters, already specified for
         # the features, and sample rate
-        config['pitch'] = {'processor': 'kaldi'}
+        config['pitch'] = {'processor': with_pitch}
         for key, value in (
-                PipelineManager.get_processor_params('pitch').items()):
+                PipelineManager.get_processor_params(
+                    f'{with_pitch}_pitch').items()):
             if key not in ('frame_length', 'frame_shift', 'sample_rate'):
                 config['pitch'][key] = value
         config['pitch']['postprocessing'] = (
-            PipelineManager.get_processor_params('pitch_post'))
-
-    elif with_pitch == 'crepe':
-        # filter out the frame parameters, already specified for
-        # the features, and sample rate
-        config['pitch'] = {'processor': 'crepe'}
-        for key, value in (
-                PipelineManager.get_processor_params('crepe_pitch').items()):
-            if key not in ('frame_length', 'frame_shift', 'sample_rate'):
-                config['pitch'][key] = value
-        config['pitch']['postprocessing'] = (
-            PipelineManager.get_processor_params('crepe_pitch_post'))
+            PipelineManager.get_processor_params(f'{with_pitch}_pitch_post'))
 
     if with_cmvn:
         config['cmvn'] = {'by_speaker': True, 'with_vad': True}
@@ -230,16 +222,6 @@ def extract_features(configuration, utterances,
     :class:`~shennong.features.features.FeaturesCollection`. It uses ``njobs``
     parallel subprocesses.
 
-    The ``utterances`` can be defined in one of the following format (the
-    format must be homogoneous across the index, i.e. only one format can be
-    used):
-
-    * 1-uple (or str): ``<wav-file>``
-    * 2-uple: ``<utterance-id> <wav-file>``
-    * 3-uple: ``<utterance-id> <wav-file> <speaker-id>``
-    * 4-uple: ``<utterance-id> <wav-file> <tstart> <tstop>``
-    * 5-uple: ``<utterance-id> <wav-file> <speaker-id> <tstart> <tstop>``
-
     Parameters
     ----------
     config : dict or str
@@ -271,14 +253,16 @@ def extract_features(configuration, utterances,
     # checks to ensure all is correct
     njobs = get_njobs(njobs, log=log)
     config = _init_config(configuration, log=log)
-    utterances = _init_utterances(utterances, log=log)
+
+    log.info(
+        'detected format for utterances index is: %s',
+        utterances.format(type=str))
 
     # check the OMP_NUM_THREADS variable for parallel computations
     _check_environment(njobs, log=log)
 
     # do all the computations
-    return _extract_features(
-        config, utterances, njobs=njobs, log=log)
+    return _extract_features(config, utterances, njobs=njobs, log=log)
 
 
 # a little tweak to change the &log message in joblib parallel loops
@@ -402,10 +386,9 @@ def _get_config_to_yaml(config, comments=True):
                     'the "--vtln-full" option to expose all the parameters.')
             elif processor == 'pitch' and param == 'processor':
                 docstring = f'Computing pitch using {pitch_processor}'
-            elif processor == 'pitch' and param != 'processor':
-                model = '' if pitch_processor == 'kaldi' else 'crepe_'
+            elif 'pitch' in processor and param != 'processor':
                 docstring = PipelineManager.get_docstring(
-                    model + processor, param, default)
+                    pitch_processor + '_' + processor, param, default)
             else:
                 docstring = PipelineManager.get_docstring(
                     processor, param, default)
@@ -437,7 +420,7 @@ def _init_config(config, log=get_logger('pipeline', 'warning')):
     # ensure all the keys in config are known
     unknown_keys = [
         k for k in config.keys()
-        if k not in PipelineManager.valid_processors]
+        if k not in list(PipelineManager.valid_processors) + ['pitch']]
     if unknown_keys:
         raise ValueError(
             'invalid keys in configuration: {}'.format(
@@ -448,8 +431,8 @@ def _init_config(config, log=get_logger('pipeline', 'warning')):
     features = [k for k in config.keys() if k in valid_features()]
     if not features:
         raise ValueError(
-            'the configuration does not define any features extraction, '
-            'only post-processing (must have one and only one entry of {})'
+            'the configuration does not define any features extraction '
+            '(must have one and only one entry of {})'
             .format(', '.join(valid_features())))
     if len(features) > 1:
         raise ValueError(
@@ -468,7 +451,7 @@ def _init_config(config, log=get_logger('pipeline', 'warning')):
         if 'with_vad' not in config['cmvn']:
             config['cmvn']['with_vad'] = True
 
-    # if pitch, make sure we have a 'postprocessing' entry
+    # on pitch, make sure we have a 'postprocessing' entry
     if 'pitch' in config and 'postprocessing' not in config['pitch']:
         config['pitch']['postprocessing'] = {}
 
@@ -491,13 +474,6 @@ def _init_config(config, log=get_logger('pipeline', 'warning')):
         features[0], ' with {}'.format(', '.join(msg)) if msg else '')
 
     return config
-
-
-def _init_utterances(utterances, log=get_logger('pipeline', 'warning')):
-    """Displays some stats on the loaded utterances"""
-    log.info(
-        'detected format for utterances index is: %s',
-        utterances.format(as_string=True))
 
 
 def _extract_features(config, utterances, log, njobs=1):
@@ -543,118 +519,113 @@ def _extract_features(config, utterances, log, njobs=1):
     return features
 
 
-def _extract_pass_one(utt_name, manager, log):
+def _extract_pass_one(utterance, manager, log):
     # load audio signal of the utterance
-    log.debug('%s: load audio', utt_name)
-    audio = manager.get_audio(utt_name)
+    log.debug('%s: load audio', utterance.audio_file)
+    audio = manager.get_audio(utterance)
 
     # main features extraction
-    log.debug('%s: extract %s', utt_name, manager.features)
+    log.debug('%s: extract %s', utterance.name, manager.features)
     if 'vtln' in manager.config:
-        features = manager.get_features_processor(utt_name).process(
-            audio, vtln_warp=manager.get_warp(utt_name))
+        features = manager.get_features_processor(utterance).process(
+            audio, vtln_warp=manager.get_warp(utterance))
     else:
-        features = manager.get_features_processor(utt_name).process(audio)
+        features = manager.get_features_processor(utterance).process(audio)
 
     # cmvn accumulation
     if 'cmvn' in manager.config:
-        log.debug('%s: accumulate cmvn', utt_name)
+        log.debug('%s: accumulate cmvn', utterance.name)
         # weight CMVN by voice activity detection (null weights on
         # non-voiced frames)
         if manager.config['cmvn']['with_vad']:
-            energy = manager.get_energy_processor(utt_name).process(audio)
-            vad = manager.get_vad_processor(utt_name).process(energy)
+            energy = manager.get_energy_processor(utterance).process(audio)
+            vad = manager.get_vad_processor(utterance).process(energy)
             vad = vad.data.reshape((vad.shape[0], ))  # reshape as 1d array
         else:
             vad = None
 
-        manager.get_cmvn_processor(utt_name).accumulate(
+        manager.get_cmvn_processor(utterance).accumulate(
             features, weights=vad)
 
     # pitch extraction
     if 'pitch' in manager.config:
         processor = manager.config['pitch']['processor']
-        log.debug('%s: extract %s pitch', utt_name, processor)
-        p1 = manager.get_pitch_processor(utt_name)
-        p2 = manager.get_pitch_post_processor(utt_name)
+        log.debug('%s: extract %s pitch', utterance.name, processor)
+        p1 = manager.get_pitch_processor(utterance)
+        p2 = manager.get_pitch_post_processor(utterance)
         pitch = p2.process(p1.process(audio))
     else:
         pitch = None
 
     # add info on speaker and audio input on the features properties
-    speaker = manager.utterances[utt_name].speaker
+    speaker = utterance.speaker
     if speaker:
         features.properties['speaker'] = speaker
 
-    utterance = manager.utterances[utt_name]
     features.properties['audio'] = {
-        'file': os.path.abspath(utterance.file),
-        'sample_rate': manager.wavs_metadata[utterance.file].sample_rate}
+        'file': os.path.abspath(utterance.audio_file),
+        'sample_rate': manager.audio_metadata[
+            utterance.audio_file].sample_rate}
     if utterance.tstart is not None:
         features.properties['audio']['tstart'] = utterance.tstart
         features.properties['audio']['tstop'] = utterance.tstop
-        features.properties['audio']['duration'] = min(
-            utterance.tstop - utterance.tstart,
-            manager.wavs_metadata[utterance.file].duration - utterance.tstart)
-    else:
-        features.properties['audio']['duration'] = (
-            manager.wavs_metadata[utterance.file].duration)
+    features.properties['audio']['duration'] = utterance.duration
 
-    return utt_name, features, pitch
+    return utterance, features, pitch
 
 
-def _extract_pass_two(utt_name, manager, features, pitch, log, tolerance=2):
+def _extract_pass_two(utterance, manager, features, pitch, log, tolerance=2):
     # apply cmvn
     if 'cmvn' in manager.config:
-        log.debug('%s: apply cmvn', utt_name)
-        features = manager.get_cmvn_processor(utt_name).process(features)
+        log.debug('%s: apply cmvn', utterance.name)
+        features = manager.get_cmvn_processor(utterance).process(features)
 
     # apply sliding window cmvn
     if 'sliding_window_cmvn' in manager.config:
-        log.debug('%s: apply sliding window cmvn', utt_name)
+        log.debug('%s: apply sliding window cmvn', utterance.name)
         features = manager.get_sliding_window_cmvn_processor(
-            utt_name).process(features)
+            utterance).process(features)
 
     # apply delta
     if 'delta' in manager.config:
-        log.debug('%s: apply delta', utt_name)
-        features = manager.get_delta_processor(utt_name).process(features)
+        log.debug('%s: apply delta', utterance.name)
+        features = manager.get_delta_processor(utterance).process(features)
 
     # concatenate the pitch features to the main ones. because of
     # downsampling in pitch processing the resulting number of frames
     # can differ (the same tolerance is applied in Kaldi, see
     # the paste-feats binary)
     if pitch:
-        log.debug('%s: concatenate pitch', utt_name)
+        log.debug('%s: concatenate pitch', utterance.name)
         features = features.concatenate(pitch, tolerance=tolerance, log=log)
 
-    return utt_name, features
+    return utterance.name, features
 
 
-def _extract_single_pass(utt_name, manager, log):
-    _, features, pitch = _extract_pass_one(utt_name, manager, log=log)
-    return _extract_pass_two(utt_name, manager, features, pitch, log=log)
+def _extract_single_pass(utterance, manager, log):
+    _, features, pitch = _extract_pass_one(utterance, manager, log=log)
+    return _extract_pass_two(utterance, manager, features, pitch, log=log)
 
 
-def _extract_single_pass_warp(utt_name, manager, warp, log):
+def _extract_single_pass_warp(utterance, manager, warp, log):
     # load audio signal of the utterance
-    log.debug('%s: load audio', utt_name)
-    audio = manager.get_audio(utt_name)
+    log.debug('%s: load audio', utterance.name)
+    audio = manager.get_audio(utterance)
 
     # main features extraction
-    log.debug('%s: extract %s', utt_name, manager.features)
-    features = manager.get_features_processor(utt_name).process(
+    log.debug('%s: extract %s', utterance.name, manager.features)
+    features = manager.get_features_processor(utterance).process(
         audio, vtln_warp=warp)
 
     # apply delta
     if 'delta' in manager.config:
-        log.debug('%s: apply delta', utt_name)
-        features = manager.get_delta_processor(utt_name).process(features)
+        log.debug('%s: apply delta', utterance.name)
+        features = manager.get_delta_processor(utterance).process(features)
 
-    return utt_name, features
+    return utterance.name, features
 
 
-def extract_features_warp(configuration, utterances_index, warp, log, njobs=1):
+def extract_features_warp(configuration, utterances, warp, log, njobs=1):
     """Speech features extraction pipeline when all features are warped
     by the same factor. Used in the
     :func:`~shennong.features.processor.vtln.VtlnProcessor.process`
@@ -665,7 +636,6 @@ def extract_features_warp(configuration, utterances_index, warp, log, njobs=1):
     # checks to ensure all is correct
     njobs = get_njobs(njobs, log=log)
     config = _init_config(configuration, log=log)
-    utterances = _init_utterances(utterances_index, log=log)
 
     # check the OMP_NUM_THREADS variable for parallel computations
     _check_environment(njobs, log=log)

@@ -6,7 +6,7 @@ import pytest
 
 from kaldi.util.table import SequentialWaveReader
 from shennong import Audio
-from shennong.processor.mfcc import MfccProcessor
+from shennong.processor import MfccProcessor
 
 
 def test_params():
@@ -160,7 +160,9 @@ def test_kaldi_audio(wav_file, audio, dtype):
     assert audio.dtype == dtype
     assert audio.is_valid()
     assert audio_kaldi.dtype == np.float32
-    assert not audio_kaldi.is_valid()  # not in [-1, 1] but [-2**15, 2**15-1]
+    with pytest.warns(UserWarning):
+        # not in [-1, 1] but [-2**15, 2**15-1]
+        assert not audio_kaldi.is_valid()
 
     mfcc = MfccProcessor().process(audio)
     mfcc_kaldi = MfccProcessor().process(audio_kaldi)

@@ -6,9 +6,11 @@ Uses the Kaldi implmentation of Linear Vocal Tract Length Normalization
 Examples
 --------
 
+>>> from shennong import Utterances
 >>> from shennong.processor.vtln import VtlnProcessor
 >>> wav = './test/data/test.wav'
->>> utterances = [('utt1', wav, 'spk1', 0, 1), ('utt2', wav, 'spk1', 1, 1.5)]
+>>> utterances = Utterances(
+...     [('utt1', wav, 'spk1', 0, 1), ('utt2', wav, 'spk1', 1, 1.4)])
 
 Initialize the VTLN model. Other options can be specified at construction,
 or after:
@@ -254,36 +256,6 @@ class VtlnProcessor(BaseProcessor):
         except yaml.YAMLError as err:  # pragma: nocover
             raise ValueError(
                 'Error in VTLN warps file when saving: {}'.format(err))
-
-    def _check_utterances(self, utterances):
-        """Check the format of the utterances.
-
-        If the ``by_speaker`` attribute is True, returns a dictionnary mapping
-        each utterance to a speaker.
-
-        """
-        if not isinstance(utterances, list):
-            raise TypeError('Invalid utterances format')
-
-        utts = list((u,) if isinstance(u, str)
-                    else u for u in utterances)
-        index_format = set(len(u) for u in utts)
-
-        if not len(index_format) == 1:
-            raise ValueError(
-                'the wavs index is not homogeneous, entries'
-                ' have different lengths: {}'.format(
-                    ', '.join(str(t) for t in index_format)))
-
-        if self.by_speaker:
-            index_format = list(index_format)[0]
-            if index_format in [1, 2, 4]:
-                raise ValueError(
-                    'Requested speaker-adapted VTLN, but speaker'
-                    ' information is missing')
-            return {utt[0].strip(): utt[2].strip() for utt in utterances}
-
-        return None
 
     def compute_mapping_transform(
             self, feats_untransformed, feats_transformed,
@@ -542,13 +514,8 @@ class VtlnProcessor(BaseProcessor):
 
         Parameters
         ----------
-        utterances : list[tuple]
-            The utterances can be defined in one of the following format:
-            * 1-uple (or str): ``<wav-file>``
-            * 2-uple: ``<utterance-id> <wav-file>``
-            * 3-uple: ``<utterance-id> <wav-file> <spk-id>``
-            * 4-uple: ``<utterance-id> <wav-file> <tstart> <tstop>``
-            * 5-uple: ``<utterance-id> <wav-file> <spk-id> <tstart> <tstop>``
+        utterances : :class:`~shennong.utterances.Utterances`
+            The list of utterances to train the VTLN on.
         ubm : DiagUbmProcessor, optional
             If provided, uses this UBM instead of computing a new one.
         njobs : int, optional
@@ -562,7 +529,14 @@ class VtlnProcessor(BaseProcessor):
 
         """
         # Utterances
-        utt2speak = self._check_utterances(utterances)
+        if not utterances.has_speakers():
+            raise ValueError(
+                'Requested speaker-adapted VTLN, but speaker'
+                ' information is missing')
+
+        utt2speak = None
+        if self.by_speaker:
+            utt2speak = {utt.name: utt.speaker for utt in utterances}
 
         # Min / max warp
         if self.min_warp > self.max_warp:

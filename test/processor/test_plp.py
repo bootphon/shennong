@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from shennong import Audio
-from shennong.processor.plp import PlpProcessor
+from shennong.processor import PlpProcessor
 
 
 def test_params():

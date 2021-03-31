@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 from shennong import Audio, Features
-from shennong.processor.crepepitch import (
+from shennong.processor.pitch_crepe import (
     CrepePitchPostProcessor, CrepePitchProcessor)
 
 

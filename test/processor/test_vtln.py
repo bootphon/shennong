@@ -7,10 +7,9 @@ import numpy as np
 import kaldi.transform.lvtln
 import kaldi.matrix
 
-from shennong import Features, FeaturesCollection
-from shennong.processor.vtln import VtlnProcessor
+from shennong import Features, FeaturesCollection, Utterances
+from shennong.processor import VtlnProcessor
 from shennong.processor.ubm import DiagUbmProcessor
-
 
 
 def test_params():
@@ -214,24 +213,16 @@ def test_process(wav_file, wav_file_float32, wav_file_8k):
     vtln = VtlnProcessor(**vtln_config)
     ubm = DiagUbmProcessor(**ubm_config)
 
-    with pytest.raises(TypeError) as err:
-        vtln.process({'s1a': (wav_file, 's1', 0, 1)}, ubm=ubm)
-    assert 'Invalid utterances format' in str(err.value)
-
-    utterances = [('s1a', wav_file, 's1', 0, 1), ('s2a', wav_file_float32)]
-    with pytest.raises(ValueError) as err:
-        vtln.process(utterances, ubm=ubm)
-    assert 'the wavs index is not homogeneous' in str(err.value)
-
-    utterances = [('s1a', wav_file), ('s2a', wav_file_float32)]
+    utterances = Utterances([
+        ('s1a', wav_file), ('s2a', wav_file_float32)])
     with pytest.raises(ValueError) as err:
         vtln.process(utterances, ubm=ubm)
     assert 'Requested speaker-adapted VTLN' in str(err.value)
 
-    utterances = [
+    utterances = Utterances([
         ('s1a', wav_file, 's1', 0, 1),
         ('s2a', wav_file_float32, 's2', 1, 1.2),
-        ('s1b', wav_file_8k, 's1', 1, 3)]
+        ('s1b', wav_file_8k, 's1', 0, 1)])
 
     with pytest.raises(ValueError) as err:
         vtln.process(utterances, ubm=ubm)

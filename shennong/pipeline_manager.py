@@ -26,8 +26,8 @@ class PipelineManager:
         'energy': ('processor', 'EnergyProcessor'),
         'filterbank': ('processor', 'FilterbankProcessor'),
         'mfcc': ('processor', 'MfccProcessor'),
-        'pitch': ('processor', 'PitchProcessor'),
-        'pitch_post': ('processor', 'PitchPostProcessor'),
+        'kaldi_pitch': ('processor', 'KaldiPitchProcessor'),
+        'kaldi_pitch_post': ('processor', 'KaldiPitchPostProcessor'),
         'crepe_pitch': ('processor', 'CrepePitchProcessor'),
         'crepe_pitch_post': ('processor', 'CrepePitchPostProcessor'),
         'plp': ('processor', 'PlpProcessor'),
@@ -49,23 +49,19 @@ class PipelineManager:
         self._warps = {}
         self.log = log
 
-        # the list of speakers
-        self._speakers = (
-            utterances.by_speaker.keys() if utterances.with_speakers()
-            else None)
-        self._check_speakers()
+        self._check_utterances()
 
         # store the metadata because we need to access the sample rate
         # for processors instanciation
-        wavs = set(u.audio for u in utterances.by_name.values())
-        self._wavs_metadata = {}
-        for w in wavs:
-            log.debug('scanning %s', w)
-            self._wavs_metadata[w] = Audio.scan(w)
+        audio_files = set(utt.audio_file for utt in utterances)
+        self._audio_metadata = {}
+        for audio in audio_files:
+            log.debug('scanning %s', audio)
+            self._audio_metadata[audio] = Audio.scan(audio)
 
-        # make sure all the wavs are compatible with the pipeline
+        # make sure all the audio files are compatible with the pipeline
         log.info('scanning %s utterances...', len(self._utterances))
-        self._check_wavs()
+        self._check_audio_files()
 
         # the features type to be extracted
         self.features = [
@@ -73,7 +69,7 @@ class PipelineManager:
 
         # get some framing parameters constant for all processors
         # (retrieve them from a features processor instance)
-        proc = self.get_features_processor(next(iter(self.utterances.keys())))
+        proc = self.get_features_processor(next(iter(self.utterances)))
         self.frame_length = proc.frame_length
         self.frame_shift = proc.frame_shift
 
@@ -83,10 +79,10 @@ class PipelineManager:
             if self.config['cmvn']['by_speaker']:
                 self._cmvn_processors = {
                     spk: self.get_processor_class('cmvn')(proc.ndims)
-                    for spk in self.speakers}
+                    for spk in set(utt.speaker for utt in self.utterances)}
             else:
                 self._cmvn_processors = {
-                    utt: self.get_processor_class('cmvn')(proc.ndims)
+                    utt.name: self.get_processor_class('cmvn')(proc.ndims)
                     for utt in self.utterances}
 
     @property
@@ -98,10 +94,6 @@ class PipelineManager:
         return self._utterances
 
     @property
-    def speakers(self):
-        return self._speakers
-
-    @property
     def warps(self):
         return self._warps
 
@@ -110,15 +102,13 @@ class PipelineManager:
         self._warps = value
 
     @property
-    def wavs_metadata(self):
-        return self._wavs_metadata
+    def audio_metadata(self):
+        return self._audio_metadata
 
-    def _check_speakers(self):
-        """Ensures the configuration is compatible with speakers information
+    def _check_utterances(self):
+        """Ensures the configuration is compatible with utterances
 
-        On any error raises a ValueError. Logs a warning if speakers
-        information is provided but not used by the pipeline. If all is
-        good, silently returns None.
+        aises a ValueError on error. If all is good, silently returns None.
 
         """
         # ensures speakers info provided if cmvn by speaker is requested
@@ -128,51 +118,43 @@ class PipelineManager:
             assert self.config['cmvn']['by_speaker']
             cmvn_by_speaker = True
 
-        if cmvn_by_speaker and not self.speakers:
+        if cmvn_by_speaker and not self.utterances.has_speakers():
             raise ValueError(
                 'cmvn normalization by speaker requested '
                 'but no speaker information provided')
-        if not cmvn_by_speaker and self.speakers:
+        if not cmvn_by_speaker and self.utterances.has_speakers():
             self.log.warning(
                 'speakers information is provided but will not be used '
                 '(CMVN%s disabled)',
                 ' by speaker' if 'cmvn' in self.config else '')
 
-    def _check_wavs(self):
-        """Ensures all the wav files are compatible with the pipeline"""
+    def _check_audio_files(self):
+        """Ensures all the audio files are compatible with the pipeline"""
         # log the total duration and the number of speakers
-        total_duration = sum(w.duration for w in self._wavs_metadata.values())
-        # nspeakers = len(self.speakers or self.utterances)
-        speakers = ('' if not self.speakers
-                    else ' from {} speakers'.format(len(self.speakers)))
+        total_duration = self.utterances.duration()
+        speakers = (
+            '' if not self.utterances.has_speakers()
+            else ' from {} speakers'.format(
+                    len(set(utt.speaker for utt in self.utterances))))
+
         self.log.info(
-            'get %s utterances%s in %s wavs, total wavs duration: %s',
-            len(self.utterances), speakers, len(self._wavs_metadata),
+            'get %s utterances%s in %s audio files, total duration: %s',
+            len(self.utterances), speakers, len(self.audio_metadata),
             datetime.timedelta(seconds=total_duration))
 
-        # make sure all wavs are mono
-        if not all(w.nchannels == 1 for w in self._wavs_metadata.values()):
-            raise ValueError('all wav files are not mono')
+        # make sure all audio files are mono
+        if not all(w.nchannels == 1 for w in self.audio_metadata.values()):
+            raise ValueError('all audio files are not mono')
 
-        # check the sample rate (warning if all the wavs are not at the
+        # check the sample rate (warning if all the audiofles are not at the
         # same sample rate)
-        samplerates = set(w.sample_rate for w in self._wavs_metadata.values())
+        samplerates = set(w.sample_rate for w in self.audio_metadata.values())
         if len(samplerates) > 1:
             self.log.warning(
-                'several sample rates found in wav files: %s, features '
+                'several sample rates found in audio files: %s, features '
                 'extraction pipeline will work but this may not be a good '
                 'idea to work on heterogeneous data',
                 ', '.join(str(s) + 'Hz' for s in samplerates))
-
-        # ensure all (tstart, tstop) pairs are valid (numbers and
-        # tstart < tstop)
-        tstamps = [
-            (w.tstart, w.tstop, w.file) for w in self.utterances.values()]
-        for (tstart, tstop, wfile) in tstamps:
-            if tstart is not None and tstart > tstop:
-                raise ValueError(
-                    'timestamps are not in increasing order for {}: '
-                    '{} >= {}'.format(wfile, tstart, tstop))
 
     def _set_logger(self, processor):
         processor.log.setLevel(self.log.getEffectiveLevel())
@@ -193,12 +175,14 @@ class PipelineManager:
         except KeyError:
             raise ValueError('invalid processor "{}"'.format(name))
 
-        if 'crepe_pitch' in name:
+        if 'rastaplp' in name:
+            name = 'rasta_plp'
+        elif 'crepe_pitch' in name:
             # crepe pitch (post)processor
-            name = 'crepepitch'
-        elif 'pitch_post' in name:
-            # kaldi pitch postprocessor
-            name = 'pitch'
+            name = 'pitch_crepe'
+        elif 'kaldi_pitch' in name:
+            # kaldi pitch (post)processor
+            name = 'pitch_kaldi'
         elif name == 'sliding_window_cmvn':
             name = 'cmvn'
 
@@ -247,36 +231,31 @@ class PipelineManager:
 
     def get_audio(self, utterance):
         """Returns the audio data for that `utterance`"""
-        utt = self.utterances[utterance]
-        audio = Audio.load(utt.file, log=self.log)
-        if utt.tstart is not None:
-            assert utt.tstop > utt.tstart
-            audio = audio.segment([(utt.tstart, utt.tstop)])[0]
+        audio = utterance.load_audio()
 
         if self.features == 'bottleneck':
-            # resample here the signal (this avoid bugs if one part of
-            # the pipeline on 8k and the other on 16k), then update
-            # the metadata for the wav to be used by the rest of the
-            # pipeline
+            # resample here the signal (this avoid bugs if one part of the
+            # pipeline on 8k and the other on 16k), then update the metadata
+            # for the audio to be used by the rest of the pipeline
             self.log.debug(
                 'resampling audio from %dHz@%db to %dHz@%db',
                 audio.sample_rate, audio.dtype.itemsize * 8, 8000, 16)
 
             audio = audio.resample(8000).astype(np.int16)
-            self._wavs_metadata[self.utterances[utterance].file] = (
-                Audio._metawav(
+            self._audio_metadata[utterance.audio_file] = (
+                Audio._metadata(
                     audio.nchannels, audio.sample_rate,
                     audio.nsamples, audio.duration))
         return audio
 
     def get_features_processor(self, utterance):
         """Instanciates and returns a features extraction processor"""
-        wav = self.utterances[utterance].file
         proc = self.get_processor_class(self.features)(
             **self.config[self.features])
 
         try:
-            proc.sample_rate = self._wavs_metadata[wav].sample_rate
+            proc.sample_rate = self.audio_metadata[
+                utterance.audio_file].sample_rate
         except AttributeError:
             # bottleneck does not support changing sample rate
             pass
@@ -284,11 +263,11 @@ class PipelineManager:
 
     def get_energy_processor(self, utterance):
         """Instanciates and returns an energy processor"""
-        wav = self.utterances[utterance].file
         proc = self.get_processor_class('energy')()
         proc.frame_length = self.frame_length
         proc.frame_shift = self.frame_shift
-        proc.sample_rate = self._wavs_metadata[wav].sample_rate
+        proc.sample_rate = self._audio_metadata[
+            utterance.audio_file].sample_rate
         return self._set_logger(proc)
 
     def get_vad_processor(self, utterance):
@@ -299,10 +278,10 @@ class PipelineManager:
     def get_cmvn_processor(self, utterance):
         """Instanciates and returns a CMVN processor"""
         if self.config['cmvn']['by_speaker']:
-            speaker = self.utterances[utterance].speaker
+            speaker = utterance.speaker
             return self._cmvn_processors[speaker]
 
-        return self._set_logger(self._cmvn_processors[utterance])
+        return self._set_logger(self._cmvn_processors[utterance.name])
 
     def get_sliding_window_cmvn_processor(self, utterrance):
         """Instanciates and returns a sliding-window CMVN processor"""
@@ -312,17 +291,17 @@ class PipelineManager:
 
     def get_pitch_processor(self, utterance):
         """Instanciates and returns a pitch processor"""
-        wav = self.utterances[utterance].file
         params = {k: v for k, v in self.config['pitch'].items()
                   if k not in ('processor', 'postprocessing')}
-        params['sample_rate'] = self._wavs_metadata[wav].sample_rate
+        params['sample_rate'] = self._audio_metadata[
+            utterance.audio_file].sample_rate
         params['frame_shift'] = self.frame_shift
         params['frame_length'] = self.frame_length
 
         # fall back to kaldi or crepe processor according to config
-        name = 'pitch'
+        name = 'kaldi_pitch'
         if self.config['pitch']['processor'] == 'crepe':
-            name = 'crepe_' + name
+            name = name.replace('kaldi', 'crepe')
             del params['sample_rate']
 
         return self._set_logger(self.get_processor_class(name)(**params))
@@ -330,9 +309,9 @@ class PipelineManager:
     def get_pitch_post_processor(self, utterance):
         """Instanciates and returns a pitch post-processor"""
         # fall back to kaldi or crepe post-processor according to config
-        name = 'pitch_post'
+        name = 'kaldi_pitch_post'
         if self.config['pitch']['processor'] == 'crepe':
-            name = 'crepe_' + name
+            name = name.replace('kaldi', 'crepe')
 
         return self._set_logger(
             self.get_processor_class(name)(
@@ -350,4 +329,6 @@ class PipelineManager:
 
     def get_warp(self, utterance):
         """Returns the VTLN warp associated to this utterance"""
-        return 1 if utterance not in self.warps else self.warps[utterance]
+        return (
+            1 if utterance.name not in self.warps
+            else self.warps[utterance.name])

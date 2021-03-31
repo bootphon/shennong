@@ -1,28 +1,29 @@
 """Provides classes to extract pitch from an audio (speech) signal
 
-This modules provides the classes :class:`PitchProcessor` and
-:class:`PitchPostProcessor` which respectively computes the pitch from
-raw speech and turns it into suitable features: it produces pitch and
-probability-of-voicing estimates for use as features in automatic
-speech recognition systems
+This modules provides the classes :class:`KaldiPitchProcessor` and
+:class:`KaldiPitchPostProcessor` which respectively computes the pitch from raw
+speech and turns it into suitable features: it produces pitch and
+probability-of-voicing estimates for use as features in automatic speech
+recognition systems.
 
 Uses the Kaldi implementation of pitch extraction and postprocessing
 (see [Ghahremani2014]_ and [kaldi-pitch]_).
 
-    :class:`~shennong.audio.Audio` ---> PitchProcessor \
-    ---> PitchPostProcessor ---> :class:`~shennong.features.Features`
+    :class:`~shennong.audio.Audio` ---> KaldiPitchProcessor \
+    ---> KaldiPitchPostProcessor ---> :class:`~shennong.features.Features`
 
 Examples
 --------
 
 >>> from shennong.audio import Audio
->>> from shennong.processor.pitch import (PitchProcessor, PitchPostProcessor)
+>>> from shennong.processor import (
+...     KaldiPitchProcessor, KaldiPitchPostProcessor)
 >>> audio = Audio.load('./test/data/test.wav')
 
 Initialize a pitch processor with some options. Options can be
 specified at construction, or after:
 
->>> processor = PitchProcessor(frame_shift=0.01, frame_length=0.025)
+>>> processor = KaldiPitchProcessor(frame_shift=0.01, frame_length=0.025)
 >>> processor.sample_rate = audio.sample_rate
 >>> processor.min_f0 = 20
 >>> processor.max_f0 = 500
@@ -33,7 +34,7 @@ Options can also being passed as a dictionnary:
 ...     'sample_rate': audio.sample_rate,
 ...     'frame_shift': 0.01, 'frame_length': 0.025,
 ...     'min_f0': 20, 'max_f0': 500}
->>> processor = PitchProcessor(**options)
+>>> processor = KaldiPitchProcessor(**options)
 
 Compute the pitch with the specified options, the output is an
 instance of :class:`~shennong.features.Features`:
@@ -47,7 +48,7 @@ instance of :class:`~shennong.features.Features`:
 The pitch post-processor works in the same way, input is the pitch,
 output are features usable by speech processing tools:
 
->>> postprocessor = PitchPostProcessor()  # use default options
+>>> postprocessor = KaldiPitchPostProcessor()  # use default options
 >>> postpitch = postprocessor.process(pitch)
 >>> postpitch.shape
 (140, 3)
@@ -74,7 +75,7 @@ from shennong.processor.base import FeaturesProcessor
 from shennong.postprocessor.base import FeaturesPostProcessor
 
 
-class PitchProcessor(FeaturesProcessor):
+class KaldiPitchProcessor(FeaturesProcessor):
     """Extracts the (NCCF, pitch) per frame from a speech signal
 
     The output will have as many rows as there are frames, and two
@@ -301,7 +302,7 @@ class PitchProcessor(FeaturesProcessor):
             data, self.times(data.shape[0]), properties=self.get_properties())
 
 
-class PitchPostProcessor(FeaturesPostProcessor):
+class KaldiPitchPostProcessor(FeaturesPostProcessor):
     """Processes the raw (NCCF, pitch) computed by the PitchProcessor
 
     Turns the raw pitch quantites into usable features. By default it
@@ -500,8 +501,7 @@ class PitchPostProcessor(FeaturesPostProcessor):
         Parameters
         ----------
         raw_pitch : Features, shape = [n, 2]
-            The pitch as extracted by the `PitchProcessor.process`
-            method
+            The pitch as extracted by the `KaldiPitchProcessor.process` method
 
         Returns
         -------

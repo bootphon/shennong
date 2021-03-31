@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from shennong import Audio
-from shennong.processor.rastaplp import RastaPlpProcessor
+from shennong.processor import RastaPlpProcessor
 
 
 def test_params():

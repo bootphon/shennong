@@ -9,9 +9,11 @@ The UBM is used as a preprocessing step by
 Examples
 --------
 
+>>> from shennong import Utterances
 >>> from shennong.processor.ubm import DiagUbmProcessor
 >>> wav = './test/data/test.wav'
->>> utterances = [('utt1', wav, 'spk1', 0, 1), ('utt2', wav, 'spk1', 1, 1.5)]
+>>> utterances = Utterances(
+...     [('utt1', wav, 'spk1', 0, 1), ('utt2', wav, 'spk1', 1, 1.4)])
 
 Initialize the UBM-GMM with a given number of gaussians. Other options
 can be specified at construction, or after:
@@ -712,13 +714,8 @@ class DiagUbmProcessor(BaseProcessor):
 
         Parameters
         ----------
-        utterances : list of tuples
-            The utterances can be defined in one of the following format:
-            * 1-uple (or str): `<wav-file>`
-            * 2-uple: `<utterance-id> <wav-file>`
-            * 3-uple: `<utterance-id> <wav-file> <speaker-id>`
-            * 4-uple: `<utterance-id> <wav-file> <tstart> <tstop>`
-            * 5-uple: `<utterance-id> <wav-file> <speaker-id> <tstart> <tstop>`
+        utterances : :class:`~shennong.utterances.Utterances`
+            The list of utterances to train the VTLN on.
         njobs : int, optional
             Number of threads to use for computation, default to 1.
 

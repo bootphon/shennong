@@ -5,24 +5,34 @@ Version numbers follow [semantic versioning](https://semver.org).
 
 ## not yet released
 
+### breaking changes
+
+* Features serialization in JSON is no more supported (replaced by CSV)
+
+* Code reorganization (renamed `shennong.features.*` to `shennong.*`, new
+  `shennong.logger`, import processors directly from
+  `shennong.processor`, renamed `PitchProcessor` to `KaldiPitchProcessor`,
+  etc...)
+
+* When defining utterances for use with a pipeline, the format `<audio-file>`
+  is no more supported, it must be superseeded by `<utterance-id> <audio-file>`.
+
 ### new models
 
 * Vocal Tract Length Normalization (VTLN) implemented using Kaldi:
   `shennong.processor.vtln`.
 
-* CREPE pitch extraction: `shennong.processor.crepepitch`.
+* CREPE pitch extraction: `shennong.processor.pitch_crepe`.
 
 ### improvments
+
+* new `shennong.Utterances` class to encapsulate and manage utterances to be
+  feeded to a pipeline.
 
 * `shennong.Audio` can now read/write more than wav files: flac, mp3, etc...
   (anything supported by pydub/ffmpeg).
 
-* Features serialization supported in CSV (replace JSON format).
-
 * Optionnally ignore features properties when saving them.
-
-* Code reorganization and improvments (renamed `shennong.features.*` to
-  `shennong.*`, new `shennong.logger`, etc...)
 
 
 ## shennong-0.1.1

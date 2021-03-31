@@ -3,7 +3,7 @@
 RASTA-PLP
 ~~~~~~~~~
 
-.. automodule:: shennong.processor.rastaplp
+.. automodule:: shennong.processor.rasta_plp
     :members:
     :inherited-members:
     :undoc-members:

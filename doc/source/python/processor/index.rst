@@ -12,11 +12,11 @@ The available speech features processors are:
    filterbank
    mfcc
    plp
-   rastaplp
+   rasta_plp
    bottleneck
    onehot
-   pitch
-   crepepitch
+   pitch_kaldi
+   pitch_crepe
    energy
    vtln
    ubm

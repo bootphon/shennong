@@ -4,12 +4,13 @@ import numpy as np
 import pytest
 
 from shennong import Audio, Features
-from shennong.processor.pitch import PitchProcessor, PitchPostProcessor
+from shennong.processor import (
+    KaldiPitchProcessor, KaldiPitchPostProcessor)
 
 
 @pytest.fixture
 def raw_pitch(audio):
-    return PitchProcessor().process(audio)
+    return KaldiPitchProcessor().process(audio)
 
 
 def test_pitch_params():
@@ -27,33 +28,33 @@ def test_pitch_params():
         'nccf_ballast': 0,
         'lowpass_filter_width': 0,
         'upsample_filter_width': 0}
-    p = PitchProcessor(**opts)
+    p = KaldiPitchProcessor(**opts)
     assert p.get_params() == opts
 
-    p = PitchProcessor()
+    p = KaldiPitchProcessor()
     p.set_params(**opts)
     assert p.get_params() == opts
 
 
 def test_output(audio):
-    ndims = PitchProcessor().ndims
+    ndims = KaldiPitchProcessor().ndims
     assert ndims == 2
-    assert PitchProcessor(
+    assert KaldiPitchProcessor(
         frame_shift=0.01).process(audio).shape == (140, ndims)
-    assert PitchProcessor(
+    assert KaldiPitchProcessor(
         frame_shift=0.02).process(audio).shape == (70, ndims)
-    assert PitchProcessor(
+    assert KaldiPitchProcessor(
         frame_shift=0.02, frame_length=0.05).process(audio).shape == (69, 2)
 
     # sample rate mismatch
     with pytest.raises(ValueError):
-        PitchProcessor(sample_rate=8000).process(audio)
+        KaldiPitchProcessor(sample_rate=8000).process(audio)
 
     # only mono signals are accepted
     with pytest.raises(ValueError):
         data = np.random.random((1000, 2))
         stereo = Audio(data, sample_rate=16000)
-        PitchProcessor(sample_rate=stereo.sample_rate).process(stereo)
+        KaldiPitchProcessor(sample_rate=stereo.sample_rate).process(stereo)
 
 
 def test_post_pitch_params():
@@ -71,16 +72,16 @@ def test_post_pitch_params():
         'add_normalized_log_pitch': False,
         'add_delta_pitch': False,
         'add_raw_log_pitch': False}
-    p = PitchPostProcessor(**opts)
+    p = KaldiPitchPostProcessor(**opts)
     assert p.get_params() == opts
 
-    p = PitchPostProcessor()
+    p = KaldiPitchPostProcessor()
     p.set_params(**opts)
     assert p.get_params() == opts
 
 
 def test_post_pitch(raw_pitch):
-    post_processor = PitchPostProcessor()
+    post_processor = KaldiPitchPostProcessor()
     params = post_processor.get_params()
     data = post_processor.process(raw_pitch)
     assert data.shape[1] == 3
@@ -107,7 +108,7 @@ def test_post_pitch(raw_pitch):
     (False, False, True, True),
     (False, False, False, False)])
 def test_post_pitch_output(raw_pitch, options):
-    p = PitchPostProcessor(
+    p = KaldiPitchPostProcessor(
         add_pov_feature=options[0],
         add_normalized_log_pitch=options[1],
         add_delta_pitch=options[2],

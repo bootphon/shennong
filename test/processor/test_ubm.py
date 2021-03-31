@@ -7,8 +7,8 @@ import numpy as np
 import kaldi.gmm
 import kaldi.matrix
 import shennong.pipeline as pipeline
-from shennong import Features, FeaturesCollection
-from shennong.postprocessor.vad import VadPostProcessor
+from shennong import Features, FeaturesCollection, Utterances
+from shennong.postprocessor import VadPostProcessor
 from shennong.processor.ubm import DiagUbmProcessor
 
 
@@ -240,10 +240,10 @@ def test_estimate():
 
 
 def test_process(wav_file, wav_file_float32, wav_file_8k):
-    utterances = [
+    utterances = Utterances([
         ('u1', wav_file, 's1', 0, 1),
         ('u2', wav_file_float32, 's2', 1, 1.2),
-        ('u3', wav_file_8k, 's1', 1, 3)]
+        ('u3', wav_file_8k, 's1', 1, 1.4)])
 
     config = {'num_iters_init': 1, 'num_iters': 1, 'num_frames': 100,
               'vad': {'energy_threshold': 0}}

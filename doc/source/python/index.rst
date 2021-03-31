@@ -17,4 +17,5 @@ Python API reference
    postprocessor/index
    pipeline
    features
+   utterances
    miscellaneous/index

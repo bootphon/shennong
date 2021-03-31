@@ -60,29 +60,25 @@ which to apply the extraction pipeline. Each line of the file defines
 a single utterance (or sentence, or speech fragment), it can have one
 of the following formats:
 
-1. ``<audio-file>``
+1. ``<utterance-id> <audio-file>``
 
-    The simplest format, with an audio file per line. Each file is
-    considered as a single utterance. Each file must be unique.
+    The simplest format. Give a name to each utterance, identifiers must be
+    unique. Each entire audio file is considered a single utterance.
 
-2. ``<utterance-id> <audio-file>``
-
-    Give a name to each utterance, identifiers must be unique.
-
-3. ``<utterance-id> <audio-file> <speaker-id>``
+2. ``<utterance-id> <audio-file> <speaker-id>``
 
     Specify a speaker for each utterance. This is required if you are
-    using CMVN normalization per speaker.
+    using CMVN or VTLN normalization per speaker.
 
-4. ``<utterance-id> <audio-file> <tstart> <tstop>``
+3. ``<utterance-id> <audio-file> <tstart> <tstop>``
 
     Each audio file contains several utterances, the utterance boundaries are
     defined by the start and stop timestamps within the audio file (given in
     seconds).
 
-5. ``<utterance-id> <audio-file> <speaker-id> <tstart> <tstop>``
+4. ``<utterance-id> <audio-file> <speaker-id> <tstart> <tstop>``
 
-    Combination of 3 and 4. Several utterances per audio file, with speakers
+    Combination of 2 and 3. Several utterances per audio file, with speakers
     identification.
 
 

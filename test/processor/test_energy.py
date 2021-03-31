@@ -4,9 +4,7 @@ import numpy as np
 import pytest
 
 from shennong import Audio
-from shennong.processor.energy import EnergyProcessor
-from shennong.processor.mfcc import MfccProcessor
-from shennong.processor.plp import PlpProcessor
+from shennong.processor import (EnergyProcessor, MfccProcessor, PlpProcessor)
 
 
 def test_params(audio):

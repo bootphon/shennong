@@ -11,7 +11,7 @@ Examples
 --------
 
 >>> from shennong.audio import Audio
->>> from shennong.processor.crepepitch import (
+>>> from shennong.processor import (
 ...     CrepePitchProcessor, CrepePitchPostProcessor)
 >>> audio = Audio.load('./test/data/test.wav')
 
@@ -67,7 +67,7 @@ import scipy.signal
 
 from shennong import Features
 from shennong.processor.base import FeaturesProcessor
-from shennong.processor.pitch import PitchPostProcessor
+from shennong.processor.pitch_kaldi import KaldiPitchPostProcessor
 
 
 def _nccf_to_pov(x):
@@ -277,7 +277,7 @@ class CrepePitchProcessor(FeaturesProcessor):
             data, self.times(data.shape[0]), properties=self.get_properties())
 
 
-class CrepePitchPostProcessor(PitchPostProcessor):
+class CrepePitchPostProcessor(KaldiPitchPostProcessor):
     """Processes the raw (POV, pitch) computed by the CrepePitchProcessor
 
     Turns the raw pitch quantities into usable features. Converts the POV into

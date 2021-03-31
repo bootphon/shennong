@@ -8,14 +8,13 @@ import yaml
 import shennong.logger as logger
 import shennong.pipeline as pipeline
 from shennong.pipeline_manager import PipelineManager
-from shennong import Audio, FeaturesCollection
+from shennong import Audio, FeaturesCollection, Utterances
 from shennong.serializers import supported_extensions
-from shennong.utterances import Utterance, Utterances
 
 
 @pytest.fixture(scope='session')
 def utterances(wav_file):
-    return Utterances([Utterance('utt1', wav_file, speaker='speaker1')])
+    return Utterances([('utt1', wav_file, 'speaker1')])
 
 
 def equal_dict(d1, d2):
@@ -72,8 +71,8 @@ def test_config_format(utterances, capsys, tmpdir, kind):
             pipeline._init_config(config2)
         assert 'error in configuration' in str(err.value)
 
-    parsed = pipeline._init_config(config, log=logger.get_logger(
-        'pipeline', level='info'))
+    parsed = pipeline._init_config(
+        config, log=logger.get_logger('pipeline', level='info'))
     output = capsys.readouterr().err
     for word in ('mfcc', 'pitch', 'cmvn', 'delta'):
         assert word in output
@@ -88,19 +87,19 @@ def test_config_bad(utterances):
     config = pipeline.get_default_config('mfcc')
     del config['mfcc']
     with pytest.raises(ValueError) as err:
-        pipeline.extract_features(config, utterances_index)
+        pipeline.extract_features(config, utterances)
     assert 'the configuration does not define any features' in str(err.value)
 
     config = pipeline.get_default_config('mfcc')
     config['plp'] = config['mfcc']
     with pytest.raises(ValueError) as err:
-        pipeline.extract_features(config, utterances_index)
+        pipeline.extract_features(config, utterances)
     assert 'more than one features extraction processor' in str(err.value)
 
     config = pipeline.get_default_config('mfcc')
     config['invalid'] = config['mfcc']
     with pytest.raises(ValueError) as err:
-        pipeline.extract_features(config, utterances_index)
+        pipeline.extract_features(config, utterances)
     assert 'invalid keys in configuration' in str(err.value)
 
     with pytest.raises(ValueError) as err:
@@ -135,13 +134,13 @@ def test_config_bad(utterances):
     assert c['pitch']['postprocessing'] == {}
 
 
-def test_check_speakers(utterances, capsys):
+def test_check_speakers(utterances, wav_file, capsys):
     log = logger.get_logger('test', 'info')
 
     config = pipeline.get_default_config('mfcc')
     with pytest.raises(ValueError) as err:
         pipeline.extract_features(
-            config, [(utterances[0][1], )], log=log)
+            config, Utterances([('toto', wav_file)]), log=log)
     assert 'no speaker information provided' in str(err.value)
 
     capsys.readouterr()  # clean the buffer
@@ -167,34 +166,34 @@ def test_check_environment(capsys):
     assert 'working on 2 threads but implicit parallelism is active' in out
 
 
-def test_utts_bad(wav_file, wav_file_8k, tmpdir, capsys):
-    fun = pipeline._init_utterances
+# TODO test_utterances.py
+# def test_utts_bad(wav_file, wav_file_8k, tmpdir, capsys):
+#     fun = pipeline._init_utterances
 
-    # ensure we catch basic errors
-    with pytest.raises(ValueError) as err:
-        fun([('a'), ('a', 'b')])
-    assert 'entries have different lengths' in str(err.value)
+#     # ensure we catch basic errors
+#     with pytest.raises(ValueError) as err:
+#         fun([('a'), ('a', 'b')])
+#     assert 'entries have different lengths' in str(err.value)
 
-    with pytest.raises(ValueError) as err:
-        fun([('a', 'b', 'c', 'd', 'e', 'g')])
-    assert 'unknown format for utterances index' in str(err.value)
+#     with pytest.raises(ValueError) as err:
+#         fun([('a', 'b', 'c', 'd', 'e', 'g')])
+#     assert 'unknown format for utterances index' in str(err.value)
 
-    with pytest.raises(ValueError) as err:
-        fun([('a'), ('a')])
-    assert 'duplicates found in utterances index' in str(err.value)
+#     with pytest.raises(ValueError) as err:
+#         fun([('a'), ('a')])
+#     assert 'duplicates found in utterances index' in str(err.value)
 
-    with pytest.raises(ValueError) as err:
-        fun([('/foo/bar/a')])
-    assert 'the following wav files are not found' in str(err.value)
+#     with pytest.raises(ValueError) as err:
+#         fun([('/foo/bar/a')])
+#     assert 'the following wav files are not found' in str(err.value)
 
 
 def test_check_wavs_bad(wav_file, wav_file_8k, tmpdir, capsys):
     def fun(utts):
         c = pipeline._init_config(pipeline.get_default_config(
             'mfcc', with_cmvn=False))
-        u = pipeline._init_utterances(utts, log=logger.get_logger('test', 'info'))
-        PipelineManager(c, u, log=logger.get_logger('test', 'info'))
-        return u
+        PipelineManager(c, utts, log=logger.get_logger('test', 'info'))
+        return utts
 
     # build a stereo file and make sure it is not supported by the
     # pipeline
@@ -205,21 +204,23 @@ def test_check_wavs_bad(wav_file, wav_file_8k, tmpdir, capsys):
     wav_file_2 = str(tmpdir.join('stereo.wav'))
     stereo.save(wav_file_2)
     with pytest.raises(ValueError) as err:
-        fun([(wav_file_2,)])
-    assert 'all wav files are not mono' in str(err.value)
+        fun(Utterances([('utt1', wav_file_2)]))
+    assert 'all audio files are not mono' in str(err.value)
 
     # ensure we catch differences in sample rates
     capsys.readouterr()  # clear buffer
-    w = [(wav_file, ), (wav_file_8k, )]
+    w = Utterances([
+        ('utt1', wav_file),
+        ('utt2', wav_file_8k)])
     out = fun(w)
     err = capsys.readouterr().err
-    assert 'several sample rates found in wav files' in err
-    assert sorted(out.keys()) == ['utt_1', 'utt_2']
+    assert 'several sample rates found in audio files' in err
+    assert sorted(out.by_name().keys()) == ['utt1', 'utt2']
 
     # make sure timestamps are ordered
     with pytest.raises(ValueError) as err:
-        fun([('1', wav_file, 1, 0)])
-    assert 'timestamps are not in increasing order for' in str(err.value)
+        fun(Utterances([('1', wav_file, 1, 0)]))
+    assert 'we must have 0 <= tstart < tstop' in str(err.value)
 
 
 def test_processor_bad():
@@ -238,7 +239,7 @@ def test_extract_features(utterances, features, wav_file):
     config = pipeline.get_default_config(
         features, with_cmvn=False, with_pitch=False)
     feats = pipeline.extract_features(config, utterances)
-    feat1 = feats[utterances.as_list()[0].name]
+    feat1 = feats['utt1']
     assert feat1.is_valid()
     assert feat1.shape[0] == 140
     assert feat1.dtype == np.float32
@@ -246,7 +247,7 @@ def test_extract_features(utterances, features, wav_file):
     config = pipeline.get_default_config(
         features, with_cmvn=False, with_pitch='kaldi')
     feats = pipeline.extract_features(config, utterances)
-    feat2 = feats[utterances.as_list()[0].name]
+    feat2 = feats['utt1']
     assert feat2.is_valid()
     assert feat2.shape[0] == 140
     assert feat2.shape[1] == feat1.shape[1] + 3
@@ -255,16 +256,16 @@ def test_extract_features(utterances, features, wav_file):
         features, with_cmvn=False, with_pitch='crepe')
     config['pitch']['model_capacity'] = 'tiny'
     feats = pipeline.extract_features(config, utterances)
-    feat2 = feats[utterances.as_list()[0].name]
+    feat2 = feats['utt1']
     assert feat2.is_valid()
     assert feat2.shape[0] == 140
     assert feat2.shape[1] == feat1.shape[1] + 3
 
-    utterances2 = Utterances([Utterance('u1', wav_file, 0, 1)])
+    utterances2 = Utterances([('utt1', wav_file, 0, 1)])
     config = pipeline.get_default_config(
         features, with_cmvn=False, with_pitch=False)
     feats = pipeline.extract_features(config, utterances2)
-    feat3 = feats[utterances2.as_list()[0].name]
+    feat3 = feats['utt1']
     assert feat3.is_valid()
     assert feat3.shape[0] == 98
     assert feat3.shape[1] == feat1.shape[1]
@@ -279,7 +280,7 @@ def test_cmvn(utterances, by_speaker, with_vad):
     config['cmvn']['by_speaker'] = by_speaker
     config['cmvn']['with_vad'] = with_vad
     feats = pipeline.extract_features(config, utterances)
-    feat2 = feats[utterances_index.as_list()[0].name]
+    feat2 = feats['utt1']
     assert feat2.is_valid()
     assert feat2.shape[0] == 140
     assert feat2.shape[1] == 13
@@ -290,7 +291,7 @@ def test_sliding_window_cmvn(utterances):
         'mfcc', with_cmvn=False, with_pitch=False,
         with_sliding_window_cmvn=True, with_delta=False)
     feats = pipeline.extract_features(config, utterances)
-    feat2 = feats[utterances.as_list()[0].name]
+    feat2 = feats['utt1']
     assert feat2.is_valid()
     assert feat2.shape[0] == 140
     assert feat2.shape[1] == 13
@@ -305,7 +306,7 @@ def test_extract_features_with_vtln(utterances, with_vtln):
     config['vtln']['ubm']['num_iters_init'] = 1
     config['vtln']['num_iters'] = 1
     feats = pipeline.extract_features(config, utterances)
-    feat2 = feats[utterances.as_list()[0].name]
+    feat2 = feats['utt1']
     assert feat2.is_valid()
     assert feat2.shape[0] == 140
     assert feat2.shape[1] == 13
@@ -316,10 +317,11 @@ def test_extract_features_full(
         ext, wav_file, wav_file_8k, wav_file_float32, capsys, tmpdir):
     # difficult case with parallel jobs, different sampling rates,
     # speakers and segments
-    index = [
-        ('u1', wav_file, 's1', 0, 1),
-        ('u2', wav_file_float32, 's2', 1, 1.2),
-        ('u3', wav_file_8k, 's1', 1, 3)]
+    with pytest.warns(UserWarning):  # because u3 longger than audio file
+        index = Utterances([
+            ('u1', wav_file, 's1', 0, 1),
+            ('u2', wav_file_float32, 's2', 1, 1.2),
+            ('u3', wav_file_8k, 's1', 1, 3)])
     config = pipeline.get_default_config('mfcc')
 
     # disable VAD because it can alter the cmvn result (far from (0,
@@ -331,8 +333,12 @@ def test_extract_features_full(
 
     # ensure we have the expected log messages
     messages = capsys.readouterr().err
-    assert 'INFO - test - get 3 utterances from 2 speakers in 3 wavs' in messages
-    assert 'WARNING - test - several sample rates found in wav files' in messages
+    assert (
+        'INFO - test - get 3 utterances from 2 speakers in 3 audio files'
+        in messages)
+    assert (
+        'WARNING - test - several sample rates found in audio files'
+        in messages)
 
     for utt in ('u1', 'u2', 'u3'):
         assert utt in feats

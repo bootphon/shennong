@@ -13,7 +13,7 @@ Examples
 Compute RASTA-PLP features on some speech signal:
 
 >>> from shennong.audio import Audio
->>> from shennong.processor.rastaplp import RastaPlpProcessor
+>>> from shennong.processor import RastaPlpProcessor
 >>> audio = Audio.load('./test/data/test.wav')
 >>> processor = RastaPlpProcessor(order=8)
 >>> features = processor.process(audio)
@@ -346,7 +346,7 @@ def _levinson(r, order=None, allow_singularity=False):
     --------
 
     >>> import numpy as np
-    >>> from shennong.processor.rastaplp import _levinson
+    >>> from shennong.processor.rasta_plp import _levinson
     >>> T = np.array([3., -2+0.5j, .7-1j])
     >>> a, e, k = _levinson(T)
     >>> a

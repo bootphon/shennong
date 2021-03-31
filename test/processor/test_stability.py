@@ -3,15 +3,17 @@
 import pytest
 import sys
 
-from shennong.processor.bottleneck import BottleneckProcessor
-from shennong.processor.energy import EnergyProcessor
-from shennong.processor.filterbank import FilterbankProcessor
-from shennong.processor.mfcc import MfccProcessor
-from shennong.processor.onehot import OneHotProcessor, FramedOneHotProcessor
-from shennong.processor.pitch import PitchProcessor
-from shennong.processor.plp import PlpProcessor
-from shennong.processor.rastaplp import RastaPlpProcessor
-from shennong.processor.spectrogram import SpectrogramProcessor
+from shennong.processor import (
+    BottleneckProcessor,
+    EnergyProcessor,
+    FilterbankProcessor,
+    MfccProcessor,
+    OneHotProcessor, FramedOneHotProcessor,
+    KaldiPitchProcessor,
+    CrepePitchProcessor,
+    PlpProcessor,
+    RastaPlpProcessor,
+    SpectrogramProcessor)
 
 
 PROCESSORS = [
@@ -22,7 +24,8 @@ PROCESSORS = [
     BottleneckProcessor,
     OneHotProcessor,
     FramedOneHotProcessor,
-    PitchProcessor,
+    CrepePitchProcessor,
+    KaldiPitchProcessor,
     SpectrogramProcessor,
     RastaPlpProcessor]
 
@@ -50,7 +53,7 @@ def test_stable(processor, same, audio, alignments):
     # pitch and PLP processing are not stable on MacOS for an unknown
     # reason (this has not being investigated)
     if sys.platform == 'darwin' and isinstance(
-            p1, (PitchProcessor, PlpProcessor)):
+            p1, (KaldiPitchProcessor, PlpProcessor)):
         assert f1.is_close(f2, atol=1e-5)
     else:
         assert f1 == f2

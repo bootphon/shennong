@@ -112,8 +112,8 @@ class Audio:
         :meth:`is_valid`)
 
     """
-    _metawav = collections.namedtuple(
-        '_metawav', 'nchannels sample_rate nsamples duration')
+    _metadata = collections.namedtuple(
+        '_metadata', 'nchannels sample_rate nsamples duration')
     """A structure to store wavs metadata, see :meth:`Audio.scan`"""
 
     def __init__(self, data, sample_rate, validate=True):
@@ -213,7 +213,7 @@ class Audio:
 
         try:
             info = pydub.utils.mediainfo(filename)
-            return cls._metawav(
+            return cls._metadata(
                 int(info['channels']),
                 int(info['sample_rate']),
                 int(int(info['sample_rate']) * float(info['duration'])),
@@ -446,7 +446,7 @@ class Audio:
         dmax = np.amax(self.data)
         if dmin < emin or dmax > emax:
             warnings.warn(
-                'invalid audio for type {self.dtype}: '
+                f'invalid audio for type {self.dtype}: '
                 f'boundaries must be in ({emin}, {emax}) '
                 f'but are ({dmin}, {dmax})')
             return False

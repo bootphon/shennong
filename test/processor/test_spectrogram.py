@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from shennong import Audio
-from shennong.processor.spectrogram import SpectrogramProcessor
+from shennong.processor import SpectrogramProcessor
 
 
 def test_bad_signal(audio):
