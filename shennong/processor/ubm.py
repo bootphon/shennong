@@ -53,10 +53,9 @@ import kaldi.matrix
 import kaldi.matrix.common
 import kaldi.util.io
 
-from shennong import FeaturesCollection
+from shennong import pipeline, FeaturesCollection
 from shennong.base import BaseProcessor
 from shennong.logger import null_logger
-from shennong.pipeline import get_default_config, extract_features
 from shennong.postprocessor.cmvn import SlidingWindowCmvnPostProcessor
 from shennong.postprocessor.vad import VadPostProcessor
 
@@ -92,7 +91,7 @@ class DiagUbmProcessor(BaseProcessor):
             self.vad = vad
 
         if features in (None, 'default'):
-            config = get_default_config(
+            config = pipeline.get_default_config(
                 'mfcc', with_pitch=False, with_cmvn=False,
                 with_sliding_window_cmvn=True)
             config['sliding_window_cmvn']['cmn_window'] = 300
@@ -727,7 +726,7 @@ class DiagUbmProcessor(BaseProcessor):
         """
         cmvn = self.features.pop('sliding_window_cmvn', None)
         self.log.info('Training UBM using %s jobs', njobs)
-        raw_features = extract_features(
+        raw_features = pipeline.extract_features(
             self.features, utterances, njobs=njobs, log=null_logger())
 
         # Compute VAD decision

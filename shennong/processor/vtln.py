@@ -56,8 +56,7 @@ import kaldi.matrix.functions
 import kaldi.transform
 import kaldi.util.io
 
-import shennong.pipeline as pipeline
-from shennong import FeaturesCollection, Features
+from shennong import pipeline, FeaturesCollection, Features
 from shennong.base import BaseProcessor
 from shennong.logger import null_logger
 from shennong.processor.ubm import DiagUbmProcessor
@@ -509,8 +508,14 @@ class VtlnProcessor(BaseProcessor):
         self.log.debug(message)
         return transforms, warps
 
-    def process(self, utterances, ubm=None, njobs=1):
+    def process(self, utterances, ubm=None, group_by='utterance', njobs=1):
         """Compute the VTLN warp factors for the given utterances.
+
+        If the ``by_speaker`` option is set to True before the call to
+        :func:`process()`, the warps are computed on per speaker basis (i.e.
+        each utterance of the same speaker has an identical warp). If
+        ``per_speaker`` is False, the warps are computed on a per-utterance
+        basis.
 
         Parameters
         ----------
@@ -518,20 +523,30 @@ class VtlnProcessor(BaseProcessor):
             The list of utterances to train the VTLN on.
         ubm : DiagUbmProcessor, optional
             If provided, uses this UBM instead of computing a new one.
+        group_by : str, optional
+            Must be 'utterance' or 'speaker'.
         njobs : int, optional
             Number of threads to use for computation, default to 1.
 
         Returns
         -------
         warps : dict[str, float]
-            Warps computed for each speaker or each utterance.
-            If by speaker: same warp for all utterances of this speaker.
+            Warps computed for each speaker or utterance, according to
+            ``group_by``. If by speaker: same warp for all utterances of this
+            speaker.
 
         """
-        # Utterances
-        if not utterances.has_speakers():
+        if group_by not in ('utterance', 'speaker'):
             raise ValueError(
-                'Requested speaker-adapted VTLN, but speaker'
+                f'group_by must be "utterance" or "speaker", '
+                f'it is: {group_by}')
+        if group_by == 'speaker' and not self.by_speaker:
+            raise ValueError(
+                'Asking to group warps by speaker but they are computed '
+                'per utterance, please set VtlnProcessor.by_speaker to True')
+        if self.by_speaker and not utterances.has_speakers():
+            raise ValueError(
+                'Requested speaker based VTLN, but speaker'
                 ' information is missing')
 
         utt2speak = None
@@ -648,7 +663,7 @@ class VtlnProcessor(BaseProcessor):
             self.transforms, self.warps = self.estimate(
                 ubm, orig_features, posteriors, utt2speak)
 
-        if utt2speak is not None:
+        if self.by_speaker:
             self.transforms = {
                 utt: self.transforms[spk]
                 for utt, spk in utt2speak.items()}
@@ -657,4 +672,9 @@ class VtlnProcessor(BaseProcessor):
                 for utt, spk in utt2speak.items()}
 
         self.log.info('Done training LVTLN model')
-        return self.warps
+        if group_by == 'utterance':
+            return self.warps
+        # group_by == 'speaker'
+        return {
+            spk: self.warps[utts[0].name]
+            for spk, utts in utterances.by_speaker().items()}

@@ -198,7 +198,6 @@ def test_estimate(by_speaker):
 
 
 def test_process(wav_file, wav_file_float32, wav_file_8k):
-
     ubm_config = DiagUbmProcessor(8).get_params()
     ubm_config['vad']['energy_threshold'] = 0
     ubm_config['num_iters_init'] = 1
@@ -217,7 +216,7 @@ def test_process(wav_file, wav_file_float32, wav_file_8k):
         ('s1a', wav_file), ('s2a', wav_file_float32)])
     with pytest.raises(ValueError) as err:
         vtln.process(utterances, ubm=ubm)
-    assert 'Requested speaker-adapted VTLN' in str(err.value)
+    assert 'Requested speaker based VTLN' in str(err.value)
 
     utterances = Utterances([
         ('s1a', wav_file, 's1', 0, 1),
@@ -242,6 +241,50 @@ def test_process(wav_file, wav_file_float32, wav_file_8k):
 
     vtln.by_speaker = False
     vtln.features.pop('sliding_window_cmvn', None)
-    warps = vtln.process(utterances)
+    warps = vtln.process(utterances, group_by='utterance')
     assert isinstance(warps, dict)
     assert set(warps.keys()) == set(['s1a', 's1b', 's2a'])
+
+    vtln.by_speaker = True
+    warps = vtln.process(utterances, group_by='speaker')
+    assert isinstance(warps, dict)
+    assert set(warps.keys()) == set(['s1', 's2'])
+
+
+def test_process_no_speaker(wav_file):
+    utterances = Utterances([
+        ('u1', wav_file, 0, 1),
+        ('u2', wav_file, 1, 1.2),
+        ('u3', wav_file, 0.5, 1.4)])
+
+    ubm_config = DiagUbmProcessor(8).get_params()
+    ubm_config['vad']['energy_threshold'] = 0
+    ubm_config['num_iters_init'] = 1
+    ubm_config['num_iters'] = 1
+
+    vtln_config = {}
+    vtln_config['ubm'] = ubm_config
+    vtln_config['min_warp'] = 0.99
+    vtln_config['max_warp'] = 1
+    vtln_config['num_iters'] = 1
+    vtln_config['by_speaker'] = False
+
+    ubm = DiagUbmProcessor(**ubm_config)
+    ubm.process(utterances)
+
+    vtln = VtlnProcessor(**vtln_config)
+    warps = vtln.process(utterances, group_by='utterance')
+    assert sorted(warps.keys()) == sorted(u.name for u in utterances)
+
+    with pytest.raises(ValueError) as err:
+        vtln.process(utterances, group_by='speaker')
+    assert 'Asking to group warps by speaker' in str(err.value)
+
+    vtln.by_speaker = True
+    with pytest.raises(ValueError) as err:
+        vtln.process(utterances, group_by='speaker')
+    assert 'Requested speaker based VTLN, but speaker' in str(err.value)
+
+    with pytest.raises(ValueError) as err:
+        vtln.process(utterances, group_by='spam')
+    assert 'group_by must be "utterance" or "speaker"' in str(err.value)
