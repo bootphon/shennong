@@ -13,7 +13,7 @@ The pipeline is as follows:
 import argparse
 import pathlib
 
-from shennong import Audio
+from shennong import Audio, Utterances
 from shennong.processor import MfccProcessor, VtlnProcessor
 from shennong.utils import list_files_with_extension, get_njobs
 
@@ -21,8 +21,8 @@ from shennong.utils import list_files_with_extension, get_njobs
 def prepare_buckeye(directory):
     """Generates a list of utterances from the Buckeye corpus
 
-    The utterances are returned as list of (<utterance> <wav> <speaker>). The
-    Buckeye directory is organized as `<speaker>/<utterance>/<utterance>.wav`
+    The utterances as (<utterance> <wav> <speaker>). The Buckeye directory is
+    organized as `<speaker>/<utterance>/<utterance>.wav`
 
     """
     print('preparing Buckeye corpus')
@@ -32,38 +32,17 @@ def prepare_buckeye(directory):
     print('WARNING: reducing to 10 speakers for this example...')
     wavs = [w for w in wavs if 's1' in w]
 
-    utts = [pathlib.Path(w).stem for w in wavs]
-    spks = [u[:3] for u in utts]
+    utterances = []
+    for wav in wavs:
+        name = pathlib.Path(wav).stem
+        spk = name[:3]
+        utterances.append((name, wav, spk))
+    utterances = Utterances(utterances)
 
-    print(f'found {len(utts)} utterances from {len(set(spks))} speakers')
-    return list(zip(utts, wavs, spks))
-
-
-def prepare_vtln_utterances(utterances, duration):
-    """Returns the first `duration`s of each speaker"""
-    print(f'build VTLN utterances: {duration}s per speaker')
-    vtln_utterances = []
-    for speaker in set(utt[2] for utt in utterances):
-        # for the utterances from that speaker
-        remaining_duration = duration
-        for name, wav, _ in (utt for utt in utterances if utt[2] == speaker):
-            wav_duration = Audio.scan(wav).duration
-            if wav_duration >= remaining_duration:
-                vtln_utterances.append(
-                    (name, wav, speaker, 0, remaining_duration))
-                remaining_duration = 0
-                break
-
-            vtln_utterances.append(
-                (name, wav, speaker, 0, wav_duration))
-            remaining_duration -= wav_duration
-
-        if remaining_duration > 0:
-            raise ValueError(
-                f'not enough audio for speaker {speaker} '
-                f'{duration - remaining_duration}s < {duration}s') from None
-
-    return vtln_utterances
+    print(
+        f'found {len(utterances)} utterances from '
+        f'{len(utterances.by_speaker())} speakers')
+    return utterances
 
 
 def main():
@@ -79,11 +58,18 @@ def main():
         '-j', '--njobs', type=int, default=get_njobs(),
         help='number of parallel jobs to use, default to %(default)s')
     parser.add_argument(
-        '--warp-step', type=float, default=0.01, help='VTLN warp step')
+        '-d', '--duration', type=float, default=10*60,
+        help=('speech duration per speaker for VTLN training, '
+              'default to %(default)s'))
     parser.add_argument(
-        '--warp-min', type=float, default=0.85, help='VTLN min warp')
+        '--warp-step', type=float, default=0.01,
+        help='VTLN warp step, default to %(default)s')
     parser.add_argument(
-        '--warp-max', type=float, default=1.25, help='VTLN max warp')
+        '--warp-min', type=float, default=0.85,
+        help='VTLN min warp, default to %(default)s')
+    parser.add_argument(
+        '--warp-max', type=float, default=1.25,
+        help='VTLN max warp, default to %(default)s')
     args = parser.parse_args()
 
     # check input parameters
@@ -96,9 +82,12 @@ def main():
     utterances = prepare_buckeye(args.buckeye_corpus)
 
     # extract 10m of speech per speaker to train VTLN
-    vtln_utterances = prepare_vtln_utterances(utterances, 10*60)
+    vtln_utterances = utterances.fit_to_duration(args.duration)
 
     # compute the VTLN warps coefficients
+    print(
+        f'training VTLN on {args.duration}s per speaker '
+        f'({len(vtln_utterances)} utterances)')
     processor = VtlnProcessor(
         warp_step=args.warp_step,
         min_warp=args.warp_min,
@@ -112,12 +101,11 @@ def main():
         print(f'{spk}: {warp}')
 
     # convert warps from speaker to utterance in the whole corpus
-    warps = {utt[0]: warps[utt[2]] for utt in utterances}
+    warps = {utt.name: warps[utt.speaker] for utt in utterances}
 
     print(f'computing MFCCs for {len(utterances)} uttterances')
     features = MfccProcessor().process_all(
-        {name: Audio.load(audio) for name, audio, _ in utterances},
-        vtln_warp=warps, njobs=args.njobs)
+        utterances, vtln_warp=warps, njobs=args.njobs)
 
     print(f'writing MFCCs to {args.output_file}')
     features.save(args.output_file)
