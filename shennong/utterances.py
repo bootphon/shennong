@@ -389,7 +389,8 @@ class Utterances:
                     remaining_duration = 0
                     break
 
-                segments.append(utt)
+                segments.append(Utterance(
+                    utt.name, utt.audio_file, utt.speaker, 0, utt.duration))
                 remaining_duration -= utt.duration
 
             if remaining_duration > 0:

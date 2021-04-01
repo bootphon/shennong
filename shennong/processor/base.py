@@ -51,17 +51,15 @@ class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
 
         """
 
-    def process_all(self, signals, njobs=None, **kwargs):
+    def process_all(self, utterances, njobs=None, **kwargs):
         """Returns features processed from several input `signals`
 
         This function processes the features in parallel jobs.
 
         Parameters
         ----------
-        signals: dict of :class`~shennong.audio.Audio`
-            A dictionnary of input audio signals to process features
-            on, where the keys are item names and values are audio
-            signals.
+        utterances: :class`~shennong.uttterances.Utterances`
+            The utterances on which to process features on.
         njobs: int, optional
             The number of parallel jobs to run in background. Default
             to the number of CPU cores available on the machine.
@@ -90,20 +88,21 @@ class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
             if not isinstance(value, dict):
                 raise ValueError(
                     f'argument "{name}" is not a dict')
-            if value.keys() != signals.keys():
+            if value.keys() != utterances.by_name().keys():
                 raise ValueError(
-                    f'arguments "signals" and "{name}" have different keys')
+                    f'utterances and "{name}" have different names')
 
-        def _process_one(name, signal, **kwargs):
-            return name, self.process(
-                signal, **{k: v[name] for k, v in kwargs.items()})
+        def _process_one(utterance, **kwargs):
+            return utterance.name, self.process(
+                utterance.load_audio(),
+                **{k: v[utterance.name] for k, v in kwargs.items()})
 
         verbose = 8 if self.log.getEffectiveLevel() > 10 else 0
 
         return FeaturesCollection(joblib.Parallel(
             n_jobs=njobs, verbose=verbose, prefer='threads')(
-                joblib.delayed(_process_one)(name, signal, **kwargs)
-                for name, signal in signals.items()))
+                joblib.delayed(_process_one)(utt, **kwargs)
+                for utt in utterances))
 
 
 class FramesProcessor(FeaturesProcessor, metaclass=abc.ABCMeta):

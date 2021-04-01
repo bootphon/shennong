@@ -17,6 +17,9 @@ Version numbers follow [semantic versioning](https://semver.org).
 * When defining utterances for use with a pipeline, the format `<audio-file>`
   is no more supported, it must be superseeded by `<utterance-id> <audio-file>`.
 
+* `processor.process_all()` now takes a `shennong.Utterances` instead of a
+  `dict(name, audio)`.
+
 ### new models
 
 * Vocal Tract Length Normalization (VTLN) implemented using Kaldi:
