@@ -287,12 +287,6 @@ class PipelineManager:
 
         return self._set_logger(self._cmvn_processors[utterance.name])
 
-    def get_sliding_window_cmvn_processor(self, _):
-        """Instanciates and returns a sliding-window CMVN processor"""
-        return self._set_logger(
-            self.get_processor_class('sliding_window_cmvn')(
-                **self.config['sliding_window_cmvn']))
-
     def get_pitch_processor(self, utterance):
         """Instanciates and returns a pitch processor"""
         params = {k: v for k, v in self.config['pitch'].items()

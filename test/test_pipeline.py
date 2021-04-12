@@ -268,16 +268,6 @@ def test_cmvn(utterances, by_speaker, with_vad):
     assert feat2.shape[1] == 13
 
 
-def test_sliding_window_cmvn(utterances):
-    config = pipeline.get_default_config(
-        'mfcc', with_sliding_window_cmvn=True)
-    feats = pipeline.extract_features(config, utterances)
-    feat2 = feats['utt1']
-    assert feat2.is_valid()
-    assert feat2.shape[0] == 140
-    assert feat2.shape[1] == 13
-
-
 @pytest.mark.parametrize('with_vtln', ['simple', 'full'])
 def test_extract_features_with_vtln(utterances, with_vtln):
     config = pipeline.get_default_config('mfcc', with_vtln=with_vtln)

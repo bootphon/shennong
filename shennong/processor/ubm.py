@@ -91,8 +91,9 @@ class DiagUbmProcessor(BaseProcessor):
             self.vad = vad
 
         if features in (None, 'default'):
-            config = pipeline.get_default_config(
-                'mfcc', with_delta=True, with_sliding_window_cmvn=True)
+            config = pipeline.get_default_config('mfcc', with_delta=True)
+            config['sliding_window_cmvn'] = (
+                SlidingWindowCmvnPostProcessor().get_params())
             config['sliding_window_cmvn']['cmn_window'] = 300
             config['delta']['window'] = 3
             self.features = config

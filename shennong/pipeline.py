@@ -100,7 +100,6 @@ def get_default_config(
         yaml_commented=True,
         with_pitch=False,
         with_cmvn=False,
-        with_sliding_window_cmvn=False,
         with_delta=False,
         with_vtln=False):
     """Returns the default configuration for the specified pipeline
@@ -129,9 +128,6 @@ def get_default_config(
     with_cmvn : bool, optional
         Configure the pipeline for CMVN normalization of the features,
         default to False.
-    with_sliding_window_cmvn: bool, optional
-        Configure the pipeline for sliding window CMVN normalization
-        of the features, default to False.
     with_delta : bool, optional
         Configure the pipeline for features's delta extraction,
         default to False.
@@ -197,10 +193,6 @@ def get_default_config(
     if with_cmvn:
         config['cmvn'] = {'by_speaker': True, 'with_vad': True}
         config['cmvn']['vad'] = PipelineManager.get_processor_params('vad')
-
-    if with_sliding_window_cmvn:
-        config['sliding_window_cmvn'] = PipelineManager.get_processor_params(
-            'sliding_window_cmvn')
 
     if with_delta:
         config['delta'] = PipelineManager.get_processor_params('delta')
@@ -584,12 +576,6 @@ def _extract_pass_two(utterance, manager, features, pitch, log, tolerance=2):
     if 'cmvn' in manager.config:
         log.debug('%s: apply cmvn', utterance.name)
         features = manager.get_cmvn_processor(utterance).process(features)
-
-    # apply sliding window cmvn
-    if 'sliding_window_cmvn' in manager.config:
-        log.debug('%s: apply sliding window cmvn', utterance.name)
-        features = manager.get_sliding_window_cmvn_processor(
-            utterance).process(features)
 
     # apply delta
     if 'delta' in manager.config:

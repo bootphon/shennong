@@ -83,9 +83,9 @@ class VtlnProcessor(BaseProcessor):
         self.by_speaker = by_speaker
 
         if features in (None, 'default'):
-            config = pipeline.get_default_config(
-                'mfcc', with_pitch=False, with_cmvn=False,
-                with_sliding_window_cmvn=True, with_delta=True)
+            config = pipeline.get_default_config('mfcc', with_delta=True)
+            config['sliding_window_cmvn'] = (
+                SlidingWindowCmvnPostProcessor().get_params())
             config['sliding_window_cmvn']['cmn_window'] = 300
             config['delta']['window'] = 3
             self.features = config

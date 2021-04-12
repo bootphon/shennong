@@ -249,8 +249,6 @@ def test_process(wav_file, wav_file_float32, wav_file_8k):
               'vad': {'energy_threshold': 0}}
     ubm = DiagUbmProcessor(2, **config)
     ubm.process(utterances)
-    config['features'] = pipeline.get_default_config(
-        'mfcc', with_pitch=False, with_cmvn=False,
-        with_sliding_window_cmvn=False, with_delta=False)
+    config['features'] = pipeline.get_default_config('mfcc')
     ubm = DiagUbmProcessor(2, **config)
     ubm.process(utterances)
