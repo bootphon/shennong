@@ -7,6 +7,10 @@ Version numbers follow [semantic versioning](https://semver.org).
 
 ### breaking changes
 
+* Pitch, delta and CMVN are now deactivated by default in pipeline configuration
+  generation (concerns both `speech-features` binary and the `shennong.pipeline`
+  module).
+
 * Features serialization in JSON is no more supported (replaced by CSV)
 
 * Code reorganization (renamed `shennong.features.*` to `shennong.*`, new

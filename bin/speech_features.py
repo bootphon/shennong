@@ -149,51 +149,36 @@ def parser_config(subparsers, epilog):
         help='Configure the pipeline to extract those features')
 
     group.add_argument(
-        '--no-cmvn', action='store_true',
-        help='Configure without CMVN normalization')
+        '--cmvn', action='store_true',
+        help='Configure with CMVN normalization')
 
     group.add_argument(
-        '--no-delta', action='store_true',
-        help='Configure without deltas extraction')
+        '--delta', action='store_true',
+        help='Configure with deltas extraction')
 
-    pitch = group.add_mutually_exclusive_group()
-    pitch.add_argument(
-        '--no-pitch', action='store_true',
-        help='Configure without pitch extraction')
-
-    pitch.add_argument(
-        '--pitch', choices=['kaldi', 'crepe'], default='kaldi',
+    group.add_argument(
+        '--pitch', choices=['kaldi', 'crepe'],
         help=(
             'Configure with Kaldi or CREPE pitch extraction, '
-            'default to %(default)s'))
+            'no pitch by default'))
 
-    vtln = group.add_mutually_exclusive_group()
-    vtln.add_argument(
-        '--no-vtln', action='store_true',
-        help='Configure without VTLN normalization')
-
-    vtln.add_argument(
-        '--vtln-full', action='store_true',
-        help='Expose all the VTLN parameters, expose a reduced set by default')
+    group.add_argument(
+        '--vtln', choices=['simple', 'full'],
+        help=(
+            'Configure with VTLN normalization, no VTLN by default. '
+            'When "full" exposes all arguments, when "simple" exposes '
+            'a reduced set of arguments.'))
 
 
 def command_config(args):
     """Execute the 'speech-features config' command"""
-    with_vtln = not args.no_vtln
-    if with_vtln:
-        with_vtln = 'full' if args.vtln_full else 'simple'
-
-    with_pitch = not args.no_pitch
-    if with_pitch:
-        with_pitch = args.pitch
-
     config = pipeline.get_default_config(
         args.features,
         to_yaml=True, yaml_commented=not args.no_comments,
-        with_pitch=with_pitch,
-        with_cmvn=not args.no_cmvn,
-        with_delta=not args.no_delta,
-        with_vtln=with_vtln)
+        with_pitch=args.pitch or False,
+        with_cmvn=args.cmvn,
+        with_delta=args.delta,
+        with_vtln=args.vtln or False)
 
     output = sys.stdout if not args.output else open(args.output, 'w')
     output.write(config)

@@ -17,14 +17,15 @@ Generates a configuration for MFCC extraction (including CMVN
 normalization by speaker, delta / delta-delta and pitch). The
 configuration is a dictionary:
 
->>> config = get_default_config('mfcc')
+>>> config = get_default_config(
+...     'mfcc', with_pitch='kaldi', with_cmvn=True, with_delta=True)
 >>> config.keys()
 dict_keys(['mfcc', 'pitch', 'cmvn', 'delta'])
 
 Generates the same configuration, but without CMVN and without
 delta:
 
->>> config = get_default_config('mfcc', with_cmvn=False, with_delta=False)
+>>> config = get_default_config('mfcc', with_pitch='kaldi')
 >>> config.keys()
 dict_keys(['mfcc', 'pitch'])
 
@@ -97,10 +98,10 @@ def get_default_config(
         features,
         to_yaml=False,
         yaml_commented=True,
-        with_pitch='kaldi',
-        with_cmvn=True,
+        with_pitch=False,
+        with_cmvn=False,
         with_sliding_window_cmvn=False,
-        with_delta=True,
+        with_delta=False,
         with_vtln=False):
     """Returns the default configuration for the specified pipeline
 
@@ -124,16 +125,16 @@ def get_default_config(
         effect only if ``to_yaml`` is True. Default to True.
     with_pitch : False, 'kaldi' or 'crepe', optional
         Configure the pipeline for pitch extraction using Kaldi or CREPE,
-        default to 'kaldi'
+        default to False.
     with_cmvn : bool, optional
         Configure the pipeline for CMVN normalization of the features,
-        default to True.
+        default to False.
     with_sliding_window_cmvn: bool, optional
         Configure the pipeline for sliding window CMVN normalization
         of the features, default to False.
     with_delta : bool, optional
         Configure the pipeline for features's delta extraction,
-        default to True.
+        default to False.
     with_vtln : bool or str, optional
         Configure the pipeline for VTLN normalization, default to False. Must
         be False, 'simple' or 'full'. When 'simple' the features default to

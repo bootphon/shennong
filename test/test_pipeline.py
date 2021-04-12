@@ -58,7 +58,9 @@ def test_config_good(features, with_vtln, with_pitch):
 
 @pytest.mark.parametrize('kind', ['dict', 'file', 'str'])
 def test_config_format(utterances, capsys, tmpdir, kind):
-    config = pipeline.get_default_config('mfcc', to_yaml=kind != 'dict')
+    config = pipeline.get_default_config(
+        'mfcc', with_pitch='kaldi', with_cmvn=True, with_delta=True,
+        to_yaml=kind != 'dict')
 
     if kind == 'file':
         tempfile = str(tmpdir.join('foo'))
@@ -110,18 +112,18 @@ def test_config_bad(utterances):
         config = pipeline.get_default_config('mfcc', with_pitch='bad')
     assert 'with_pitch argument must be' in str(err.value)
 
-    config = pipeline.get_default_config('mfcc')
+    config = pipeline.get_default_config('mfcc', with_cmvn=True)
     del config['cmvn']['with_vad']
     parsed = pipeline._init_config(config)
     assert 'cmvn' in parsed
     assert parsed['cmvn']['with_vad']
 
-    config = pipeline.get_default_config('mfcc')
+    config = pipeline.get_default_config('mfcc', with_cmvn=True)
     del config['cmvn']['by_speaker']
     c = pipeline._init_config(config)
     assert not c['cmvn']['by_speaker']
 
-    config = pipeline.get_default_config('mfcc')
+    config = pipeline.get_default_config('mfcc', with_pitch='kaldi')
     assert config['pitch']['processor'] == 'kaldi'
     del config['pitch']['postprocessing']
     c = pipeline._init_config(config)
@@ -137,7 +139,7 @@ def test_config_bad(utterances):
 def test_check_speakers(utterances, wav_file, capsys):
     log = logger.get_logger('test', 'info')
 
-    config = pipeline.get_default_config('mfcc')
+    config = pipeline.get_default_config('mfcc', with_cmvn=True)
     with pytest.raises(ValueError) as err:
         pipeline.extract_features(
             config, Utterances([('toto', wav_file)]), log=log)
@@ -166,32 +168,9 @@ def test_check_environment(capsys):
     assert 'working on 2 threads but implicit parallelism is active' in out
 
 
-# TODO test_utterances.py
-# def test_utts_bad(wav_file, wav_file_8k, tmpdir, capsys):
-#     fun = pipeline._init_utterances
-
-#     # ensure we catch basic errors
-#     with pytest.raises(ValueError) as err:
-#         fun([('a'), ('a', 'b')])
-#     assert 'entries have different lengths' in str(err.value)
-
-#     with pytest.raises(ValueError) as err:
-#         fun([('a', 'b', 'c', 'd', 'e', 'g')])
-#     assert 'unknown format for utterances index' in str(err.value)
-
-#     with pytest.raises(ValueError) as err:
-#         fun([('a'), ('a')])
-#     assert 'duplicates found in utterances index' in str(err.value)
-
-#     with pytest.raises(ValueError) as err:
-#         fun([('/foo/bar/a')])
-#     assert 'the following wav files are not found' in str(err.value)
-
-
 def test_check_wavs_bad(wav_file, wav_file_8k, tmpdir, capsys):
     def fun(utts):
-        c = pipeline._init_config(pipeline.get_default_config(
-            'mfcc', with_cmvn=False))
+        c = pipeline._init_config(pipeline.get_default_config('mfcc'))
         PipelineManager(c, utts, log=logger.get_logger('test', 'info'))
         return utts
 
@@ -236,8 +215,7 @@ def test_processor_bad():
 
 @pytest.mark.parametrize('features', pipeline.valid_features())
 def test_extract_features(utterances, features, wav_file):
-    config = pipeline.get_default_config(
-        features, with_cmvn=False, with_pitch=False)
+    config = pipeline.get_default_config(features, with_delta=True)
     feats = pipeline.extract_features(config, utterances)
     feat1 = feats['utt1']
     assert feat1.is_valid()
@@ -245,7 +223,7 @@ def test_extract_features(utterances, features, wav_file):
     assert feat1.dtype == np.float32
 
     config = pipeline.get_default_config(
-        features, with_cmvn=False, with_pitch='kaldi')
+        features, with_delta=True, with_pitch='kaldi')
     feats = pipeline.extract_features(config, utterances)
     feat2 = feats['utt1']
     assert feat2.is_valid()
@@ -253,7 +231,7 @@ def test_extract_features(utterances, features, wav_file):
     assert feat2.shape[1] == feat1.shape[1] + 3
 
     config = pipeline.get_default_config(
-        features, with_cmvn=False, with_pitch='crepe')
+        features, with_delta=True, with_pitch='crepe')
     config['pitch']['model_capacity'] = 'tiny'
     feats = pipeline.extract_features(config, utterances)
     feat2 = feats['utt1']
@@ -262,8 +240,7 @@ def test_extract_features(utterances, features, wav_file):
     assert feat2.shape[1] == feat1.shape[1] + 3
 
     utterances2 = Utterances([('utt1', wav_file, 0, 1)])
-    config = pipeline.get_default_config(
-        features, with_cmvn=False, with_pitch=False)
+    config = pipeline.get_default_config(features, with_delta=True)
     feats = pipeline.extract_features(config, utterances2)
     feat3 = feats['utt1']
     assert feat3.is_valid()
@@ -275,8 +252,7 @@ def test_extract_features(utterances, features, wav_file):
     'by_speaker, with_vad',
     [(s, v) for s in (True, False) for v in (True, False)])
 def test_cmvn(utterances, by_speaker, with_vad):
-    config = pipeline.get_default_config(
-        'mfcc', with_cmvn=True, with_pitch=False, with_delta=False)
+    config = pipeline.get_default_config('mfcc', with_cmvn=True)
     config['cmvn']['by_speaker'] = by_speaker
     config['cmvn']['with_vad'] = with_vad
     feats = pipeline.extract_features(config, utterances)
@@ -288,8 +264,7 @@ def test_cmvn(utterances, by_speaker, with_vad):
 
 def test_sliding_window_cmvn(utterances):
     config = pipeline.get_default_config(
-        'mfcc', with_cmvn=False, with_pitch=False,
-        with_sliding_window_cmvn=True, with_delta=False)
+        'mfcc', with_sliding_window_cmvn=True)
     feats = pipeline.extract_features(config, utterances)
     feat2 = feats['utt1']
     assert feat2.is_valid()
@@ -299,8 +274,7 @@ def test_sliding_window_cmvn(utterances):
 
 @pytest.mark.parametrize('with_vtln', ['simple', 'full'])
 def test_extract_features_with_vtln(utterances, with_vtln):
-    config = pipeline.get_default_config(
-        'mfcc', with_pitch=False, with_vtln=with_vtln, with_delta=False)
+    config = pipeline.get_default_config('mfcc', with_vtln=with_vtln)
     config['vtln']['ubm']['num_gauss'] = 4
     config['vtln']['ubm']['num_iters'] = 1
     config['vtln']['ubm']['num_iters_init'] = 1
@@ -322,7 +296,8 @@ def test_extract_features_full(
             ('u1', wav_file, 's1', 0, 1),
             ('u2', wav_file_float32, 's2', 1, 1.2),
             ('u3', wav_file_8k, 's1', 1, 3)])
-    config = pipeline.get_default_config('mfcc')
+    config = pipeline.get_default_config(
+        'mfcc', with_cmvn=True, with_delta=True, with_pitch='kaldi')
 
     # disable VAD because it can alter the cmvn result (far from (0,
     # 1) when the signal includes non-voiced frames)

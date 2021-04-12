@@ -92,8 +92,7 @@ class DiagUbmProcessor(BaseProcessor):
 
         if features in (None, 'default'):
             config = pipeline.get_default_config(
-                'mfcc', with_pitch=False, with_cmvn=False,
-                with_sliding_window_cmvn=True)
+                'mfcc', with_delta=True, with_sliding_window_cmvn=True)
             config['sliding_window_cmvn']['cmn_window'] = 300
             config['delta']['window'] = 3
             self.features = config
