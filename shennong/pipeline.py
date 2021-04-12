@@ -113,7 +113,7 @@ def get_default_config(
     ----------
     features : str
         The features extracted by the pipeline, must be 'mfcc',
-        'filterbank', 'plp' or 'bottleneck'. See also
+        'filterbank', 'plp', 'rastaplp' or 'bottleneck'. See also
         :func:`valid_features`.
     to_yaml : bool, optional
         If False the result configuration is a dict, if True this is a
@@ -164,6 +164,15 @@ def get_default_config(
             f'with_pitch argument must be False, "kaldi" or "crepe" '
             f'but is "{with_pitch}"')
 
+    if with_vtln not in (False, 'simple', 'full'):
+        raise ValueError(
+            f'with_vtln argument must be False, "simple" or "full" '
+            f'but is "{with_vtln}"')
+
+    if with_vtln and features in ('rastaplp', 'bottleneck'):
+        raise ValueError(
+            f'VTLN is not compatible with {features} features')
+
     config = {}
 
     # filter out sample rate parameter because it is dependent of
@@ -197,11 +206,6 @@ def get_default_config(
         config['delta'] = PipelineManager.get_processor_params('delta')
 
     if with_vtln:
-        if with_vtln not in ('simple', 'full'):
-            raise ValueError(
-                f'invalid value for "with_vtln", must be "simple" '
-                f'or "full" but is "{with_vtln}"')
-
         config['vtln'] = PipelineManager.get_processor_params('vtln')
 
         if with_vtln == 'simple':

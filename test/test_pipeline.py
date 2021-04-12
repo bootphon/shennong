@@ -37,7 +37,7 @@ def equal_dict(d1, d2):
 
 @pytest.mark.parametrize(
     'features, with_vtln, with_pitch',
-    [(f, v, p) for f in pipeline.valid_features()
+    [(f, v, p) for f in ('mfcc', 'plp')
      for v in (False, 'simple', 'full')
      for p in (False, 'kaldi', 'crepe')])
 def test_config_good(features, with_vtln, with_pitch):
@@ -106,7 +106,7 @@ def test_config_bad(utterances):
 
     with pytest.raises(ValueError) as err:
         pipeline.get_default_config('mfcc', with_vtln=True)
-    assert 'must be "simple" or "full" but is "True"' in str(err.value)
+    assert 'must be False, "simple" or "full" but is "True"' in str(err.value)
 
     with pytest.raises(ValueError) as err:
         config = pipeline.get_default_config('mfcc', with_pitch='bad')
@@ -134,6 +134,12 @@ def test_config_bad(utterances):
     del config['pitch']['postprocessing']
     c = pipeline._init_config(config)
     assert c['pitch']['postprocessing'] == {}
+
+    # VTLN not compatible with rastaplp and bottleneck
+    with pytest.raises(ValueError):
+        pipeline.get_default_config('rastaplp', with_vtln='simple')
+    with pytest.raises(ValueError):
+        pipeline.get_default_config('bottleneck', with_vtln='simple')
 
 
 def test_check_speakers(utterances, wav_file, capsys):
