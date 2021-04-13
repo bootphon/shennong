@@ -6,7 +6,8 @@ import tempfile
 import urllib.request
 
 import shennong.pipeline as pipeline
-from shennong.utils import list_files_with_extension, get_logger
+from shennong.utils import list_files_with_extension
+from shennong.logger import get_logger
 
 
 ENGLISH_ITEM = (
