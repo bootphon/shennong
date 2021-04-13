@@ -209,8 +209,11 @@ def get_default_config(
     return config
 
 
-def extract_features(configuration, utterances,
-                     njobs=1, log=get_logger('pipeline', 'warning')):
+def extract_features(
+        configuration,
+        utterances,
+        njobs=1,
+        log=get_logger('pipeline', 'warning')):
     """Speech features extraction pipeline
 
     Given a pipeline ``configuration`` and ``utterances`` defining a list of
@@ -262,7 +265,7 @@ def extract_features(configuration, utterances,
     return _extract_features(config, utterances, njobs=njobs, log=log)
 
 
-# a little tweak to change the &log message in joblib parallel loops
+# a little tweak to change the log message in joblib parallel loops
 class _Parallel(joblib.Parallel):
     def __init__(self, name, log, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -478,7 +481,7 @@ def _extract_features(config, utterances, log, njobs=1):
     manager = PipelineManager(config, utterances, log=log)
 
     # verbosity level for joblib (no joblib verbosity on debug level
-    # (level <= 10) because each step is already detailed in inner
+    # (level > 10) because each step is already detailed in inner
     # loops
     verbose = 8 if log.getEffectiveLevel() > 10 else 0
 
@@ -548,9 +551,8 @@ def _extract_pass_one(utterance, manager, log):
     if 'pitch' in manager.config:
         processor = manager.config['pitch']['processor']
         log.debug('%s: extract %s pitch', utterance.name, processor)
-        p1 = manager.get_pitch_processor(utterance)
-        p2 = manager.get_pitch_post_processor(utterance)
-        pitch = p2.process(p1.process(audio))
+        pitch = manager.get_pitch_processor(utterance).process(audio)
+        pitch = manager.get_pitch_post_processor(utterance).process(pitch)
     else:
         pitch = None
 

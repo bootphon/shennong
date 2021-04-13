@@ -14,7 +14,7 @@ xitsonga_dir=/scratch1/data/raw_data/NCHLT/nchlt_Xitsonga/
 # directory where to write all experiment data
 data_dir=./data
 
-# number of parallel jobs to launch
+# number of parallel jobs per task for features extraction and ABX evaluation
 njobs=10
 
 # cluster partition to schedule the jobs on
@@ -148,6 +148,68 @@ EOF
         pid=$(sbatch $step2 | cut -d' ' -f4)
         dependency=${dependency}:$pid
     done
+done
+
+
+echo "step 2 ter: extracting features with VTLN"
+
+# train VTLN and extract warps
+vtln_dependency=afterok
+for corpus in english xitsonga
+do
+    log=$log_dir/${corpus}_vtln.log
+    rm -f $log
+
+    cat > $step2 <<EOF
+#!/bin/bash
+#SBATCH --job-name=vtln_${corpus}
+#SBATCH --output=$log
+#SBATCH --partition=$partition
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=$njobs
+
+$activate_shennong
+export OMP_NUM_THREADS=1
+
+$scripts/train_vtln.py $data_dir $corpus --njobs $njobs --verbose || exit 1
+EOF
+
+    pid=$(sbatch $step2 | cut -d' ' -f4)
+    dependency_vtln=${dependency_vtln}:$pid
+done
+
+
+# extract warped features
+for config in $(find $data_dir/config -type f -name "*.yaml")
+do
+    # no VTLN for bottleneck and rastaplp
+    name=$(basename ${config/_*})
+    if ! [[ "bottleneck rastaplp" == *"$name"* ]]
+    then
+        for corpus in english xitsonga
+        do
+            log=$log_dir/${corpus}_$(basename $config .yaml).log
+            rm -f $log
+
+            cat > $step2 <<EOF
+#!/bin/bash
+#SBATCH --job-name=features
+#SBATCH --output=$log
+#SBATCH --partition=$partition
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=$njobs
+#SBATCH --dependency=$vtln_dependency
+
+$activate_shennong
+export OMP_NUM_THREADS=1
+
+$scripts/extract_features.py $data_dir $config $corpus --njobs $njobs --do-vtln || exit 1
+EOF
+
+            pid=$(sbatch $step2 | cut -d' ' -f4)
+            dependency=${dependency}:$pid
+        done
+    fi
 done
 
 

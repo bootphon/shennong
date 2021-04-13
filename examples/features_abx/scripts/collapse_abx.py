@@ -41,16 +41,16 @@ def average(df, task_type):
     return (1 - df.mean()[0]) * 100
 
 
-def compute_scores(csv_files, scores_file, njobs=1):
+def compute_scores(csv_files, njobs=1):
     def _compute_score(csv):
         name = os.path.splitext(os.path.basename(csv))[0].split('_')
         task = name[0]
         score = average(pandas.read_csv(csv, sep='\t'), task)
         return Entry(
             corpus=name[1],
-            task=name[0],
+            task=task,
             features=name[2],
-            params=name[3],
+            params=name[3:],
             score=score)
 
     entries = joblib.Parallel(n_jobs=njobs, verbose=10)(
@@ -74,7 +74,7 @@ def main():
     csv_files = [
         os.path.join(abx_dir, f) for f in os.listdir(abx_dir)
         if f.endswith('.csv')]
-    entries = compute_scores(csv_files, scores_file, njobs=args.njobs)
+    entries = compute_scores(csv_files, njobs=args.njobs)
     with open(scores_file, 'w') as fout:
         for e in sorted(entries):
             fout.write('{} {} {} {} {}\n'.format(

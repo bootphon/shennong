@@ -3,8 +3,8 @@
 import argparse
 import os
 
+from shennong import Utterances
 from shennong.processor import VtlnProcessor
-from shennong.utils import duration_per_speaker
 
 
 def main():
@@ -25,22 +25,18 @@ def main():
         '-v', '--verbose', action='store_true', help='increase log level')
     args = parser.parse_args()
 
-
     # check and setup arguments
     data_directory = args.data_directory
     if not os.path.isdir(data_directory):
         raise ValueError(f'directory not found: {data_directory}')
+
     output_warps = f'{data_directory}/{args.corpus}.warps'
     if os.path.isfile(output_warps):
         raise ValueError(f'file already exists: {output_warps}')
 
-    # load input utterances
-    utterances = [line.split(' ') for line in open(os.path.join(
-        data_directory, f'{args.corpus}.utts'), 'r')]
-
-    # build utterances for VTLN training
-    utterances = duration_per_speaker(
-        utterances, args.duration, truncate=False)
+    # load input utterances truncated to 'duration' seconds per speaker
+    utterances = Utterances.load(f'{args.corpus}.utts').fit_to_duration(
+        args.duration, truncate=True, shuffle=False)
 
     # train VTLN model
     proc = VtlnProcessor()
@@ -50,7 +46,6 @@ def main():
     # write the VTLN warps
     open(output_warps, 'w').write(
         '\n'.join(f'{s} {w}' for s, w in warps.items()) + '\n')
-
 
 
 if __name__ == '__main__':

@@ -122,13 +122,13 @@ def generate_configurations(conf_directory):
         conf = os.path.join(conf_directory, f'{features}_nocmvn.yaml')
         yaml = pipeline.get_default_config(
             features, to_yaml=True, yaml_commented=False,
-            with_cmvn=False, with_delta=True, with_pitch=True)
+            with_cmvn=False, with_delta=True, with_pitch='kaldi')
         open(conf, 'w').write(yaml)
 
         conf = os.path.join(conf_directory, f'{features}_full.yaml')
         yaml = pipeline.get_default_config(
             features, to_yaml=True, yaml_commented=False,
-            with_cmvn=True, with_delta=True, with_pitch=True)
+            with_cmvn=True, with_delta=True, with_pitch='kaldi')
         open(conf, 'w').write(yaml)
 
 
