@@ -156,14 +156,12 @@ def test_check_speakers(utterances, wav_file, capsys):
     pipeline.extract_features(config, utterances, log=log)
     log_out = capsys.readouterr()
     assert 'cmvn' not in log_out.err
-    assert '(CMVN disabled)' in log_out.err
 
     config = pipeline.get_default_config('mfcc', with_cmvn=True)
     config['cmvn']['by_speaker'] = False
     pipeline.extract_features(config, utterances, log=log)
     log_out = capsys.readouterr().err
     assert 'cmvn by utterance' in log_out
-    assert '(CMVN by speaker disabled)' in log_out
 
 
 def test_check_environment(capsys):

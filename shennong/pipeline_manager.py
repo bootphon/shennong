@@ -97,7 +97,7 @@ class PipelineManager:
 
     @property
     def warps(self):
-        """VTLN waprs of the utterances (optional)"""
+        """VTLN warps of the utterances (optional)"""
         return self._warps
 
     @warps.setter
@@ -112,7 +112,7 @@ class PipelineManager:
     def _check_utterances(self):
         """Ensures the configuration is compatible with utterances
 
-        aises a ValueError on error. If all is good, silently returns None.
+        raises a ValueError on error. If all is good, silently returns None.
 
         """
         # ensures speakers info provided if cmvn by speaker is requested
@@ -126,11 +126,6 @@ class PipelineManager:
             raise ValueError(
                 'cmvn normalization by speaker requested '
                 'but no speaker information provided')
-        if not cmvn_by_speaker and self.utterances.has_speakers():
-            self.log.warning(
-                'speakers information is provided but will not be used '
-                '(CMVN%s disabled)',
-                ' by speaker' if 'cmvn' in self.config else '')
 
     def _check_audio_files(self):
         """Ensures all the audio files are compatible with the pipeline"""
