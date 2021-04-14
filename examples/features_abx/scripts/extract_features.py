@@ -2,7 +2,7 @@
 
 import argparse
 import os
-from shennong import pipeline
+from shennong import pipeline, Utterances
 from shennong.logger import get_logger
 
 
@@ -48,8 +48,8 @@ def main():
     log = get_logger('extraction', 'debug' if args.verbose else 'info')
 
     # load input utterances
-    utterances = [line.split(' ') for line in open(os.path.join(
-        data_directory, f'{args.corpus}.utts'), 'r')]
+    utterances = Utterances([line.split(' ') for line in open(os.path.join(
+        data_directory, f'{args.corpus}.utts'), 'r')])
 
     # extract the features
     features = pipeline.extract_features(

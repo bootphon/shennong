@@ -133,7 +133,7 @@ do
 
         cat > $step2 <<EOF
 #!/bin/bash
-#SBATCH --job-name=setup
+#SBATCH --job-name=features
 #SBATCH --output=$log
 #SBATCH --partition=$partition
 #SBATCH --ntasks=1
@@ -154,7 +154,7 @@ done
 echo "step 2 ter: extracting features with VTLN"
 
 # train VTLN and extract warps
-vtln_dependency=afterok
+dependency_vtln=afterok
 for corpus in english xitsonga
 do
     log=$log_dir/${corpus}_vtln.log
@@ -198,7 +198,7 @@ do
 #SBATCH --partition=$partition
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=$njobs
-#SBATCH --dependency=$vtln_dependency
+#SBATCH --dependency=$dependency_vtln
 
 $activate_shennong
 export OMP_NUM_THREADS=1
