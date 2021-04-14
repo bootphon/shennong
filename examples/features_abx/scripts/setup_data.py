@@ -45,6 +45,10 @@ def setup_data(data_directory, buckeye_directory, xitsonga_directory):
     if not os.path.isdir(xitsonga_directory):
         raise ValueError(f'directory does not exists: {xitsonga_directory}')
 
+    # resolve directories to absolute paths
+    buckeye_directory = os.path.abspath(buckeye_directory)
+    xitsonga_directory = os.path.abspath(xitsonga_directory)
+
     # create the data directory
     if not os.path.exists(data_directory):
         os.makedirs(data_directory)

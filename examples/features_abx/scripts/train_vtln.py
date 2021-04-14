@@ -35,6 +35,7 @@ def main():
         raise ValueError(f'file already exists: {output_warps}')
 
     # load input utterances truncated to 'duration' seconds per speaker
+    print(f'loading utterances from {data_directory}/{args.corpus}.utts')
     utterances = Utterances.load(
         f'{data_directory}/{args.corpus}.utts').fit_to_duration(
             args.duration, truncate=True, shuffle=False)

@@ -312,8 +312,12 @@ class DiagUbmProcessor(BaseProcessor):
                     feats.row(num_read-1).copy_row_from_mat_(this_feats, row)
                 else:
                     if self._rng.random_sample() <= self.num_frames / num_read:
+                        # FIXME here was a +1 which according to numpy doc is
+                        # correct but caused an out of range error. Here this
+                        # means the last frame of 500000 is never replaced by
+                        # new ones, which is not a big deal anyway.
                         feats.row(
-                            self._rng.randint(0, self.num_frames + 1)
+                            self._rng.randint(0, self.num_frames)  # +1)
                         ).copy_row_from_mat_(this_feats, row)
 
         if num_read < self.num_frames:
