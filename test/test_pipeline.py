@@ -14,7 +14,9 @@ from shennong.serializers import supported_extensions
 
 @pytest.fixture(scope='session')
 def utterances(wav_file):
-    return Utterances([('utt1', wav_file, 'speaker1')])
+    return Utterances([
+        ('utt1', wav_file, 'speaker1'),
+        ('utt2', wav_file, 'speaker2')])
 
 
 def equal_dict(d1, d2):
@@ -142,6 +144,49 @@ def test_config_bad(utterances):
         pipeline.get_default_config('bottleneck', with_vtln='simple')
 
 
+def test_init_warps(utterances, capsys):
+    log = logger.get_logger('test', 'info')
+
+    for feat in ('rastaplp', 'bottleneck'):
+        with pytest.raises(ValueError) as err:
+            pipeline._init_warps(
+                {}, pipeline.get_default_config(feat), utterances, log)
+        assert 'features do not support VTLN' in str(err.value)
+
+    for vtln in ('simple', 'full'):
+        with pytest.raises(ValueError) as err:
+            pipeline._init_warps(
+                {}, pipeline.get_default_config('mfcc', with_vtln=vtln),
+                utterances, log)
+        assert '"vtln" processor already defined' in str(err.value)
+
+    for warps in ({}, {'a': 0}, {'utt1': 0}):
+        with pytest.raises(ValueError) as err:
+            pipeline._init_warps(
+                {}, pipeline.get_default_config('mfcc'), utterances, log)
+        assert 'warps do not match utterances' in str(err.value)
+
+    capsys.readouterr()
+    pipeline._init_warps(
+        {'utt1': 1.0, 'utt2': 0.0},
+        pipeline.get_default_config('mfcc'), utterances, log)
+    log_out = capsys.readouterr()
+    assert 'warps are defined by utterance' in log_out.err
+
+    capsys.readouterr()
+    pipeline._init_warps(
+        {'speaker1': 1.0, 'speaker2': 0.0},
+        pipeline.get_default_config('mfcc'), utterances, log)
+    log_out = capsys.readouterr()
+    assert 'warps are defined by speaker' in log_out.err
+
+    with pytest.raises(ValueError) as err:
+        pipeline._init_warps(
+            {'speaker1': 'a', 'speaker2': 0.0},
+            pipeline.get_default_config('mfcc'), utterances, log)
+    assert 'could not convert string to float' in str(err.value)
+
+
 def test_check_speakers(utterances, wav_file, capsys):
     log = logger.get_logger('test', 'info')
 
@@ -217,6 +262,15 @@ def test_processor_bad():
     assert 'invalid processor "0"' in str(err.value)
 
 
+def test_extract_features_bad(utterances):
+    config = pipeline.get_default_config('rastaplp')
+    config['vtln'] = pipeline.get_default_config(
+        'mfcc', with_vtln='simple')['vtln']
+    with pytest.raises(ValueError) as err:
+        pipeline.extract_features(config, utterances)
+    assert 'do not support VTLN' in str(err.value)
+
+
 @pytest.mark.parametrize('features', pipeline.valid_features())
 def test_extract_features(utterances, features, wav_file):
     config = pipeline.get_default_config(features, with_delta=True)
@@ -278,6 +332,14 @@ def test_extract_features_with_vtln(utterances, with_vtln):
     assert feat2.is_valid()
     assert feat2.shape[0] == 140
     assert feat2.shape[1] == 13
+
+
+def test_extract_features_with_warps(utterances):
+    config = pipeline.get_default_config('mfcc')
+    warps = {'speaker1': 1.2, 'speaker2': 0.85}
+    feats = pipeline.extract_features(config, utterances, warps=warps)
+    assert feats['utt1'].properties['mfcc']['vtln_warp'] == 1.2
+    assert feats['utt2'].properties['mfcc']['vtln_warp'] == 0.85
 
 
 @pytest.mark.parametrize('ext', supported_extensions().keys())

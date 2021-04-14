@@ -322,6 +322,8 @@ class PipelineManager:
 
     def get_warp(self, utterance):
         """Returns the VTLN warp associated to this utterance"""
-        return (
-            1 if utterance.name not in self.warps
-            else self.warps[utterance.name])
+        try:
+            return self.warps[utterance.name]
+        # this should never happen since there are checks during manager init
+        except KeyError:  # pragma: nocover
+            return 1.0

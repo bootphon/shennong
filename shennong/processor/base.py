@@ -28,12 +28,14 @@ class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
     def ndims(self):  # pragma: nocover
         """Dimension of the output features frames"""
 
-    def get_properties(self):
+    def get_properties(self, **kwargs):
         """Return the processors properties as a dictionary"""
+        params = self.get_params()
+        params.update(kwargs)
         return {
             'pipeline': [
                 {'name': self.name, 'columns': [0, self.ndims-1]}],
-            self.name: self.get_params()}
+            self.name: params}
 
     @abc.abstractmethod
     def process(self, signal):
@@ -429,4 +431,6 @@ class MelFeaturesProcessor(FramesProcessor):
                 kaldi.matrix.SubVector(signal), vtln_warp)).numpy()
 
         return Features(
-            data, self.times(data.shape[0]), properties=self.get_properties())
+            data,
+            self.times(data.shape[0]),
+            properties=self.get_properties(vtln_warp=vtln_warp))

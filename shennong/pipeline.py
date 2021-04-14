@@ -212,6 +212,7 @@ def get_default_config(
 def extract_features(
         configuration,
         utterances,
+        warps=None,
         njobs=1,
         log=get_logger('pipeline', 'warning')):
     """Speech features extraction pipeline
@@ -230,6 +231,11 @@ def extract_features(
         configuration example, see :func:`get_default_config`
     utterances : :class:`~shennong.utterances.Utterances`
         The list of utterances to extract the features on.
+    warps : dict, optional
+        A dictionnary of precomputed VTLN warps coefficients to be applied on
+        features. Must be a dict (str: float) of warps indexed either by
+        utterances speaker or name. Both the ``warps`` argument and the
+        config['vtln'] entry must not be defined together.
     njobs : int, optional
         The number to subprocesses to execute in parallel, use a
         single process by default.
@@ -244,8 +250,9 @@ def extract_features(
     Raises
     ------
     ValueError
-        If the ``configuration`` or the ``utterances`` are invalid, or if
-        something goes wrong during features extraction.
+        If the ``configuration`` or the ``utterances`` are invalid, if both the
+        ``warps`` argument and the 'vtln' entry in configuration are defined or
+        if something goes wrong during features extraction.
 
     """
     # intialize the pipeline configuration, the list of wav files to
@@ -258,11 +265,17 @@ def extract_features(
         'detected format for utterances index is: %s',
         utterances.format(type=str))
 
+    # make sure the warps are valid (not overloading 'vtln' in config and
+    # either by speaker or by utterance. If defined per speaker convert them by
+    # utterance)
+    if warps:
+        warps = _init_warps(warps, config, utterances, log)
+
     # check the OMP_NUM_THREADS variable for parallel computations
     _check_environment(njobs, log=log)
 
     # do all the computations
-    return _extract_features(config, utterances, njobs=njobs, log=log)
+    return _extract_features(config, utterances, warps, njobs=njobs, log=log)
 
 
 # a little tweak to change the log message in joblib parallel loops
@@ -440,6 +453,9 @@ def _init_config(config, log=get_logger('pipeline', 'warning')):
             '(must have one and only one entry of {}): {}'
             .format(', '.join(valid_features()), ', '.join(features)))
 
+    if 'vtln' in config and features[0] in ('rastaplp', 'bottleneck'):
+        raise ValueError(f'{features[0]} features do not support VTLN')
+
     if 'cmvn' in config:
         # force by_speaker to False if not existing
         if 'by_speaker' not in config['cmvn']:
@@ -476,7 +492,36 @@ def _init_config(config, log=get_logger('pipeline', 'warning')):
     return config
 
 
-def _extract_features(config, utterances, log, njobs=1):
+def _init_warps(warps, config, utterances, log):
+    # ensure VTLN supported by features
+    features = [k for k in config.keys() if k in valid_features()][0]
+    if features in ('rastaplp', 'bottleneck'):
+        raise ValueError(f'{features[0]} features do not support VTLN')
+
+    # ensure both warps and config['vtln'] are not specified
+    if 'vtln' in config:
+        raise ValueError(
+            'warps are given but "vtln" processor already defined '
+            'in the configuration')
+
+    # determine if warps are defined by utterances
+    if warps.keys() == utterances.by_name().keys():
+        log.info('VTLN warps are defined by utterance')
+    # warps are expected to be defined by speaker
+    elif warps.keys() != utterances.by_speaker().keys():
+        raise ValueError(
+            'warps do not match utterances, either by speaker or by utterance')
+    # convert them to be indexed by utterance (as required by the pipeline
+    # manager)
+    else:
+        log.info('VTLN warps are defined by speaker')
+        warps = {utt.name: warps[utt.speaker] for utt in utterances}
+
+    # ensure all warps are floats
+    return {name: float(warp) for name, warp in warps.items()}
+
+
+def _extract_features(config, utterances, warps, log, njobs=1):
     # the manager will instanciate the pipeline components
     manager = PipelineManager(config, utterances, log=log)
 
@@ -486,7 +531,9 @@ def _extract_features(config, utterances, log, njobs=1):
     verbose = 8 if log.getEffectiveLevel() > 10 else 0
 
     # vtln : compute vtln warps or load pre-computed warps
-    if 'vtln' in config:
+    if warps:
+        manager.warps = warps
+    elif 'vtln' in config:
         manager.warps = manager.get_vtln_processor(
             'vtln').process(utterances, njobs=njobs)
 
@@ -526,7 +573,7 @@ def _extract_pass_one(utterance, manager, log):
 
     # main features extraction
     log.debug('%s: extract %s', utterance.name, manager.features)
-    if 'vtln' in manager.config:
+    if manager.warps:
         features = manager.get_features_processor(utterance).process(
             audio, vtln_warp=manager.get_warp(utterance))
     else:
