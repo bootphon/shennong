@@ -48,8 +48,10 @@ def main():
     log = get_logger('extraction', 'debug' if args.verbose else 'info')
 
     # load input utterances
-    utterances = Utterances([line.split(' ') for line in open(os.path.join(
-        data_directory, f'{args.corpus}.utts'), 'r')])
+    log.info('loading utterances...')
+    utterances = Utterances(
+        [line.strip().split(' ') for line in open(
+            os.path.join(data_directory, f'{args.corpus}.utts'), 'r')])
 
     # extract the features
     features = pipeline.extract_features(
