@@ -83,6 +83,7 @@ import functools
 import io
 import os
 import warnings
+import wave
 
 import numpy as np
 import scipy.io.wavfile
@@ -211,6 +212,18 @@ class Audio:
         if not os.path.isfile(filename):
             raise ValueError(f'{filename}: file not found')
 
+        # using wave, very fast but supports only WAV files
+        try:
+            with wave.open(filename, 'r') as wav:
+                return cls._metadata(
+                    wav.getnchannels(),
+                    wav.getframerate(),
+                    wav.getnframes(),
+                    wav.getnframes() / wav.getframerate())
+        except wave.Error:
+            pass
+
+        # using pydub, cross-formats but very slow
         try:
             info = pydub.utils.mediainfo(filename)
             return cls._metadata(
@@ -219,7 +232,8 @@ class Audio:
                 int(int(info['sample_rate']) * float(info['duration'])),
                 float(info['duration']))
         except Exception:
-            raise ValueError(f'cannot scan audio file {filename}') from None
+            raise ValueError(
+                f'cannot scan audio file {filename}') from None
 
     # we use a memoize cache because Audio.load is often called to
     # load only segments of a file. So the cache avoid to reload again
