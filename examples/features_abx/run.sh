@@ -183,12 +183,13 @@ done
 for config in $(find $data_dir/config -type f -name "*.yaml")
 do
     # no VTLN for bottleneck and rastaplp
-    name=$(basename ${config/_*})
-    if ! [[ "bottleneck rastaplp" == *"$name"* ]]
+    name=$(basename $config)
+    name=${name/_*}
+    if ! [ "$name" == "bottleneck" -o "$name" == "rastaplp" ]
     then
         for corpus in english xitsonga
         do
-            log=$log_dir/${corpus}_$(basename $config .yaml).log
+            log=$log_dir/${corpus}_$(basename $config .yaml)_vtln.log
             rm -f $log
 
             cat > $step2 <<EOF

@@ -496,7 +496,7 @@ def _init_warps(warps, config, utterances, log):
     # ensure VTLN supported by features
     features = [k for k in config.keys() if k in valid_features()][0]
     if features in ('rastaplp', 'bottleneck'):
-        raise ValueError(f'{features[0]} features do not support VTLN')
+        raise ValueError(f'{features} features do not support VTLN')
 
     # ensure both warps and config['vtln'] are not specified
     if 'vtln' in config:
