@@ -13,7 +13,7 @@ The pipeline is as follows:
 import argparse
 import pathlib
 
-from shennong import Audio, Utterances
+from shennong import Utterances
 from shennong.processor import MfccProcessor, VtlnProcessor
 from shennong.utils import list_files_with_extension, get_njobs
 
@@ -103,7 +103,7 @@ def main():
     # convert warps from speaker to utterance in the whole corpus
     warps = {utt.name: warps[utt.speaker] for utt in utterances}
 
-    print(f'computing MFCCs for {len(utterances)} uttterances')
+    print(f'computing warped MFCCs for {len(utterances)} uttterances')
     features = MfccProcessor().process_all(
         utterances, vtln_warp=warps, njobs=args.njobs)
 
