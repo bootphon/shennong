@@ -50,7 +50,7 @@ def compute_scores(csv_files, njobs=1):
             corpus=name[1],
             task=task,
             features=name[2],
-            params=name[3:],
+            params='_'.join(name[3:]),
             score=score)
 
     entries = joblib.Parallel(n_jobs=njobs, verbose=10)(
