@@ -141,7 +141,7 @@ def test_frames_5_3(snip_edges):
     'ndim, snip_edges, writeable',
     [(n, bool(s), bool(w)) for n in (1, 2, 3) for s in (0, 1) for w in (0, 1)])
 def test_make_frames(ndim, snip_edges, writeable):
-    # in that test we use default parameters (fs=16kHz, length=20ms,
+    # in that test we use default parameters (fs=16kHz, length=25ms,
     # shift=10ms)
     f = Frames(snip_edges=snip_edges)
 
@@ -172,3 +172,16 @@ def test_make_frames(ndim, snip_edges, writeable):
     else:
         frames[0] = -1
         assert (frames[0] == -1).all()
+
+
+def test_times():
+    # default parameters (fs=16kHz, length=25ms, shift=10ms) for 100ms
+    assert np.allclose(Frames().times(1600), np.asarray(
+        [[0, 0.025],
+         [0.01, 0.035],
+         [0.02, 0.045],
+         [0.03, 0.055],
+         [0.04, 0.065],
+         [0.05, 0.075],
+         [0.06, 0.085],
+         [0.07, 0.095]]))

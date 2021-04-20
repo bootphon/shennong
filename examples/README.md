@@ -42,3 +42,16 @@ file. This required ``matplotlib`` to be installed.
 The script ``vtln_simple.py`` is an example of use of Vocal Tract Length
 Normalization. It shows how to train a VTLN model and apply it to normalize
 deatures.
+
+
+## Pitch algorithms comparison
+
+Need few packages along with shennong:
+
+    pip install amfm_decompy matplotlib praat-parselmouth tqdm
+
+Then simply run `./pitch.py ./data`
+
+On Linux in order to use LaTeX rendering for the plots you may need to `apt
+install cm-super` (see
+[here](https://github.com/matplotlib/matplotlib/issues/16911)).

@@ -59,7 +59,7 @@ import os
 import warnings
 
 import crepe
-import hmmlearn
+import hmmlearn.hmm
 import numpy as np
 import scipy.optimize
 import scipy.interpolate
@@ -93,6 +93,7 @@ def predict_voicing(confidence):
     voicing_states : np.ndarray [shape=(N,)]
         HMM predictions for each frames state, 0 if unvoiced, 1 if
         voiced
+
     """
     # fix the model parameters because we are not optimizing the model
     model = hmmlearn.hmm.GaussianHMM(n_components=2)

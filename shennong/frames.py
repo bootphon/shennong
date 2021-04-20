@@ -145,6 +145,26 @@ class Frames(BaseProcessor):
         """Returns the index+1 of the last sample of frame indexed `frame`"""
         return int(self.first_sample_of_frame(frame) + self.samples_per_frame)
 
+    def times(self, nsamples):
+        """Returns an array of (tstart, tstop) times of each frames of a signal
+
+        Parameters
+        ----------
+        nsamples : int
+            The number of frames of the considered signal
+
+        Returns
+        -------
+        times : array, shape = [nframes, 2]
+            The start and stop times of each frame extracted from
+            `nsamples` samples.
+
+        """
+        nframes = self.nframes(nsamples)
+        return np.vstack((
+            np.arange(nframes) * self.frame_shift,
+            np.arange(nframes) * self.frame_shift + self.frame_length)).T
+
     def boundaries(self, nframes):
         """Returns an array of (istart, istop) index boundaries of frames
 
