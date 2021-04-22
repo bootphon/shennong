@@ -4,6 +4,7 @@
 import argparse
 import io
 import pathlib
+import pickle
 import urllib.request
 import warnings
 import zipfile
@@ -24,7 +25,7 @@ from shennong.processor.pitch_crepe import predict_voicing, _nccf_to_pov
 NOISE_LIST = ['gauss', 'babble']
 """Type of noises"""
 
-SNR_LIST = [-10, -5, 0, 5, 10, 15, 20, 'inf']
+SNR_LIST = [-15, -10, -5, 0, 5, 10, 15, 'inf']
 """SNR to apply noise to speech in dB"""
 
 KEELE_URL = 'https://zenodo.org/record/3920591/files/KEELE.zip'
@@ -38,19 +39,23 @@ BABBLE_NOISE_URL = (
 
 def download_keele_dataset(data_directory):
     """Downloads and unzips the KEELE dataset"""
-    if not (data_directory / 'raw' / 'KEELE').is_dir():
-        print(f'downloading dataset {data_directory}/raw/KEELE...')
-        (data_directory / 'raw').mkdir(parents=True, exist_ok=True)
-        zipfile.ZipFile(io.BytesIO(urllib.request.urlopen(KEELE_URL).read())) \
-               .extractall(data_directory / 'raw')
+    if (data_directory / 'raw' / 'KEELE').is_dir():
+        return
+
+    print(f'downloading dataset {data_directory}/raw/KEELE...')
+    (data_directory / 'raw').mkdir(parents=True, exist_ok=True)
+    zipfile.ZipFile(io.BytesIO(urllib.request.urlopen(KEELE_URL).read())) \
+           .extractall(data_directory / 'raw')
 
 
 def download_babble_noise(data_directory):
     """Download the babble noise file"""
     filename = data_directory / 'raw' / 'babble_noise.wav'
-    if not filename.is_file():
-        print(f'downloading file {filename}...')
-        urllib.request.urlretrieve(BABBLE_NOISE_URL, filename)
+    if filename.is_file():
+        return
+
+    print(f'downloading file {filename}...')
+    urllib.request.urlretrieve(BABBLE_NOISE_URL, filename)
 
 
 def snr(signal, noise, ratio):
@@ -85,6 +90,7 @@ def prepare_wavs(data_directory):
     output_directory = data_directory / 'wavs'
     if output_directory.is_dir():
         return
+
     print(f'generating noisy dataset in {data_directory}/wavs...')
     output_directory.mkdir(parents=True)
 
@@ -146,24 +152,36 @@ class ComputePitchKaldi:
     processor = KaldiPitchProcessor(
         sample_rate=20000, frame_shift=0.01, frame_length=0.0256)
 
+    def todo(self, data_directory):
+        """Return (noise, snr, filename) of pitches to compute"""
+        jobs = []
+        noise_ratio = [(n, r) for n in NOISE_LIST for r in SNR_LIST]
+        for noise, ratio in noise_ratio:
+            filename = (
+                data_directory / 'pitch' / f'{self.name}_{noise}_{ratio}.h5f')
+            if not filename.is_file():
+                jobs.append((noise, ratio, filename))
+        return jobs
+
     def process_one(self, wav):
         """Process a single wav"""
         return self.processor.process(Audio.load(wav))
 
     def process_all(self, data_directory):
         """Process the whole dataset"""
-        print(f'extracting {self.name} pitch')
+        jobs = self.todo(data_directory)
+        if not jobs:
+            return
+
+        print(f'extracting {self.name} pitch...')
         output_directory = data_directory / 'pitch'
         output_directory.mkdir(parents=True, exist_ok=True)
 
-        noise_ratio = [(n, r) for n in NOISE_LIST for r in SNR_LIST]
-        for noise, ratio in tqdm.tqdm(noise_ratio):
-            filename = output_directory / f'{self.name}_{noise}_{ratio}.h5f'
-            if not filename.is_file():
-                pitch = FeaturesCollection()
-                for wav in data_directory.glob(f'wavs/*_{noise}_{ratio}.wav'):
-                    pitch[wav.stem[:2]] = self.process_one(wav)
-                pitch.save(filename)
+        for noise, ratio, filename in tqdm.tqdm(jobs):
+            pitch = FeaturesCollection()
+            for wav in data_directory.glob(f'wavs/*_{noise}_{ratio}.wav'):
+                pitch[wav.stem[:2]] = self.process_one(wav)
+            pitch.save(filename)
 
 
 class ComputePitchCrepe(ComputePitchKaldi):
@@ -266,7 +284,7 @@ def load_masked_data(data_directory):
     return data
 
 
-def compute_error(func, pitch, truth):
+def compute_error_single(func, pitch, truth):
     """Compute pitch estimation error according to `func`"""
     speakers = truth.keys()
     errors = {
@@ -281,55 +299,66 @@ def compute_error(func, pitch, truth):
     return errors
 
 
-def plot_error(data, func, noise, ylabel, filename=None):
-    """Plot MAE / GER estimation errors"""
-    x_ticks = np.array(SNR_LIST[:-1]+[25])
-    errors_kaldi = compute_error(func, data['kaldi'], data['truth'])
-    errors_crepe = compute_error(func, data['crepe'], data['truth'])
-    errors_praat = compute_error(func, data['praat'], data['truth'])
-    errors_yaapt = compute_error(func, data['yaapt'], data['truth'])
+def compute_error(data_directory):
+    """Computes the whole estimation errors"""
+    print('computing estimation errors...')
+    data = load_masked_data(data_directory)
+    error = {
+        'mae': {model: compute_error_single(
+            mean_absolute_error, data[model], data['truth'])
+                for model in ('kaldi', 'crepe', 'praat', 'yaapt')},
+        'ger': {model: compute_error_single(
+            lambda x, y: gross_error_rate(x, y, 0.05),
+            data[model], data['truth'])
+                for model in ('kaldi', 'crepe', 'praat', 'yaapt')}}
 
-    plt.style.use('./plot.style')
-    plt.figure(figsize=(6, 3))
-    plt.grid(axis='x')
-    plt.errorbar(
-        x_ticks,
-        errors_crepe[noise].mean(1),
-        errors_crepe[noise].std(1),
-        marker='s',
-        label='CREPE')
+    with open(data_directory / 'pitch' / 'error.pkl', 'wb') as handler:
+        pickle.dump(error, handler)
 
-    plt.errorbar(
-        x_ticks,
-        errors_kaldi[noise].mean(1),
-        errors_kaldi[noise].std(1),
-        marker='o',
-        label='Kaldi')
 
-    plt.errorbar(
-        x_ticks,
-        errors_praat[noise].mean(1),
-        errors_praat[noise].std(1),
-        marker='^',
-        label='Praat')
+def plot_error(data_directory, show=False):
+    """Plot MAE / GER estimation errors, show the plots if `show` is True"""
+    print('plotting estimation errors...')
+    with open(data_directory / 'pitch' / 'error.pkl', 'rb') as handler:
+        error = pickle.load(handler)
+    (data_directory / 'plots').mkdir(exist_ok=True)
 
-    plt.errorbar(
-        x_ticks,
-        errors_yaapt[noise].mean(1),
-        errors_yaapt[noise].std(1),
-        marker='D',
-        label='YAAPT')
+    xticks = np.array(SNR_LIST[:-1]+[20])
+    for noise in NOISE_LIST:
+        for metric, ylabel in (('mae', 'MAE (Hz)'), ('ger', r'GER (\%)')):
+            filename = data_directory / 'plots' / f'{metric}_{noise}.pdf'
+            plt.style.use('./plot.style')
+            plt.figure(figsize=(6, 3))
+            plt.grid(axis='both')
 
-    plt.xticks(x_ticks, SNR_LIST[:-1] + [r"$\infty$"])
-    plt.xlabel('SNR (dB)')
-    plt.ylabel(ylabel)
-    plt.legend()
+            models = (
+                ('kaldi', 'Kaldi', 'o'),
+                ('crepe', 'CREPE', 's'),
+                ('praat', 'Praat', '^'),
+                ('yaapt', 'YAAPT', 'v'))
+            for model, label, marker in models:
+                mean = error[metric][model][noise].mean(1)
+                hstd = error[metric][model][noise].std(1) / 2
+                plt.plot(xticks, mean, marker=marker, label=label)
+                plt.fill_between(xticks, mean - hstd, mean + hstd, alpha=0.15)
 
-    if filename:
-        plt.savefig(filename)
-        plt.close()
-    else:
-        plt.show()
+            plt.xticks(xticks, SNR_LIST[:-1] + [r"$\infty$"])
+            plt.xlabel('SNR (dB)')
+            plt.ylabel(ylabel)
+            plt.legend()
+
+            # metrics share the same y-axis for easy comparison
+            if metric == 'mae':
+                plt.ylim(top=81)
+            else:
+                plt.ylim(top=41)
+
+            plt.savefig(filename)
+            print(f'... {filename}')
+            if show:
+                plt.show()
+            else:
+                plt.close()
 
 
 def main():
@@ -352,16 +381,9 @@ def main():
     compute_pitch(data_directory, 'crepe')
     compute_pitch(data_directory, 'yaapt')
 
-    # evaluate and plot results
-    data = load_masked_data(data_directory)
-    (data_directory / 'plots').mkdir(exist_ok=True)
-    for noise in NOISE_LIST:
-        plot_error(
-            data, lambda x, y: gross_error_rate(x, y, 0.05), noise,
-            r'GER (\%)', data_directory / f'plots/ger_{noise}.pdf')
-        plot_error(
-            data, mean_absolute_error, noise,
-            'MAE (Hz)', data_directory / f'plots/mae_{noise}.pdf')
+    # pitch estimation errors
+    compute_error(data_directory)
+    plot_error(data_directory, show=False)
 
 
 if __name__ == '__main__':

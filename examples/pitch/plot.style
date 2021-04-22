@@ -18,9 +18,10 @@ ytick.right : True
 
 axes.linewidth : 0.5
 grid.linewidth : 0.5
+grid.linestyle : dotted
 lines.linewidth : 1.
 
-legend.frameon : False
+legend.frameon : True
 
 savefig.bbox : tight
 savefig.pad_inches : 0.05
