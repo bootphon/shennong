@@ -118,11 +118,9 @@ def predict_voicing(confidence):
 class CrepePitchProcessor(FeaturesProcessor):
     """Extracts the (POV, pitch) per frame from a speech signal
 
-    This processor uses the pre-trained CREPE model.
-
-    The output will have as many rows as there are frames, and two
-    columns corresponding to (POV, pitch). POV is the Probability of
-    Voicing.
+    This processor uses the pre-trained CREPE model. The output will have as
+    many rows as there are frames, and two columns corresponding to (POV,
+    pitch). POV is the Probability of Voicing.
 
     """
     def __init__(self, model_capacity='full', viterbi=True, center=True,

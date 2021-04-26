@@ -78,9 +78,9 @@ from shennong.postprocessor.base import FeaturesPostProcessor
 class KaldiPitchProcessor(FeaturesProcessor):
     """Extracts the (NCCF, pitch) per frame from a speech signal
 
-    The output will have as many rows as there are frames, and two
-    columns corresponding to (NCCF, pitch). NCCF is the Normalized
-    Cross Correlation Function.
+    The output will have as many rows as there are frames, and two columns
+    corresponding to (NCCF, pitch). NCCF is the Normalized Cross Correlation
+    Function.
 
     """
     def __init__(self, sample_rate=16000, frame_shift=0.01,
@@ -305,16 +305,15 @@ class KaldiPitchProcessor(FeaturesProcessor):
 class KaldiPitchPostProcessor(FeaturesPostProcessor):
     """Processes the raw (NCCF, pitch) computed by the PitchProcessor
 
-    Turns the raw pitch quantites into usable features. By default it
-    will output three-dimensional features, (POV-feature,
-    mean-subtracted-log-pitch, delta-of-raw-pitch), but this is
-    configurable in the options. The number of rows of "output" will
-    be the number of frames (rows) in "input", i.e. the number of
-    frames. The number of columns will be the number of different
-    types of features requested (by default, 3; 4 is the max). The
-    four parameters `add_pov_feature`, `add_normalized_log_pitch`,
-    `add_delta_pitch`, `add_raw_log_pitch` determine which features we
-    create; by default we create the first three.
+    Turns the raw pitch quantites into usable features. By default it will
+    output three-dimensional features, (POV-feature, mean-subtracted-log-pitch,
+    delta-of-raw-pitch), but this is configurable in the options. The number of
+    rows of "output" will be the number of frames (rows) in "input", i.e. the
+    number of frames. The number of columns will be the number of different
+    types of features requested (by default, 3; 4 is the max). The four
+    parameters `add_pov_feature`, `add_normalized_log_pitch`,
+    `add_delta_pitch`, `add_raw_log_pitch` determine which features we create;
+    by default we create the first three.
 
     POV stands for Probability of Voicing.
 

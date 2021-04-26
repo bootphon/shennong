@@ -70,19 +70,6 @@ def snr(signal, noise, ratio):
         np.linalg.norm(noise) * noise).astype(np.int16)
 
 
-def mean_absolute_error(pitch, truth):
-    """Returns the pitch MAE in Hz"""
-    assert pitch.shape == truth.shape
-    return np.mean(np.abs(pitch - truth))
-
-
-def gross_error_rate(pitch, truth, rate):
-    """Returns the pitch GER in % for a given `rate`"""
-    assert pitch.shape == truth.shape
-    error = np.abs(pitch - truth) > rate * truth
-    return 100 * sum(error) / len(error)
-
-
 def prepare_wavs(data_directory):
     """Adds Gaussian and babble noise at various SNRs on Keele dataset"""
     # for each KEELE file, generate babble and gaussian noisy versions at
@@ -239,6 +226,7 @@ def compute_pitch(data_directory, model):
 
 def load_masked_data(data_directory):
     """Load computed pitches with unvoiced frames masked"""
+    print('loading pitch data...')
     # load ground truth pitch values
     data = {'truth': FeaturesCollection.load(
         data_directory / 'pitch' / 'ground_truth.h5f')}
@@ -252,22 +240,26 @@ def load_masked_data(data_directory):
                     data_directory / 'pitch' / f'{name}_{noise}_{ratio}.h5f')
                 for ratio in SNR_LIST}
 
+    nmasked = {}
     for speaker in data['truth'].keys():
         # get frames with valid pitch
-        masks = []
-        masks.append(predict_voicing(
-            data['crepe']['gauss']['inf'][speaker].data[:, 0]))
+        masks = {}
+        masks['crepe'] = predict_voicing(
+            data['crepe']['gauss']['inf'][speaker].data[:, 0])
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
-            masks.append(predict_voicing(_nccf_to_pov(
-                data['kaldi']['gauss']['inf'][speaker].data[:, 0])))
-        masks.append(data['praat']['gauss']['inf'][speaker].data[:, 0] > 0)
-        masks.append(data['yaapt']['gauss']['inf'][speaker].data[:, 0] > 0)
-        masks.append(data['truth'][speaker].data[:, 0] > 0)
+            masks['kaldi'] = predict_voicing(_nccf_to_pov(
+                data['kaldi']['gauss']['inf'][speaker].data[:, 0]))
+        masks['praat'] = data['praat']['gauss']['inf'][speaker].data[:, 0] > 0
+        masks['yaapt'] = data['yaapt']['gauss']['inf'][speaker].data[:, 0] > 0
+        masks['truth'] = data['truth'][speaker].data[:, 0] > 0
 
         # get intersection of pitched frames for all models
-        size = min(len(m) for m in masks)
-        mask = np.logical_and.reduce([m[:size] for m in masks])
+        size = min(len(m) for m in masks.values())
+        mask = np.logical_and.reduce([m[:size] for m in masks.values()])
+
+        nmasked[speaker] = {k: (v.sum(), len(v)) for k, v in masks.items()}
+        nmasked[speaker]['total'] = (mask.sum(), len(mask))
 
         # put at 0 all frames that are not in the intersection and resize
         # features to the minimal size
@@ -281,7 +273,27 @@ def load_masked_data(data_directory):
                 feats[mask == 0] = 0
                 data[name][noise][ratio][speaker] = feats
 
+    # sum up the proportion of masked frames per model
+    print('proportion of voiced frames:')
+    for model in ('truth', 'kaldi', 'crepe', 'praat', 'yaapt', 'total'):
+        prop = (
+            sum(mask[model][0] for mask in nmasked.values()) /
+            sum(mask[model][1] for mask in nmasked.values()))
+        print('   {}: {:.1f} %'.format(model, 100 * prop))
+
     return data
+
+
+def mean_absolute_error(pitch, truth):
+    """Returns the pitch MAE in Hz"""
+    assert pitch.shape == truth.shape
+    return np.mean(np.abs(pitch - truth))
+
+
+def gross_error_rate(pitch, truth, rate=0.05):
+    """Returns the pitch GER in % for a given `rate`"""
+    assert pitch.shape == truth.shape
+    return 100 * (np.abs(pitch - truth) > rate * truth).mean()
 
 
 def compute_error_single(func, pitch, truth):
@@ -308,7 +320,7 @@ def compute_error(data_directory):
             mean_absolute_error, data[model], data['truth'])
                 for model in ('kaldi', 'crepe', 'praat', 'yaapt')},
         'ger': {model: compute_error_single(
-            lambda x, y: gross_error_rate(x, y, 0.05),
+            lambda x, y: gross_error_rate(x, y, rate=0.05),
             data[model], data['truth'])
                 for model in ('kaldi', 'crepe', 'praat', 'yaapt')}}
 
