@@ -111,7 +111,7 @@ def get_default_config(
     Parameters
     ----------
     features : str
-        The features extracted by the pipeline, must be 'mfcc',
+        The features extracted by the pipeline, must be 'sepectrogram', mfcc',
         'filterbank', 'plp', 'rastaplp' or 'bottleneck'. See also
         :func:`valid_features`.
     to_yaml : bool, optional
@@ -135,7 +135,8 @@ def get_default_config(
         Configure the pipeline for VTLN normalization, default to False. Must
         be False, 'simple' or 'full'. When 'simple' the features default to
         MFCC with default values. When 'full' all features parameters are
-        exposed.
+        exposed. VTLN is not compatible with spectrogram, bottleneck and
+        rastaplp features.
 
     Returns
     -------
@@ -198,6 +199,8 @@ def get_default_config(
         config['delta'] = PipelineManager.get_processor_params('delta')
 
     if with_vtln:
+        if features in ('spectrogram', 'rastaplp', 'bottleneck'):
+            raise ValueError(f'VTLN is not comptible with {features}')
         config['vtln'] = PipelineManager.get_processor_params('vtln')
 
         if with_vtln == 'simple':
@@ -495,7 +498,7 @@ def _init_config(config, log=get_logger('pipeline', 'warning')):
 def _init_warps(warps, config, utterances, log):
     # ensure VTLN supported by features
     features = [k for k in config.keys() if k in valid_features()][0]
-    if features in ('rastaplp', 'bottleneck'):
+    if features in ('sepectrogram', 'rastaplp', 'bottleneck'):
         raise ValueError(f'{features} features do not support VTLN')
 
     # ensure both warps and config['vtln'] are not specified

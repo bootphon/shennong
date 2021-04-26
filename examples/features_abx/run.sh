@@ -182,10 +182,10 @@ done
 # extract warped features
 for config in $(find $data_dir/config -type f -name "*.yaml")
 do
-    # no VTLN for bottleneck and rastaplp
+    # no VTLN for spectrogram, bottleneck and rastaplp
     name=$(basename $config)
     name=${name/_*}
-    if ! [ "$name" == "bottleneck" -o "$name" == "rastaplp" ]
+    if ! [ "$name" == "spectrogram" - o "$name" == "bottleneck" -o "$name" == "rastaplp" ]
     then
         for corpus in english xitsonga
         do

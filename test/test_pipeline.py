@@ -137,7 +137,9 @@ def test_config_bad(utterances):
     c = pipeline._init_config(config)
     assert c['pitch']['postprocessing'] == {}
 
-    # VTLN not compatible with rastaplp and bottleneck
+    # VTLN not compatible with spectrogram, rastaplp and bottleneck
+    with pytest.raises(ValueError):
+        pipeline.get_default_config('spectrogram', with_vtln='simple')
     with pytest.raises(ValueError):
         pipeline.get_default_config('rastaplp', with_vtln='simple')
     with pytest.raises(ValueError):

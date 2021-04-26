@@ -18,7 +18,7 @@ class PipelineManager:
 
     """
     valid_features = [
-        'mfcc', 'plp', 'filterbank', 'bottleneck', 'rastaplp', 'spectrogram']
+        'spectrogram', 'filterbank', 'mfcc', 'plp', 'rastaplp', 'bottleneck']
     """The main features available in shennong, excluding post-processing"""
 
     valid_processors = {

@@ -87,21 +87,14 @@ class SpectrogramProcessor(FramesProcessor):
     def raw_energy(self, value):
         self._options.raw_energy = bool(value)
 
-    def process(self, signal, vtln_warp=1.0):
+    def process(self, signal):
         """Compute spectrogram with the specified options
-
-        Do an optional feature-level vocal tract length normalization
-        (VTLN) when `vtln_warp` != 1.0.
 
         Parameters
         ----------
         signal : Audio, shape = [nsamples, 1]
             The input audio signal to compute the features on, must be
             mono
-        vtln_warp : float, optional
-            The VTLN warping factor to be applied when computing
-            features. Be 1.0 by default, meaning no warping is to be
-            done.
 
         Returns
         -------
@@ -117,6 +110,13 @@ class SpectrogramProcessor(FramesProcessor):
             not mono). If `sample_rate` != `signal.sample_rate`.
 
         """
+        # whereas Kaldi (and so pykaldi) exposes a vtln_warp parameter for
+        # spectrograms, it is only present for compatibility and has no effect.
+        # See https://github.com/kaldi-asr/kaldi/blob
+        # /598ad3a400a70b934485f577354b19ee04dd8636/src/feat/feature-spectrogram.h#L97.
+        # So this parameter is not exposed in shennong and we forward a
+        # "neutral" (1.0) VTLN warp to pykaldi.
+
         # ensure the signal is correct
         if signal.nchannels != 1:
             raise ValueError(
@@ -137,7 +137,7 @@ class SpectrogramProcessor(FramesProcessor):
         signal = signal.astype(np.int16).data
         data = kaldi.matrix.SubMatrix(
             kaldi.feat.spectrogram.Spectrogram(self._options).compute(
-                kaldi.matrix.SubVector(signal), vtln_warp)).numpy()
+                kaldi.matrix.SubVector(signal), 1.0)).numpy()
 
         return Features(
             data, self.times(data.shape[0]), properties=self.get_properties())
