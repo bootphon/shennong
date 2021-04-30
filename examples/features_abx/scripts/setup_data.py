@@ -4,6 +4,7 @@ import argparse
 import os
 import tempfile
 import urllib.request
+import yaml as pyyaml
 
 import shennong.pipeline as pipeline
 from shennong.utils import list_files_with_extension
@@ -135,6 +136,14 @@ def generate_configurations(conf_directory):
             features, to_yaml=True, yaml_commented=False,
             with_cmvn=True, with_delta=True, with_pitch='kaldi')
         open(conf, 'w').write(yaml)
+
+    # rastaplp
+    for conf in ('only', 'nocmvn', 'full'):
+        filename = os.path.join(conf_directory, f'plp_{conf}.yaml')
+        yaml = pyyaml.safe_load(open(filename, 'r'))
+        yaml['plp']['rasta'] = True
+        open(filename.replace('plp', 'rastaplp'), 'w').write(
+            pyyaml.safe_dump(yaml))
 
 
 def main():
