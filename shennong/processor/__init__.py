@@ -10,6 +10,5 @@ from shennong.processor.pitch_crepe import (
 from shennong.processor.pitch_kaldi import (
     KaldiPitchProcessor, KaldiPitchPostProcessor)
 from shennong.processor.plp import PlpProcessor
-from shennong.processor.rasta_plp import RastaPlpProcessor
 from shennong.processor.spectrogram import SpectrogramProcessor
 from shennong.processor.vtln import VtlnProcessor

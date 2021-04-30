@@ -149,7 +149,7 @@ def test_config_bad(utterances):
 def test_init_warps(utterances, capsys):
     log = logger.get_logger('test', 'info')
 
-    for feat in ('rastaplp', 'bottleneck'):
+    for feat in ('spectrogram', 'bottleneck'):
         with pytest.raises(ValueError) as err:
             pipeline._init_warps(
                 {}, pipeline.get_default_config(feat), utterances, log)
@@ -265,7 +265,7 @@ def test_processor_bad():
 
 
 def test_extract_features_bad(utterances):
-    config = pipeline.get_default_config('rastaplp')
+    config = pipeline.get_default_config('spectrogram')
     config['vtln'] = pipeline.get_default_config(
         'mfcc', with_vtln='simple')['vtln']
     with pytest.raises(ValueError) as err:

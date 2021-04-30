@@ -112,7 +112,7 @@ def get_default_config(
     ----------
     features : str
         The features extracted by the pipeline, must be 'sepectrogram', mfcc',
-        'filterbank', 'plp', 'rastaplp' or 'bottleneck'. See also
+        'filterbank', 'plp'  or 'bottleneck'. See also
         :func:`valid_features`.
     to_yaml : bool, optional
         If False the result configuration is a dict, if True this is a
@@ -135,8 +135,8 @@ def get_default_config(
         Configure the pipeline for VTLN normalization, default to False. Must
         be False, 'simple' or 'full'. When 'simple' the features default to
         MFCC with default values. When 'full' all features parameters are
-        exposed. VTLN is not compatible with spectrogram, bottleneck and
-        rastaplp features.
+        exposed. VTLN is not compatible with spectrogram and bottleneck
+        features.
 
     Returns
     -------
@@ -166,7 +166,7 @@ def get_default_config(
             f'with_vtln argument must be False, "simple" or "full" '
             f'but is "{with_vtln}"')
 
-    if with_vtln and features in ('rastaplp', 'bottleneck'):
+    if with_vtln and features in ('spectrogram', 'bottleneck'):
         raise ValueError(
             f'VTLN is not compatible with {features} features')
 
@@ -199,8 +199,6 @@ def get_default_config(
         config['delta'] = PipelineManager.get_processor_params('delta')
 
     if with_vtln:
-        if features in ('spectrogram', 'rastaplp', 'bottleneck'):
-            raise ValueError(f'VTLN is not comptible with {features}')
         config['vtln'] = PipelineManager.get_processor_params('vtln')
 
         if with_vtln == 'simple':
@@ -456,7 +454,7 @@ def _init_config(config, log=get_logger('pipeline', 'warning')):
             '(must have one and only one entry of {}): {}'
             .format(', '.join(valid_features()), ', '.join(features)))
 
-    if 'vtln' in config and features[0] in ('rastaplp', 'bottleneck'):
+    if 'vtln' in config and features[0] in ('spectrogram', 'bottleneck'):
         raise ValueError(f'{features[0]} features do not support VTLN')
 
     if 'cmvn' in config:
@@ -498,7 +496,7 @@ def _init_config(config, log=get_logger('pipeline', 'warning')):
 def _init_warps(warps, config, utterances, log):
     # ensure VTLN supported by features
     features = [k for k in config.keys() if k in valid_features()][0]
-    if features in ('sepectrogram', 'rastaplp', 'bottleneck'):
+    if features in ('spectrogram', 'bottleneck'):
         raise ValueError(f'{features} features do not support VTLN')
 
     # ensure both warps and config['vtln'] are not specified

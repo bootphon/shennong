@@ -18,7 +18,7 @@ class PipelineManager:
 
     """
     valid_features = [
-        'spectrogram', 'filterbank', 'mfcc', 'plp', 'rastaplp', 'bottleneck']
+        'spectrogram', 'filterbank', 'mfcc', 'plp', 'bottleneck']
     """The main features available in shennong, excluding post-processing"""
 
     valid_processors = {
@@ -31,7 +31,6 @@ class PipelineManager:
         'crepe_pitch': ('processor', 'CrepePitchProcessor'),
         'crepe_pitch_post': ('processor', 'CrepePitchPostProcessor'),
         'plp': ('processor', 'PlpProcessor'),
-        'rastaplp': ('processor', 'RastaPlpProcessor'),
         'spectrogram': ('processor', 'SpectrogramProcessor'),
         'ubm': ('processor', 'DiagUbmProcessor'),
         'vtln': ('processor', 'VtlnProcessor'),
@@ -174,9 +173,7 @@ class PipelineManager:
         except KeyError:
             raise ValueError('invalid processor "{}"'.format(name))
 
-        if 'rastaplp' in name:
-            name = 'rasta_plp'
-        elif 'crepe_pitch' in name:
+        if 'crepe_pitch' in name:
             # crepe pitch (post)processor
             name = 'pitch_crepe'
         elif 'kaldi_pitch' in name:

@@ -12,7 +12,6 @@ from shennong.processor import (
     KaldiPitchProcessor,
     CrepePitchProcessor,
     PlpProcessor,
-    RastaPlpProcessor,
     SpectrogramProcessor)
 
 
@@ -21,13 +20,13 @@ PROCESSORS = [
     FilterbankProcessor,
     MfccProcessor,
     PlpProcessor,
+    (PlpProcessor, 'rasta'),  # a tweak to test PLP with rasta
     BottleneckProcessor,
     OneHotProcessor,
     FramedOneHotProcessor,
     CrepePitchProcessor,
     KaldiPitchProcessor,
-    SpectrogramProcessor,
-    RastaPlpProcessor]
+    SpectrogramProcessor]
 
 
 @pytest.mark.parametrize(
@@ -36,8 +35,12 @@ def test_stable(processor, same, audio, alignments):
     if processor in (OneHotProcessor, FramedOneHotProcessor):
         audio = alignments['S01F1522_0003']
 
-    p1 = processor()
-    p2 = p1 if same else processor()
+    if isinstance(processor, tuple):
+        p1 = processor[0](rasta=True)
+        p2 = p1 if same else processor[0](rasta=True)
+    else:
+        p1 = processor()
+        p2 = p1 if same else processor()
 
     # disable dithering in mel-based processors to have exactly the
     # same output

@@ -7,6 +7,9 @@ Version numbers follow [semantic versioning](https://semver.org).
 
 ### breaking changes
 
+* Deletion of `processor.rastaplp.RastaPlpProcessor`. Rasta filtering is now an
+  option of the standard `PlpProcessor`, so as to use both Rasta and VTLN.
+
 * Pitch, delta and CMVN are now deactivated by default in pipeline configuration
   generation (concerns both `speech-features` binary and the `shennong.pipeline`
   module).
