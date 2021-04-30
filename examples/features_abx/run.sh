@@ -185,7 +185,7 @@ do
     # no VTLN for spectrogram, bottleneck and rastaplp
     name=$(basename $config)
     name=${name/_*}
-    if ! [ "$name" == "spectrogram" - o "$name" == "bottleneck" -o "$name" == "rastaplp" ]
+    if ! [ "$name" == "spectrogram" - o "$name" == "bottleneck" ]
     then
         for corpus in english xitsonga
         do

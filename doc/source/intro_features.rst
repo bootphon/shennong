@@ -15,19 +15,18 @@ Implemented models
   ``shennong``, the detailed documentation is available :ref:`here
   <features.processor>`:
 
-  =============== ==============
-  Features        Implementation
-  =============== ==============
-  Spectrogram     from Kaldi_
-  Filterbank      from Kaldi_
-  MFCC            from Kaldi_
-  PLP             from Kaldi_
-  RASTA-PLP       from rastapy_, after labrosa_
-  Bottleneck      from BUTspeech_
-  One Hot Vectors shennong
-  Pitch           from Kaldi_ and CREPE_
-  Energy          from Kaldi_
-  =============== ==============
+  ===============                 ==============
+  Features                        Implementation
+  ===============                 ==============
+  Spectrogram                     from Kaldi_
+  Filterbank                      from Kaldi_
+  MFCC                            from Kaldi_
+  PLP (optional Rasta filtering)  Kaldi_ and rastapy_
+  Bottleneck                      from BUTspeech_
+  One Hot Vectors                 shennong
+  Pitch                           from Kaldi_ and CREPE_
+  Energy                          from Kaldi_
+  ===============                 ==============
 
 * The following post-processing pipelines are implemented in
   ``shennong``, the detailed documentation is available :ref:`here
@@ -78,7 +77,7 @@ experiment is available at ``shennong/examples/features_abx``.
     * filterbanks
     * MFCC
     * PLP
-    * RASTA PLP
+    * Rasta-PLP
     * bottleneck
 
   * Each is tested with 3 distinct parameters sets, with and without VTLN:
