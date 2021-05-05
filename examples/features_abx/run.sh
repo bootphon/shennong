@@ -1,6 +1,6 @@
 #!/bin/bash
-# Run the whole experiment in one command, please customize the
-# following parameters before launching it.
+# Run the whole experiment in one command, please customize the following
+# parameters before launching it. REquires a cluster running SLURM.
 
 #####################
 ## parameters to tune

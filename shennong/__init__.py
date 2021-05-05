@@ -14,7 +14,7 @@ import textwrap
 from shennong.audio import Audio
 from shennong.features import Features
 from shennong.features_collection import FeaturesCollection
-from shennong.utterances import Utterances
+from shennong.utterances import Utterance, Utterances
 
 
 __version__ = '1.0rc0'

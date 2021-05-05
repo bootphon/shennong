@@ -101,7 +101,9 @@ class Utterance:
                 self._tstart is not None and
                 (self._tstart < 0 or self._tstart >= self._tstop)
         ):
-            raise ValueError('we must have 0 <= tstart < tstop')
+            raise ValueError(
+                'we must have 0 <= tstart < tstop, but '
+                f'(tstart, tstop)=({self._tstart}, {self._tstop})')
 
         # compute the utterance duration, warns if tstop if beyond audio
         # boundaries. Scanning the audio file raises if the file is not found
@@ -356,7 +358,7 @@ class Utterances:
             duration cannot be returned for a speaker. Default to False.
         shuffle : bool, optional
             When True, shuffle the utterances before extracting segments. When
-            False, take thme in order. Default to False.
+            False, take them in order. Default to False.
 
         Returns
         -------
@@ -367,8 +369,9 @@ class Utterances:
         Raises
         ------
         ValueError
-            When ``duration`` is not strictly positive or, when ``truncate`` is
-            True, if a speaker has not enough data to build segments.
+            If the utterances are not defined by speakers. When ``duration`` is
+            not strictly positive or, when ``truncate`` is True, if a speaker
+            has not enough data to build segments.
 
         """
         if duration <= 0:
@@ -382,15 +385,19 @@ class Utterances:
 
             remaining_duration = duration
             for utt in utterances:
+                tstart = 0 if utt.tstart is None else utt.tstart
+                tstop = utt.duration-tstart if utt.tstop is None else utt.tstop
                 if utt.duration >= remaining_duration:
                     segments.append(Utterance(
                         utt.name, utt.audio_file,
-                        utt.speaker, 0, remaining_duration))
+                        utt.speaker, tstart,
+                        tstart + remaining_duration))
                     remaining_duration = 0
                     break
 
                 segments.append(Utterance(
-                    utt.name, utt.audio_file, utt.speaker, 0, utt.duration))
+                    utt.name, utt.audio_file, utt.speaker,
+                    tstart, tstop))
                 remaining_duration -= utt.duration
 
             if remaining_duration > 0:
