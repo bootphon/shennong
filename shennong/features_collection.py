@@ -6,28 +6,38 @@
 - A collection can be saved to and loaded from a file with the :func:`save` and
   :func:`load` methods.
 
-- The following table details the supported file formats and compares the
-  obtained file size, writing and reading times on MFCC features computed on
-  the `Buckeye Corpus <https://buckeyecorpus.osu.edu>`_
-  (English, 40 speakers, about 38 hours of speech and 254 files):
+Supported file formats
+----------------------
 
-  ===========  =========  =========  ============  ============
-  File format  Extension  File size  Writing time  Reading time
-  ===========  =========  =========  ============  ============
-  pickle       .pkl       883.7 MB   0:00:07       0:00:05
-  h5features   .h5f       873.0 MB   0:00:21       0:00:07
-  numpy        .npz       869.1 MB   0:02:30       0:00:22
-  matlab       .mat       721.1 MB   0:00:59       0:00:11
-  kaldi        .ark       1.3 GB     0:00:06       0:00:07
-  CSV          folder     4.8 GB     0:03:02       0:03:11
-  ===========  =========  =========  ============  ============
+The following table details the supported file formats and compares the
+obtained file size, writing and reading times on MFCC features computed on the
+`Buckeye Corpus <https://buckeyecorpus.osu.edu>`_ (English, 40 speakers, about
+38 hours of speech and 254 files):
 
-- The documention for the *h5features* format is available at
-  https://docs.cognitive-ml.fr/h5features.
+===========  =========  =========  ============  ============
+File format  Extension  File size  Writing time  Reading time
+===========  =========  =========  ============  ============
+pickle       .pkl       883.7 MB   0:00:07       0:00:05
+h5features   .h5f       873.0 MB   0:00:21       0:00:07
+numpy        .npz       869.1 MB   0:02:30       0:00:22
+matlab       .mat       721.1 MB   0:00:59       0:00:11
+kaldi        .ark       1.3 GB     0:00:06       0:00:07
+CSV          folder     4.8 GB     0:03:02       0:03:11
+===========  =========  =========  ============  ============
 
-- The CSV serializer writes into a folder: one CSV file per feature in the
-  ``FeaturesCollection``, with an optional JSON file storing features
-  properties.
+- **pickle**: standard Python format, fast and efficient for little to medium
+  datasets.
+
+- **h5features**: based on HDF5 and specialized for very big datasets. Supports
+  partial read/write of datasets bigger than RAM. The documention is available
+  at https://docs.cognitive-ml.fr/h5features.
+
+- **numpy**: standard numpy format.
+
+- **matlab** and **kaldi**: for compatibility.
+
+- **csv**: each features in the collection is wrote as plain text in a
+  dedicated file, with an optional JSON file storing features properties.
 
 Examples
 --------

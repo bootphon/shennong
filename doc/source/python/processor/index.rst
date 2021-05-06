@@ -12,7 +12,6 @@ The available speech features processors are:
    filterbank
    mfcc
    plp
-   rasta_plp
    bottleneck
    onehot
    pitch_kaldi

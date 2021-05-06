@@ -13,11 +13,15 @@ from shennong.processor import (
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('wav', help='wav file to compute features on')
+    parser.add_argument(
+        'wav', help='wav file to compute features on')
+    parser.add_argument(
+        '-o', '--output-file',
+        help='output file, display on screen if not specified')
+    args = parser.parse_args()
 
     # load the wav file
-    wav_file = parser.parse_args().wav
-    audio = Audio.load(wav_file)
+    audio = Audio.load(args.wav)
 
     # initialize features processors
     processors = {
@@ -32,7 +36,7 @@ def main():
     features = {k: v.process(audio) for k, v in processors.items()}
 
     # plot the audio signal and the resulting features
-    _, axes = plt.subplots(
+    fig, axes = plt.subplots(
         nrows=len(processors)+1,
         gridspec_kw={'top': 0.95, 'bottom': 0.05, 'hspace': 0},
         subplot_kw={'xticks': [], 'yticks': []})
@@ -51,7 +55,18 @@ def main():
             bbox={'boxstyle': 'round', 'alpha': 0.5, 'color': 'white'},
             transform=axes[n].transAxes)
 
-    plt.show()
+    axes[0].set_ylabel('amplitude')
+    axes[1].set_ylabel('frequency')
+    for i in range(2, 6):
+        axes[i].set_ylabel('mel')
+    axes[-1].set_ylabel('dim')
+    axes[-1].set_xlabel('time')
+
+    fig.set_size_inches(7, 9)
+    if args.output_file:
+        fig.savefig(args.output_file)
+    else:
+        plt.show()
 
 
 if __name__ == '__main__':
