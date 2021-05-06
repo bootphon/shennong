@@ -539,7 +539,7 @@ class PlpProcessor(MelFeaturesProcessor):
                 0, signal, row, self._frame_options, window_function, window,
                 self.use_energy and self.raw_energy)
 
-            # ... and extract PLP with optioanl Rasta filtering
+            # ... and extract PLP with optional Rasta filtering
             self._compute_frame(
                 raw_log_energy, vtln_warp, window, output[row, :])
 
