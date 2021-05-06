@@ -7,7 +7,6 @@ Read data/segments/{file}.utt and write data/wraps/{file}.warp
 
 import argparse
 import pathlib
-import shutil
 
 from shennong import Utterances
 from shennong.processor import VtlnProcessor

@@ -339,7 +339,8 @@ def plot_error(data_directory, show=False):
     for noise in NOISE_LIST:
         for metric, ylabel in (('mae', 'MAE (Hz)'), ('ger', r'GER (\%)')):
             filename = data_directory / 'plots' / f'{metric}_{noise}.pdf'
-            plt.style.use('./plot.style')
+            plt.style.use(
+                data_directory.resolve().parent.parent / './plot.style')
             plt.figure(figsize=(6, 3))
             plt.grid(axis='both')
 
