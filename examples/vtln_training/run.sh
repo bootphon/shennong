@@ -121,7 +121,7 @@ rm -f $log_dir/vtln_*.log
 
 cat > $tempfile <<EOF
 #!/bin/bash
-#SBATCH --job-name=vtln_%a
+#SBATCH --job-name=vtln
 #SBATCH --output=${log_dir}/vtln_%a.log
 #SBATCH --partition=$partition
 #SBATCH --ntasks=1
@@ -136,8 +136,8 @@ export VECLIB_MAXIMUM_THREADS=1
 $activate_shennong
 while read file
 do
-  $scripts/extract_warps.py $file --njobs $ncores
-done < <(grep "^${SLURM_ARRAY_TASK_ID}" $data_dir/vtln_jobs.txt | cut -d" " -f2)
+  $scripts/extract_warps.py \$file --njobs $ncores
+done < <(grep "^\${SLURM_ARRAY_TASK_ID}" $data_dir/vtln_jobs.txt | cut -d" " -f2)
 EOF
 
 pid=$(sbatch --array=1-${njobs_vtln} $tempfile | cut -d' ' -f4)
