@@ -1,7 +1,8 @@
 #!/usr/bin/env python
+"""VTLN training for phone discrimination experiment"""
 
 import argparse
-import os
+import pathlib
 
 from shennong import Utterances
 from shennong.processor import VtlnProcessor
@@ -10,9 +11,12 @@ from shennong.processor import VtlnProcessor
 def main():
     # parse input arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('data_directory', help='input/output data directory')
     parser.add_argument(
-        'corpus', choices=['english', 'xitsonga'], help='corpus to process')
+        'data_directory', type=pathlib.Path,
+        help='input/output data directory')
+    parser.add_argument(
+        'corpus', choices=['english', 'xitsonga'],
+        help='corpus to process')
     parser.add_argument(
         '-d', '--duration', default=10*60, type=float,
         help=(
@@ -27,23 +31,23 @@ def main():
 
     # check and setup arguments
     data_directory = args.data_directory
-    if not os.path.isdir(data_directory):
+    if not data_directory.is_dir():
         raise ValueError(f'directory not found: {data_directory}')
 
-    output_warps = f'{data_directory}/{args.corpus}.warps'
-    if os.path.isfile(output_warps):
+    output_warps = data_directory / f'{args.corpus}.warps'
+    if output_warps.is_file():
         raise ValueError(f'file already exists: {output_warps}')
 
     # load input utterances truncated to 'duration' seconds per speaker
     print(f'loading utterances from {data_directory}/{args.corpus}.utts')
     utterances = Utterances.load(
-        f'{data_directory}/{args.corpus}.utts').fit_to_duration(
+        data_directory / f'{args.corpus}.utts').fit_to_duration(
             args.duration, truncate=True, shuffle=False)
 
     # train VTLN model
     proc = VtlnProcessor()
     proc.set_logger('debug' if args.verbose else 'info')
-    warps = proc.process(utterances, njobs=args.njobs, group_by='speaker')
+    warps = {}  proc.process(utterances, njobs=args.njobs, group_by='speaker')
 
     # write the VTLN warps
     open(output_warps, 'w').write(

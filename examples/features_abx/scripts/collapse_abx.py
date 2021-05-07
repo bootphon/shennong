@@ -9,9 +9,10 @@ documentation
 
 import argparse
 import collections
+import pathlib
+
 import joblib
 import numpy as np
-import os
 import pandas
 
 
@@ -43,7 +44,7 @@ def average(df, task_type):
 
 def compute_scores(csv_files, njobs=1):
     def _compute_score(csv):
-        name = os.path.splitext(os.path.basename(csv))[0].split('_')
+        name = csv.stem.split('_')
         task = name[0]
         score = average(pandas.read_csv(csv, sep='\t'), task)
         return Entry(
@@ -62,19 +63,16 @@ def compute_scores(csv_files, njobs=1):
 def main():
     # parse command line arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('data_dir')
+    parser.add_argument('data_dir', type=pathlib.Path)
     parser.add_argument('-j', '--njobs', default=1, type=int)
     args = parser.parse_args()
 
     # setup input / output files
-    scores_file = os.path.join(args.data_dir, 'final_scores.txt')
+    scores_file = args.data_dir / 'final_scores.txt'
 
     # computes averaged scores and save them to a file
-    abx_dir = os.path.join(args.data_dir, 'abx')
-    csv_files = [
-        os.path.join(abx_dir, f) for f in os.listdir(abx_dir)
-        if f.endswith('.csv')]
-    entries = compute_scores(csv_files, njobs=args.njobs)
+    entries = compute_scores(
+        (args.data_dir / 'abx').glob('*.csv'), njobs=args.njobs)
     with open(scores_file, 'w') as fout:
         for e in sorted(entries):
             fout.write('{} {} {} {} {}\n'.format(

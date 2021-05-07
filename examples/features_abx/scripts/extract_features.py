@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
-import os
+import pathlib
 from shennong import pipeline, Utterances
 from shennong.logger import get_logger
 
@@ -9,8 +9,10 @@ from shennong.logger import get_logger
 def main():
     # parse input arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('data_directory', help='input/output data directory')
-    parser.add_argument('config_file', help='YAML configuration file')
+    parser.add_argument(
+        'data_directory', help='input/output data directory', type=pathlib.Path)
+    parser.add_argument(
+        'config_file', help='YAML configuration file', type=pathlib.Path)
     parser.add_argument(
         'corpus', choices=['english', 'xitsonga'], help='corpus to process')
     parser.add_argument(
@@ -25,25 +27,22 @@ def main():
 
     # check and setup arguments
     data_directory = args.data_directory
-    if not os.path.isdir(data_directory):
+    if not data_directory.is_dir():
         raise ValueError(f'directory not found: {data_directory}')
 
     config = args.config_file
-    if not os.path.isfile(config):
+    if not config.is_file():
         raise ValueError(f'file not found: {config}')
 
     warps = None
     if args.do_vtln:
-        warps_file = os.path.join(data_directory, f'{args.corpus}.warps')
-        if not os.path.isfile(warps_file):
-            raise ValueError(f'file not found: {config}')
+        warps_file = data_directory / f'{args.corpus}.warps'
+        if not warps_file.is_file():
+            raise ValueError(f'file not found: {warps_file}')
         warps = {spk: float(warp) for spk, warp in (
             line.strip().split() for line in open(warps_file, 'r'))}
 
-    try:
-        os.makedirs(os.path.join(data_directory, 'features'))
-    except FileExistsError:
-        pass
+    (data_directory / 'features').mkdir(exist_ok=True)
 
     log = get_logger('extraction', 'debug' if args.verbose else 'info')
 
@@ -51,16 +50,14 @@ def main():
     log.info('loading utterances...')
     utterances = Utterances(
         [line.strip().split(' ') for line in open(
-            os.path.join(data_directory, f'{args.corpus}.utts'), 'r')])
+            data_directory / f'{args.corpus}.utts', 'r')])
 
     # extract the features
     features = pipeline.extract_features(
         config, utterances, warps=warps, njobs=args.njobs, log=log)
 
     # save them
-    h5f_file = os.path.join(
-        data_directory, 'features', f'{args.corpus}_{os.path.basename(config)}'
-        .replace('.yaml', '.h5f'))
+    h5f_file = data_directory / 'features' / f'{args.corpus}_{config.stem}.h5f'
     if args.do_vtln:
         h5f_file = h5f_file.replace('.h5f', '_vtln.h5f')
 
