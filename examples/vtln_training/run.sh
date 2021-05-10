@@ -12,14 +12,11 @@ buckeye_dir=/scratch1/data/raw_data/BUCKEYE/
 # directory where to write all experiment data
 data_dir=./data
 
-# number of SLURM jobs to generate for VTLN training
-njobs_vtln=30
+# number of SLURM jobs to generate for VTLN training and MFCC/ABX
+njobs_slurm=30
 
 # number of CPU cores to use for VTLN training
 ncores=4
-
-# # number of parallel jobs per task for features extraction and ABX evaluation
-# njobs=10
 
 # cluster partition to schedule the jobs on
 partition=all
@@ -84,38 +81,11 @@ dependency=afterok
 echo "step 1: setup $data_dir"
 
 eval $activate_shennong
-$scripts/setup_data.py $data_dir $buckeye_dir -n $njobs_vtln || exit 1
+$scripts/setup_data.py $data_dir $buckeye_dir -n $njobs_slurm || exit 1
 
 
 
-echo "step 2: setup abx task"
-
-log=$log_dir/abx_task.log
-rm -f $log
-
-cat > $tempfile <<EOF
-#!/bin/bash
-#SBATCH --job-name=task
-#SBATCH --output=$log
-#SBATCH --partition=$partition
-#SBATCH --ntasks=1
-
-export OMP_NUM_THREADS=1
-export NUMEXPR_NUM_THREADS=1
-export MKL_NUM_THREADS=1
-export OPENBLAS_NUM_THREADS=1
-export VECLIB_MAXIMUM_THREADS=1
-
-$activate_abx
-abx-task $data_dir/english.item $data_dir/english_across.abx -o phone -a talker -b context || exit 1
-EOF
-
-pid=$(sbatch $tempfile | cut -d' ' -f4)
-dependency=${dependency}:$pid
-
-
-
-echo "step 3: compute VTLN warps"
+echo "step 2: compute VTLN warps"
 
 rm -f $log_dir/vtln_*.log
 
@@ -140,5 +110,105 @@ do
 done < <(grep "^\${SLURM_ARRAY_TASK_ID}" $data_dir/vtln_jobs.txt | cut -d" " -f2)
 EOF
 
-pid=$(sbatch --array=1-${njobs_vtln} $tempfile | cut -d' ' -f4)
+pid=$(sbatch --array=1-${njobs_slurm} $tempfile | cut -d' ' -f4)
+dependency=${dependency}:$pid
+
+
+
+echo "step 2 bis: setup abx jobs and task"
+
+
+# prepare ABX jobs
+log=$log_dir/abx_jobs.log
+rm -f $log
+cat > $tempfile <<EOF
+#!/bin/bash
+#SBATCH --job-name=jobs
+#SBATCH --output=$log
+#SBATCH --partition=$partition
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --dependency=$dependency
+
+$activate_shennong
+$scripts/prepare_abx_jobs.py $data_dir/warps $njobs_slurm -o $data_dir/abx_jobs.txt
+EOF
+
+pid=$(sbatch $tempfile | cut -d' ' -f4)
+dependency=${dependency}:$pid
+
+
+# generate ABX task
+log=$log_dir/abx_task.log
+rm -f $log
+cat > $tempfile <<EOF
+#!/bin/bash
+#SBATCH --job-name=task
+#SBATCH --output=$log
+#SBATCH --partition=$partition
+#SBATCH --ntasks=1
+
+export OMP_NUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+
+$activate_abx
+abx-task $data_dir/english.item $data_dir/english_across.abx -o phone -a talker -b context || exit 1
+EOF
+
+pid=$(sbatch $tempfile | cut -d' ' -f4)
+dependency=${dependency}:$pid
+
+
+echo "step 3: compute MFCCs and ABX scores"
+
+echo "duration,index,conf,score" > $data_dir/abx.csv
+rm -f $log_dir/abx_*.log
+cat > $tempfile <<EOF
+#!/bin/bash
+#SBATCH --job-name=abx
+#SBATCH --output=${log_dir}/abx_%a.log
+#SBATCH --partition=$partition
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=$ncores
+#SBATCH --dependency=$dependency
+
+export OMP_NUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+
+while read warps
+do
+  for conf in only nocmvn full
+  do
+    tmpdir=\$(mktemp -d)
+    trap "rm -rf \$tmpdir" EXIT
+
+    # compute MFCCs with warps
+    $activate_shennong
+    $scripts/extract_features.py $data_dir \$conf \$warps --njobs $ncores -o \$tmpdir/feats.h5f
+
+    # compte raw ABX score
+    $activate_abx
+    abx-distance -j $ncores -n 1 \$tmpdir/feats.h5f $data_dir/english_across.abx \$tmpdir/dist.dist
+    abx-score $data_dir/english_across.abx \$tmpdir/dist.dist \$tmpdir/score.score
+    abx-analyze \$tmpdir/score.score $data_dir/english_across.abx \$tmpdir/score.csv
+
+    # collaspe ABX score
+    $activate_shennong
+    score=\$($scripts/collapse_abx.py \$tmpdir/score.csv)
+    duration=\$(basename \$warps | cut -d_ -f1)
+    index=\$(basename \$warps | cut -d_ -f2)
+    echo "\$duration,\$index,\$conf,\$score" >> $data_dir/abx.csv
+
+    rm -rf \$tmpdir
+  done
+done < <(grep "^\${SLURM_ARRAY_TASK_ID}" $data_dir/abx_jobs.txt | cut -d" " -f2)
+EOF
+
+pid=$(sbatch --array=1-${njobs_slurm} $tempfile | cut -d' ' -f4)
 dependency=${dependency}:$pid

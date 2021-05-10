@@ -56,7 +56,10 @@ def setup_data(data_directory, buckeye_directory, slurm_jobs=10):
     prepare_utterances(data_directory)
 
     log.info('creating utterances segments...')
-    prepare_segments(data_directory, slurm_jobs)
+    prepare_segments(data_directory)
+
+    log.info('prepare VTLN jobs')
+    prepare_jobs(data_directory, slurm_jobs)
 
     log.info('generating configuration files for features extraction...')
     prepare_configurations(data_directory / 'config')
@@ -113,7 +116,7 @@ def prepare_utterances(data_directory):
         '\n'.join(f'{u} {w} {s}' for u, w, s in zip(utts, wavs, spks)) + '\n')
 
 
-def prepare_segments(data_directory, slurm_njobs):
+def prepare_segments(data_directory):
     # load input utterances
     utterances = Utterances([
         Utterance(u.name, u.audio_file, u.speaker, 0, u.duration)
@@ -131,11 +134,14 @@ def prepare_segments(data_directory, slurm_njobs):
                 data_directory / 'segments' /
                 f'{str(duration).rjust(3, "0")}_{str(i).rjust(3, "0")}.utt')
 
-    # group the 1000 segments into `slurm_njobs` jobs
+
+def prepare_jobs(data_directory, slurm_jobs):
+    # group the 1000 and so segments into `slurm_njobs` jobs
     segments = list(
         f.resolve() for f in (data_directory / 'segments').glob('*.utt'))
     random.shuffle(segments)
-    size = int(len(segments) / (slurm_njobs - 1))
+
+    size = int(len(segments) / (slurm_jobs - 1))
     jobs = [segments[pos:pos+size] for pos in range(0, len(segments), size)]
     with open(data_directory / 'vtln_jobs.txt', 'w') as fout:
         for i, job in enumerate(jobs, start=1):
