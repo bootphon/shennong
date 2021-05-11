@@ -208,7 +208,7 @@ do
 
     rm -rf \$tmpdir
   done
-done < <(grep "^\${SLURM_ARRAY_TASK_ID}" $data_dir/abx_jobs.txt | cut -d" " -f2)
+done < <(grep "^\${SLURM_ARRAY_TASK_ID} " $data_dir/abx_jobs.txt | cut -d" " -f2)
 EOF
 
 sbatch --array=1-${njobs_slurm} $tempfile
