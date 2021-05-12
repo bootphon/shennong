@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Plots warps on various training duration for multiple speakers"""
+"""Plots warps on various training durations for multiple speakers"""
 
 import argparse
 import collections
