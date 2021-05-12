@@ -185,6 +185,7 @@ while read warps
 do
   for conf in only nocmvn full
   do
+    echo "Computing \$(basename \$warps) \$conf"
     tmpdir=\$(mktemp -d)
     trap "rm -rf \$tmpdir" EXIT
 
@@ -192,9 +193,9 @@ do
     $activate_shennong
     $scripts/extract_features.py $data_dir \$conf \$warps --njobs $ncores -o \$tmpdir/feats.h5f
 
-    # compte raw ABX score
+    # compute raw ABX score
     $activate_abx
-    abx-distance -j $ncores -n 1 \$tmpdir/feats.h5f $data_dir/english_across.abx \$tmpdir/dist.dist
+    abx-distance -j $ncores -n 1 \$tmpdir/feats.h5f $data_dir/english_across.abx \$tmpdir/dist.dist 2>&1 > /dev/null
     abx-score $data_dir/english_across.abx \$tmpdir/dist.dist \$tmpdir/score.score
     abx-analyze \$tmpdir/score.score $data_dir/english_across.abx \$tmpdir/score.csv
 
@@ -202,13 +203,12 @@ do
     $activate_shennong
     score=\$($scripts/collapse_abx.py \$tmpdir/score.csv)
     duration=\$(basename \$warps | cut -d_ -f1)
-    index=\$(basename \$warps | cut -d_ -f2)
+    index=\$(basename \$warps .warp | cut -d_ -f2)
     echo "\$duration,\$index,\$conf,\$score" >> $data_dir/abx.csv
 
     rm -rf \$tmpdir
   done
-done < <(grep "^\${SLURM_ARRAY_TASK_ID}" $data_dir/abx_jobs.txt | cut -d" " -f2)
+done < <(grep "^\${SLURM_ARRAY_TASK_ID} " $data_dir/abx_jobs.txt | cut -d" " -f2)
 EOF
 
-pid=$(sbatch --array=1-${njobs_slurm} $tempfile | cut -d' ' -f4)
-dependency=${dependency}:$pid
+sbatch --array=1-${njobs_slurm} $tempfile
