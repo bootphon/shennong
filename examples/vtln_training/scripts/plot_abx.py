@@ -48,7 +48,7 @@ def main():
 
     for conf in 'only', 'nocmvn', 'full':
         mean, hstd = get_curve(data, conf)
-        plt.plot(xticks, mean, marker='o', label=LABEL[conf])
+        plt.plot(xticks, mean, marker='.', label=LABEL[conf])
         plt.fill_between(xticks, mean - hstd, mean + hstd, alpha=0.15)
 
     plt.xticks(
@@ -58,9 +58,9 @@ def main():
     plt.ylabel(r'ABX error rate (\%)')
     plt.legend()
 
-    # (data_directory / 'plots').mkdir(exist_ok=True)
-    # plt.savefig(data_directory / 'plots' / 'vtln_abx.pdf')
-    plt.show()
+    (data_directory / 'plots').mkdir(exist_ok=True)
+    plt.savefig(data_directory / 'plots' / 'vtln_abx.pdf')
+    # plt.show()
 
 
 if __name__ == '__main__':
