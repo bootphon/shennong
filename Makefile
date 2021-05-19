@@ -28,5 +28,5 @@ clean:
 	$(PYTHON) setup.py clean
 	find . -name __pycache__ -exec rm -rf {} +
 	rm -rf .eggs *.egg-info
-	rm -rf .coverage* htmlcov
-	rm -rf build doc/build
+	rm -rf .coverage* .pytest_cache htmlcov
+	rm -rf build doc/build dist
