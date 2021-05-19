@@ -122,7 +122,7 @@ class OneHotProcessor(_OneHotBase):
         # initialize the data matrix with zeros, TODO should data be a
         # scipy.sparse matrix?
         data = np.zeros(
-            (alignment.tokens.shape[0], len(token2index)), dtype=np.bool)
+            (alignment.tokens.shape[0], len(token2index)), dtype=bool)
 
         # fill the data with onehot encoding of tokens
         for i, p in enumerate(alignment.tokens):
@@ -225,7 +225,7 @@ class FramedOneHotProcessor(_OneHotBase):
 
         # allocate the features data
         data = np.zeros(
-            (frame_boundaries.shape[0], len(token2index)), dtype=np.bool)
+            (frame_boundaries.shape[0], len(token2index)), dtype=bool)
 
         # allocate the window function
         window = shennong.window.window(

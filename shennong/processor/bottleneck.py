@@ -444,11 +444,11 @@ def _compute_vad(s, log, win_length=200, win_overlap=120,
         llh = _logsumexp(llhs, axis=1)[:, np.newaxis]
         llhs = np.exp(llhs - llh)
 
-        out = np.zeros(llhs.shape[0], dtype=np.bool)
+        out = np.zeros(llhs.shape[0], dtype=bool)
         out[llhs[:, 0] < threshold] = True
     except RuntimeWarning:
         log.warning("signal contains only silence")
-        out = np.zeros(E.shape[0], dtype=np.bool)
+        out = np.zeros(E.shape[0], dtype=bool)
 
     return out
 
