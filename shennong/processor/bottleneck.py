@@ -645,7 +645,7 @@ class BottleneckProcessor(FeaturesProcessor):
             pkg_resources.Requirement.parse('shennong'),
             'shennong/share/bottleneck')
         if not os.path.isdir(directory):  # pragma: nocover
-            raise RuntimeError('directory not found: {}'.format(directory))
+            raise RuntimeError(f'directory not found: {directory}')
 
         # retrieve the weights files
         expected_files = {

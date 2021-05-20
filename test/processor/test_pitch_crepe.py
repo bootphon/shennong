@@ -34,7 +34,35 @@ def test_crepe_pitch_params():
     assert 'Model capacity wrong is not recognized' in str(err.value)
 
 
-def test_output(audio, audio_8k):
+@pytest.mark.parametrize(
+    'viterbi, center',
+    [(v, c) for v in (True, False) for c in (True, False)])
+def test_output(audio, viterbi, center):
+    pitch = CrepePitchProcessor(
+        model_capacity='tiny', viterbi=viterbi, center=center).process(audio)
+    assert pitch.shape == (140, 2)
+
+    if center:
+        assert pitch.data[:, 0].mean() == pytest.approx(0.440450713829631)
+    else:
+        assert pitch.data[:, 0].mean() == pytest.approx(0.4569764207391177)
+
+    if viterbi:
+        assert np.all(pitch.data[:, 1] > 0)
+    else:
+        assert not np.all(pitch.data[:, 1] > 0)
+
+    if viterbi and center:
+        assert pitch.data[:, 1].mean() == pytest.approx(121.04003190158486)
+    elif viterbi and not center:
+        assert pitch.data[:, 1].mean() == pytest.approx(122.78609105951135)
+    elif not viterbi and center:
+        assert pitch.data[:, 1].mean() == pytest.approx(282.34977980138643)
+    else:
+        assert pitch.data[:, 1].mean() == pytest.approx(265.5468749764539)
+
+
+def test_output_frames(audio, audio_8k):
     ndims = CrepePitchProcessor().ndims
     assert ndims == 2
     assert CrepePitchProcessor(

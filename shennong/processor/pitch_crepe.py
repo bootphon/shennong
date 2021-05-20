@@ -1,3 +1,25 @@
+# The MIT License (MIT)
+
+# Copyright (c) 2018 Jong Wook Kim
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 """Provides classes to extract pitch from an audio (speech) signal
 using the CREPE model (see [Kim2018]_). Integrates the CREPE package
 (see [crepe-repo]_) into shennong API and provides postprocessing
@@ -57,8 +79,8 @@ import functools
 import logging
 import os
 import warnings
+import pkg_resources
 
-import crepe
 import hmmlearn.hmm
 import numpy as np
 import scipy.optimize
@@ -69,8 +91,158 @@ from shennong import Features
 from shennong.processor.base import FeaturesProcessor
 from shennong.processor.pitch_kaldi import KaldiPitchPostProcessor
 
+with warnings.catch_warnings():
+    # tensorflow issues deprecation warnings on import
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    import tensorflow.keras
+
+
+# preptrained models stored as a global variable
+_MODELS = {
+    'tiny': None,
+    'small': None,
+    'medium': None,
+    'large': None,
+    'full': None}
+
+
+def _build_and_load_model(model_capacity):
+    """
+    Build the CNN model and load the weights
+
+    Parameters
+    ----------
+    model_capacity : 'tiny', 'small', 'medium', 'large', or 'full'
+        String specifying the model capacity, which determines the model's
+        capacity multiplier to 4 (tiny), 8 (small), 16 (medium), 24 (large),
+        or 32 (full). 'full' uses the model size specified in the paper,
+        and the others use a reduced number of filters in each convolutional
+        layer, resulting in a smaller model that is faster to evaluate at the
+        cost of slightly reduced pitch estimation accuracy.
+
+    Returns
+    -------
+    model : tensorflow.keras.models.Model
+        The pre-trained keras model loaded in memory
+    """
+    if _MODELS[model_capacity] is None:
+        # locate the model filename shennong/share/crepe/model-*.h5, raise if
+        # it cannot be found
+        directory = pkg_resources.resource_filename(
+            pkg_resources.Requirement.parse('shennong'),
+            'shennong/share/crepe')
+        model_filename = os.path.join(directory, f'model-{model_capacity}.h5')
+        if not os.path.isfile(model_filename):  # pragma: nocover
+            raise RuntimeError(f'file not found: {model_filename}')
+
+        capacity_multiplier = {
+            'tiny': 4,
+            'small': 8,
+            'medium': 16,
+            'large': 24,
+            'full': 32}[model_capacity]
+
+        layers = [1, 2, 3, 4, 5, 6]
+        filters = [n * capacity_multiplier for n in [32, 4, 4, 4, 8, 16]]
+        widths = [512, 64, 64, 64, 64, 64]
+        strides = [(4, 1), (1, 1), (1, 1), (1, 1), (1, 1), (1, 1)]
+
+        inputs = tensorflow.keras.layers.Input(
+            shape=(1024,), name='input', dtype='float32')
+        outputs = tensorflow.keras.layers.Reshape(
+            target_shape=(1024, 1, 1), name='input-reshape')(inputs)
+
+        for l, f, w, s in zip(layers, filters, widths, strides):
+            outputs = tensorflow.keras.layers.Conv2D(
+                f, (w, 1), strides=s, padding='same',
+                activation='relu', name="conv%d" % l)(outputs)
+            outputs = tensorflow.keras.layers.BatchNormalization(
+                name="conv%d-BN" % l)(outputs)
+            outputs = tensorflow.keras.layers.MaxPool2D(
+                pool_size=(2, 1), strides=None, padding='valid',
+                name="conv%d-maxpool" % l)(outputs)
+            outputs = tensorflow.keras.layers.Dropout(
+                0.25, name="conv%d-dropout" % l)(outputs)
+
+        outputs = tensorflow.keras.layers.Permute(
+            (2, 1, 3), name="transpose")(outputs)
+        outputs = tensorflow.keras.layers.Flatten(
+            name="flatten")(outputs)
+        outputs = tensorflow.keras.layers.Dense(
+            360, activation='sigmoid', name="classifier")(outputs)
+
+        model = tensorflow.keras.models.Model(inputs=inputs, outputs=outputs)
+        model.load_weights(model_filename)
+        model.compile('adam', 'binary_crossentropy')
+        _MODELS[model_capacity] = model
+
+    return _MODELS[model_capacity]
+
+
+def _to_local_average_cents(salience, center=None):
+    """Finds the weighted average cents near the argmax bin."""
+    if not hasattr(_to_local_average_cents, 'cents_mapping'):
+        # the bin number-to-cents mapping
+        _to_local_average_cents.mapping = (
+            np.linspace(0, 7180, 360) + 1997.3794084376191)
+
+    if salience.ndim not in (1, 2):  # pragma: nocover
+        raise Exception("label should be either 1d or 2d ndarray")
+
+    if salience.ndim == 1:
+        if center is None:  # pragma: nocover
+            center = int(np.argmax(salience))
+        start = max(0, center - 4)
+        end = min(len(salience), center + 5)
+        salience = salience[start:end]
+        product_sum = np.sum(
+            salience * _to_local_average_cents.mapping[start:end])
+        weight_sum = np.sum(salience)
+        return product_sum / weight_sum
+
+    # salience.ndim == 2
+    return np.array(
+        [_to_local_average_cents(salience[i, :])
+         for i in range(salience.shape[0])])
+
+
+def _to_viterbi_cents(salience):
+    """Find the Viterbi path using a transition prior that induces pitch
+    continuity.
+
+    """
+    # uniform prior on the starting pitch
+    starting = np.ones(360) / 360
+
+    # transition probabilities inducing continuous pitch
+    trans_xx, trans_yy = np.meshgrid(range(360), range(360))
+    transition = np.maximum(12 - abs(trans_xx - trans_yy), 0)
+    transition = transition / np.sum(transition, axis=1)[:, None]
+
+    # emission probability = fixed probability for self, evenly distribute the
+    # others
+    self_emission = 0.1
+    emission = (np.eye(360) * self_emission + np.ones(shape=(360, 360)) *
+                ((1 - self_emission) / 360))
+
+    # fix the model parameters because we are not optimizing the model
+    model = hmmlearn.hmm.MultinomialHMM(360, starting, transition)
+    model.startprob_, model.transmat_, model.emissionprob_ = \
+        starting, transition, emission
+
+    # find the Viterbi path
+    observations = np.argmax(salience, axis=1)
+    path = model.predict(observations.reshape(-1, 1), [len(observations)])
+
+    return np.array(
+        [_to_local_average_cents(salience[i, :], path[i])
+         for i in range(len(observations))])
+
 
 def _nccf_to_pov(x):
+    """From Normalized Cross Correlation Frequency to Probability of Voicing"""
+    # this formula is from the Povey's paper "A pitch extraction algorithm
+    # tuned for automatic speech recognition", ICAASP, 2014.
     y = (
         -5.2 + 5.4 * np.exp(7.5 * (x - 1)) + 4.8 * x - 2 *
         np.exp(-10 * x) + 4.2 * np.exp(20 * (x - 1)))
@@ -141,7 +313,12 @@ class CrepePitchProcessor(FeaturesProcessor):
     def model_capacity(self):
         """String specifying the model capacity to use
 
-        Must be 'tiny', 'small', 'medium', 'large' or 'full'
+        Must be 'tiny', 'small', 'medium', 'large' or 'full'. Determines the
+        model's capacity multiplier to 4 (tiny), 8 (small), 16 (medium), 24
+        (large), or 32 (full). 'full' uses the model size specified in
+        [Kim2018]_, and the others use a reduced number of filters in each
+        convolutional layer, resulting in a smaller model that is faster to
+        evaluate at the cost of slightly reduced pitch estimation accuracy.
 
         """
         return self._model_capacity
@@ -163,7 +340,12 @@ class CrepePitchProcessor(FeaturesProcessor):
 
     @property
     def center(self):
-        """Whether to center the window on the current frame"""
+        """Whether to center the window on the current frame.
+
+        When True, the output frame :math:`t` is centered at `audio[t *
+        hop_length]`. When False, the frame begins at `audio[t * hop_length]`.
+
+        """
         return self._center
 
     @center.setter
@@ -203,6 +385,40 @@ class CrepePitchProcessor(FeaturesProcessor):
             np.arange(nframes) * self.frame_shift,
             np.arange(nframes) * self.frame_shift + self.frame_length)).T
 
+    def _get_activation(self, audio):
+        """Returns the raw activation matrix"""
+        # tensorflow verbosity
+        if self.log.level == logging.DEBUG:  # pragma: nocover
+            os.environ["TF_CPP_MIN_LOG_LEVEL"] = "0"
+            verbose = 2
+        else:
+            os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+            verbose = 0
+
+        model = _build_and_load_model(self.model_capacity)
+        audio = audio.astype(np.float32)
+
+        # pad so that frames are centered around their timestamps (i.e. first
+        # frame is zero centered).
+        if self.center:
+            audio = np.pad(audio, 512, mode='constant', constant_values=0)
+
+        # make 1024-sample frames of the audio with a hop length of
+        # `frame_shift` seconds
+        hop_length = int(16000 * self.frame_shift)
+        n_frames = 1 + int((len(audio) - 1024) / hop_length)
+        frames = np.lib.stride_tricks.as_strided(
+            audio, shape=(1024, n_frames),
+            strides=(audio.itemsize, hop_length * audio.itemsize))
+        frames = frames.transpose()
+
+        # normalize each frame -- this is expected by the model
+        frames -= np.mean(frames, axis=1)[:, np.newaxis]
+        frames /= np.std(frames, axis=1)[:, np.newaxis]
+
+        # run prediction and convert the frequency bin weights to Hz
+        return model.predict(frames, verbose=verbose)
+
     def process(self, audio):
         """Extracts the (POV, pitch) from a given speech ``audio`` using CREPE.
 
@@ -234,27 +450,20 @@ class CrepePitchProcessor(FeaturesProcessor):
             self.log.debug('resampling audio to 16 kHz')
             audio = audio.resample(self.sample_rate)
 
-        # tensorflow verbosity
-        if self.log.level == logging.DEBUG:  # pragma: nocover
-            os.environ["TF_CPP_MIN_LOG_LEVEL"] = "0"
-            verbose = 2
+        # raw activation matrix, shape=(T, 360)
+        activation = self._get_activation(audio.data)
+
+        # confidence is the confidence of voice activity, in [, 1], shape=(T,)
+        confidence = activation.max(axis=1)
+
+        if self.viterbi:
+            cents = _to_viterbi_cents(activation)
         else:
-            os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-            verbose = 0
+            cents = _to_local_average_cents(activation)
 
-        with warnings.catch_warnings():
-            # tensorflow (used by crepe) issues irrelevant warnings, we just
-            # ignore them
-            warnings.simplefilter('ignore')
-
-            _, frequency, confidence, _ = crepe.predict(
-                audio.data,
-                audio.sample_rate,
-                model_capacity=self.model_capacity,
-                viterbi=self.viterbi,
-                center=self.center,
-                step_size=int(self.frame_shift * 1000),
-                verbose=verbose)
+        # frequency is the predicted pitch value in Hz, shape=(T,) and
+        frequency = 10 * 2 ** (cents / 1200)
+        frequency[np.isnan(frequency)] = 0
 
         # number of samples in the resampled signal
         hop_length = np.round(self.sample_rate * self.frame_shift).astype(int)
