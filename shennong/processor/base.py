@@ -54,7 +54,7 @@ class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
         """
 
     def process_all(self, utterances, njobs=None, **kwargs):
-        """Returns features processed from several input `signals`
+        """Returns features processed from several input `utterances`
 
         This function processes the features in parallel jobs.
 
@@ -67,13 +67,13 @@ class FeaturesProcessor(BaseProcessor, metaclass=abc.ABCMeta):
             to the number of CPU cores available on the machine.
         **kwargs: dict, optional
             Extra arguments to be forwarded to the `process` method. Keys must
-            be the same as for `signals`.
+            be the same as for `utterances`.
 
         Returns
         -------
         features: :class:`~shennong.features_collection.FeaturesCollection`
             The computed features on each input signal. The keys of
-            output `features` are the keys of the input `signals`.
+            output `features` are the keys of the input `utterances`.
 
         Raises
         ------

@@ -3,7 +3,7 @@
 Version numbers follow [semantic versioning](https://semver.org).
 
 
-## not yet released
+## shennong-1.0 (not yet released)
 
 ### breaking changes
 
@@ -43,6 +43,8 @@ Version numbers follow [semantic versioning](https://semver.org).
   (anything supported by pydub/ffmpeg).
 
 * Optionnally ignore features properties when saving them.
+
+* New example code in `examples`.
 
 
 ## shennong-0.1.1
