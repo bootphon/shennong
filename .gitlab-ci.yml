@@ -14,25 +14,25 @@ test-linux:
     - python setup.py test
   needs: ["build-linux"]
 
-build-osx:
-  tags:
-   - macos
-  stage: build
-  script:
-   - conda activate shennong
-   - sed '/pykaldi/d' environment.yml > environment.macos.yml
-   - conda env update -n shennong -f environment.macos.yml
-   - rm -f environment.macos.yml
-   - python setup.py install
+# build-osx:
+#   tags:
+#    - macos
+#   stage: build
+#   script:
+#    - conda activate shennong
+#    - sed '/pykaldi/d' environment.yml > environment.macos.yml
+#    - conda env update -n shennong -f environment.macos.yml
+#    - rm -f environment.macos.yml
+#    - python setup.py install
 
-test-osx:
-  tags:
-   - macos
-  stage: test
-  script:
-   - conda activate shennong
-   - python setup.py test
-  needs: ["build-osx"]
+# test-osx:
+#   tags:
+#    - macos
+#   stage: test
+#   script:
+#    - conda activate shennong
+#    - python setup.py test
+#   needs: ["build-osx"]
 
 # documentation is available on https://docs.cognitive-ml.fr/shennong
 documentation:
