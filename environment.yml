@@ -5,20 +5,16 @@ channels:
 dependencies:
   - python>=3.6
   - shennong-pykaldi
-  - cython
-  - flake8
   - ffmpeg
   - h5features>=1.3.2
   - h5py<3.0  # because h5features supports only h5py-2.*
   - hmmlearn>=0.2.0,<0.3.0
-  - ipython
   - joblib
   # shennong-pykaldi is compiled on numpy-1.15, so shennong must stay on the
   # 1.15 version
   - numpy==1.15.*
   - pip
   - pydub
-  - pyparsing
   - pytest>=5.0
   - pytest-cov
   - pytest-runner

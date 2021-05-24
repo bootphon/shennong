@@ -1,23 +1,36 @@
-"""Unsupervised speech recognition toolbox for Python
-==================================================
+"""A Python toolbox for speech features extraction
+===============================================
 
-shennong is a Python module integrating unsupervised learning
-algorithms applied to speech processing and recognition.
-
-See https://docs.cognitive-ml.fr/shennong for a complete documentation.
+Shennong is a Python toolbox for speech features extraction. See
+https://docs.cognitive-ml.fr/shennong for a complete documentation.
 
 """
 
 import datetime
 import textwrap
 
-from shennong.audio import Audio
-from shennong.features import Features
-from shennong.features_collection import FeaturesCollection
-from shennong.utterances import Utterance, Utterances
-
 
 __version__ = '1.0rc0'
+
+
+try:  # pragma: nocover
+    # This variable is injected in the __builtins__ by the build process. In
+    # that case we don't want to import shennong as there are missing
+    # dependencies.
+    __SHENNONG_SETUP__
+except NameError:
+    __SHENNONG_SETUP__ = False
+
+
+if __SHENNONG_SETUP__:  # pragma: nocover
+    import sys
+    sys.stderr.write(
+        'Partial import of shennong during the build process.\n')
+else:
+    from shennong.audio import Audio
+    from shennong.features import Features
+    from shennong.features_collection import FeaturesCollection
+    from shennong.utterances import Utterance, Utterances
 
 
 def url():

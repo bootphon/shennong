@@ -1,15 +1,22 @@
 #!/usr/bin/env python
-"""Setup script for the shennong toolbox package"""
+"""Setup script for the shennong Python package"""
 
+import builtins
 import codecs
 import setuptools
+
+# This is a bit hackish: we are setting a global variable so that the main
+# shennong __init__ can detect if it is being loaded by the setup routine, to
+# avoid attempting to load components that aren't built yet.
+builtins.__SHENNONG_SETUP__ = True
+
 import shennong
 
 
 setuptools.setup(
     # general description
     name='shennong',
-    description='A toolbox for unsupervised speech recognition',
+    description='A toolbox for speech features extraction',
     version=shennong.version(),
 
     # python package dependencies
