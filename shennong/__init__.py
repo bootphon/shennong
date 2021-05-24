@@ -10,7 +10,7 @@ import datetime
 import textwrap
 
 
-__version__ = '1.0rc0'
+__version__ = '1.0'
 
 
 try:  # pragma: nocover

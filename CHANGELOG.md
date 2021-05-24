@@ -3,7 +3,7 @@
 Version numbers follow [semantic versioning](https://semver.org).
 
 
-## shennong-1.0 (not yet released)
+## shennong-1.0
 
 ### breaking changes
 

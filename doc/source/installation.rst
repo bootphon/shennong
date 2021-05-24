@@ -25,7 +25,7 @@ This is the recommended installation procedure, compatible with python
 * Install ``shennong`` from its `conda package
   <https://anaconda.org/coml/shennong>`_::
 
-    conda install -c coml shennong
+    conda install -c coml -c conda-forge shennong
 
 
 Installation from sources
@@ -72,7 +72,7 @@ Installation from sources
 Installation on MacOS
 ---------------------
 
-As `pykaldi <https://github.com/pykaldi/pykaldi>`_ does not provide a
+As `pykaldi <https://github.com/bootphon/shennong-pykaldi>`_ does not provide a
 conda image for macos, you must install from sources.
 
 * Install `conda <https://conda.io/miniconda.html>`_ and `brew
@@ -93,8 +93,8 @@ conda image for macos, you must install from sources.
     conda activate shennong
 
     # install the shennong fork of pykaldi
-    # (see https://github.com/mxmpl/pykaldi#from-source)
-    git clone https://github.com/mxmpl/pykaldi.git
+    # (see https://github.com/bootphon/shennong-pykaldi#from-source)
+    git clone https://github.com/bootphon/shennong-pykaldi.git ./pykaldi
     cd pykaldi
     brew install automake cmake git graphviz libtool pkg-config wget
     pip install --upgrade pip setuptools numpy pyparsing ninja
@@ -115,9 +115,8 @@ conda image for macos, you must install from sources.
 Installation on Windows
 -----------------------
 
-* As `pykaldi <https://github.com/pykaldi/pykaldi>`_ is **not yet
-  officially supported on Windows** we do not provide installation
-  instructions.
+* As `pykaldi <https://github.com/bootphon/shennong-pykaldi>`_ is **not
+  supported on Windows** we do not provide installation instructions.
 
 * Windows users can instead install shennong in a `Windows subsystem
   for Linux <https://docs.microsoft.com/en-us/windows/wsl/about>`_ or

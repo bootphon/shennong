@@ -20,7 +20,7 @@ most of the algorithms while providing simple to use **Python API** and
   [here](https://docs.cognitive-ml.fr/shennong/installation.html). On
   Linux, simply have a:
 
-        conda install -c coml shennong
+        conda install -c coml -c conda-forge shennong
 
 * Implementented models include filterbanks, MFCC, PLP, bottleneck, pitch,
   delta, CMVN, VAD, VTLN. See the complete list of available features
