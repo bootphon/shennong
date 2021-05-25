@@ -11,7 +11,7 @@ test-linux:
   script:
     - module load anaconda/3
     - conda activate shennong-ci
-    - python setup.py test
+    - pytest -v
   needs: ["build-linux"]
 
 # build-osx:
@@ -61,7 +61,7 @@ deploy-oberon:
     - conda env update -n shennong -f environment.yml
     - conda activate shennong
     - python setup.py install
-    - python setup.py test
+    - pytest -v
   needs: ["test-linux"]
 
 # shennong package available on conda with "conda install -c coml

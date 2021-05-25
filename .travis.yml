@@ -46,7 +46,7 @@ install:
   - make install
 
 script:
-  - python setup.py test
+  - pytest -v
 
 after_success:
   - codecov
