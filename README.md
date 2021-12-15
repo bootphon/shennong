@@ -16,6 +16,8 @@ most of the algorithms while providing simple to use **Python API** and
 
 * See the complete documentation at https://docs.cognitive-ml.fr/shennong.
 
+* Attached paper available at https://arxiv.org/pdf/2112.05555.pdf.
+
 * See the detailed installation procedure
   [here](https://docs.cognitive-ml.fr/shennong/installation.html). On
   Linux, simply have a:

@@ -16,6 +16,21 @@ Shennong's documentation
   <https://github.com/pykaldi/pykaldi>`_ Python adapter.
 
 
+.. note::
+
+   Please use the `following paper <https://arxiv.org/pdf/2112.05555.pdf>`_ to
+   cite ``shennong``::
+
+     @misc{bernard2021shennong,
+      title={Shennong: a Python toolbox for audio speech features extraction},
+      author={Mathieu Bernard and Maxime Poli and Julien Karadayi and Emmanuel Dupoux},
+      year={2021},
+      eprint={2112.05555},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL}
+     }
+
+
 .. toctree::
    :maxdepth: 3
    :caption: Contents
