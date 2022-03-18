@@ -304,7 +304,7 @@ def test_compare_kaldi(wav_file):
     assert len(a1) == len(a2.flatten()) == 22713
     assert a1.dtype == np.int16 and a2.dtype == np.float32
     assert a1.shape == (22713,) and a2.shape == (1, 22713)
-    assert pytest.approx(a1, a2)
+    assert a1 == pytest.approx(a2.reshape(a1.shape))
 
 
 def test_segment(audio):
