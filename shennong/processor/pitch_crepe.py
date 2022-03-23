@@ -161,8 +161,12 @@ def _build_and_load_model(model_capacity):
             outputs = tensorflow.keras.layers.MaxPool2D(
                 pool_size=(2, 1), strides=None, padding='valid',
                 name="conv%d-maxpool" % l)(outputs)
-            outputs = tensorflow.keras.layers.Dropout(
-                0.25, name="conv%d-dropout" % l)(outputs)
+            # # NOTE dropout is used only during training, not inference, and
+            # # caused a warning (see
+            # # https://github.com/bootphon/shennong/issues/7) so this layer is
+            # # commented out.
+            # outputs = tensorflow.keras.layers.Dropout(
+            #     rate=0.25, name="conv%d-dropout" % l)(outputs)
 
         outputs = tensorflow.keras.layers.Permute(
             (2, 1, 3), name="transpose")(outputs)
@@ -477,7 +481,7 @@ class CrepePitchProcessor(FeaturesProcessor):
             data = scipy.signal.resample(
                 np.array([confidence, frequency]).T, nsamples)
 
-        # hack needed beacause resample confidence
+        # hack needed because resample confidence
         data[data[:, 0] < 1e-2, 0] = 0
         data[data[:, 0] > 1, 0] = 1
 

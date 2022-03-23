@@ -152,22 +152,22 @@ def test_kaldi_audio(wav_file, audio, dtype):
         with SequentialWaveReader('scp,t:' + tfile.name) as reader:
             for key, wave in reader:
                 audio_kaldi = Audio(
-                    wave.data().numpy().reshape(audio.data.shape),
-                    audio.sample_rate, validate=False)
+                    wave.data().numpy().reshape(audio.data.shape) / 2**15,
+                    audio.sample_rate, validate=True)
+
+    assert audio_kaldi.dtype == np.float32
+    assert audio_kaldi.is_valid()
 
     audio = audio.astype(dtype)
     assert audio.duration == audio_kaldi.duration
     assert audio.dtype == dtype
     assert audio.is_valid()
-    assert audio_kaldi.dtype == np.float32
-    with pytest.warns(UserWarning):
-        # not in [-1, 1] but [-2**15, 2**15-1]
-        assert not audio_kaldi.is_valid()
 
-    mfcc = MfccProcessor().process(audio)
-    mfcc_kaldi = MfccProcessor().process(audio_kaldi)
+    # no dither to compare the 2 resulting arrays
+    mfcc = MfccProcessor(dither=0).process(audio)
+    mfcc_kaldi = MfccProcessor(dither=0).process(audio_kaldi)
     assert mfcc.shape == mfcc_kaldi.shape
     assert np.array_equal(mfcc.times, mfcc_kaldi.times)
     assert mfcc.properties == mfcc_kaldi.properties
     assert mfcc.dtype == mfcc_kaldi.dtype
-    assert pytest.approx(mfcc.data, mfcc_kaldi.data)
+    assert mfcc.data == pytest.approx(mfcc_kaldi.data)
