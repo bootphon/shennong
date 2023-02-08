@@ -18,17 +18,18 @@ Shennong's documentation
 
 .. note::
 
-   Please use the `following paper <https://arxiv.org/pdf/2112.05555.pdf>`_ to
+   Please use the `following paper <https://doi.org/10.3758/s13428-022-02029-6>`_,
+   which is also available on `arXiv <https://arxiv.org/pdf/2112.05555.pdf>`_, to
    cite ``shennong``::
 
-     @misc{bernard2021shennong,
-      title={Shennong: a Python toolbox for audio speech features extraction},
-      author={Mathieu Bernard and Maxime Poli and Julien Karadayi and Emmanuel Dupoux},
-      year={2021},
-      eprint={2112.05555},
-      archivePrefix={arXiv},
-      primaryClass={cs.CL}
-     }
+    @article{bernard2023shennong,
+      title = {Shennong: {{A Python}} Toolbox for Audio Speech Features Extraction},
+      author = {Bernard, Mathieu and Poli, Maxime and Karadayi, Julien and Dupoux, Emmanuel},
+      year = {2023},
+      journal = {Behavior Research Methods},
+      url = {https://doi.org/10.3758/s13428-022-02029-6},
+      doi = {10.3758/s13428-022-02029-6},
+    }
 
 
 .. toctree::
