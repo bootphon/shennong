@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: If you use this software, please cite it as below.
+title: Shennong
+url: https://github.com/bootphon/shennong
+authors:
+- family-names: Bernard
+  given-names: Mathieu
+- family-names: Poli
+  given-names: Maxime
+- family-names: Karadayi
+  given-names: Julien
+- family-names: Dupoux
+  given-names: Emmanuel
+preferred-citation:
+  type: article
+  title: "Shennong: A Python toolbox for audio speech features extraction"
+  url: https://doi.org/10.3758/s13428-022-02029-6
+  authors:
+  - family-names: Bernard
+    given-names: Mathieu
+  - family-names: Poli
+    given-names: Maxime
+  - family-names: Karadayi
+    given-names: Julien
+  - family-names: Dupoux
+    given-names: Emmanuel
+  doi: "10.3758/s13428-022-02029-6"
+  journal: "Behavior Research Methods"
+  year: 2023
+  month: 2
