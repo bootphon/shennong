@@ -16,8 +16,6 @@ most of the algorithms while providing simple to use **Python API** and
 
 * See the complete documentation at https://docs.cognitive-ml.fr/shennong.
 
-* Attached paper available at https://arxiv.org/pdf/2112.05555.pdf.
-
 * See the detailed installation procedure
   [here](https://docs.cognitive-ml.fr/shennong/installation.html). On
   Linux, simply have a:
@@ -27,3 +25,16 @@ most of the algorithms while providing simple to use **Python API** and
 * Implementented models include filterbanks, MFCC, PLP, bottleneck, pitch,
   delta, CMVN, VAD, VTLN. See the complete list of available features
   [here](https://docs.cognitive-ml.fr/shennong/intro_features.html).
+
+* To reference Shennong in your own work, please cite the following [Behavior Research Methods paper](https://doi.org/10.3758/s13428-022-02029-6) which is also available on [arXiv](https://arxiv.org/pdf/2112.05555.pdf):
+
+```bibtex
+@article{bernard2023shennong,
+  title = {Shennong: {{A Python}} Toolbox for Audio Speech Features Extraction},
+  author = {Bernard, Mathieu and Poli, Maxime and Karadayi, Julien and Dupoux, Emmanuel},
+  year = {2023},
+  journal = {Behavior Research Methods},
+  url = {https://doi.org/10.3758/s13428-022-02029-6},
+  doi = {10.3758/s13428-022-02029-6},
+}
+```
