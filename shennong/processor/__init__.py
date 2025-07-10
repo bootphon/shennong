@@ -3,6 +3,7 @@
 from shennong.processor.bottleneck import BottleneckProcessor
 from shennong.processor.energy import EnergyProcessor
 from shennong.processor.filterbank import FilterbankProcessor
+from shennong.processor.hubert import HubertProcessor
 from shennong.processor.mfcc import MfccProcessor
 from shennong.processor.onehot import FramedOneHotProcessor, OneHotProcessor
 from shennong.processor.pitch_crepe import (
